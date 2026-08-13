@@ -69,7 +69,7 @@ struct HistoryStatsSettingsView: View {
     /// Whether the stored Twitch token expired. Seeded from the same `UserDefaults`
     /// key the Twitch view model writes, so the gate flips to the orange "reconnect"
     /// warning the moment the sign-in ages out.
-    @State private var twitchReauthNeeded = UserDefaults.standard.bool(
+    @State private var twitchReauthNeeded = DefaultsStore.store.bool(
         forKey: AppConstants.UserDefaults.twitchReauthNeeded)
 
     /// Which leaderboard the "Top" card is showing. Lets one card surface
@@ -560,7 +560,7 @@ struct HistoryStatsSettingsView: View {
 
     /// Re-reads the reauth flag the Twitch view model persists.
     private func refreshReauthState() {
-        twitchReauthNeeded = UserDefaults.standard.bool(
+        twitchReauthNeeded = DefaultsStore.store.bool(
             forKey: AppConstants.UserDefaults.twitchReauthNeeded)
     }
 

@@ -24,13 +24,13 @@ final class InfoCommandTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        UserDefaults.standard.removeObject(forKey: enabledKey)
-        UserDefaults.standard.removeObject(forKey: aliasesKey)
+        DefaultsStore.store.removeObject(forKey: enabledKey)
+        DefaultsStore.store.removeObject(forKey: aliasesKey)
     }
 
     override func tearDown() {
-        UserDefaults.standard.removeObject(forKey: enabledKey)
-        UserDefaults.standard.removeObject(forKey: aliasesKey)
+        DefaultsStore.store.removeObject(forKey: enabledKey)
+        DefaultsStore.store.removeObject(forKey: aliasesKey)
         super.tearDown()
     }
 
@@ -48,7 +48,7 @@ final class InfoCommandTests: XCTestCase {
         )
     }
 
-    private func enable() { UserDefaults.standard.set(true, forKey: enabledKey) }
+    private func enable() { DefaultsStore.store.set(true, forKey: enabledKey) }
 
     // MARK: - Enable gating
 
@@ -57,7 +57,7 @@ final class InfoCommandTests: XCTestCase {
     }
 
     func testExplicitlyDisabled_returnsNil() {
-        UserDefaults.standard.set(false, forKey: enabledKey)
+        DefaultsStore.store.set(false, forKey: enabledKey)
         XCTAssertNil(makeCommand().execute(message: "!wolfwave"))
     }
 
@@ -94,7 +94,7 @@ final class InfoCommandTests: XCTestCase {
 
     func testCustomAliasMatches() {
         enable()
-        UserDefaults.standard.set("ww, app", forKey: aliasesKey)
+        DefaultsStore.store.set("ww, app", forKey: aliasesKey)
         let cmd = makeCommand()
         XCTAssertNotNil(cmd.execute(message: "!ww"))
         XCTAssertNotNil(cmd.execute(message: "!app"))
@@ -102,7 +102,7 @@ final class InfoCommandTests: XCTestCase {
 
     func testAliasStoredWithoutBangIsNormalized() {
         enable()
-        UserDefaults.standard.set("ww", forKey: aliasesKey)
+        DefaultsStore.store.set("ww", forKey: aliasesKey)
         XCTAssertNotNil(makeCommand().execute(message: "!ww"))
     }
 

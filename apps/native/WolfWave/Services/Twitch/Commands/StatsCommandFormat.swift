@@ -69,7 +69,7 @@ nonisolated enum StatsWindow: String, CaseIterable, Identifiable, Sendable {
     ///
     /// - Parameter defaults: Store to read from (injectable for tests).
     /// - Returns: The stored window, or ``default`` when unset or unrecognized.
-    static func current(_ defaults: Foundation.UserDefaults = .standard) -> StatsWindow {
+    static func current(_ defaults: Foundation.UserDefaults = DefaultsStore.store) -> StatsWindow {
         guard
             let raw = defaults.string(forKey: AppConstants.UserDefaults.statsCommandWindow),
             let window = StatsWindow(rawValue: raw)
@@ -133,7 +133,7 @@ nonisolated enum StatsPart: String, CaseIterable, Identifiable, Sendable {
     ///
     /// - Parameter defaults: Store to read from (injectable for tests).
     /// - Returns: The resolved facts in canonical order (never empty).
-    static func current(_ defaults: Foundation.UserDefaults = .standard) -> [StatsPart] {
+    static func current(_ defaults: Foundation.UserDefaults = DefaultsStore.store) -> [StatsPart] {
         guard let raw = defaults.string(forKey: AppConstants.UserDefaults.statsCommandParts) else {
             return Self.defaults
         }

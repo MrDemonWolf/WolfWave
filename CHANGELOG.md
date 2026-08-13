@@ -79,6 +79,7 @@ All notable changes to this project will be documented in this file.
 
 ### Developer
 
+- Unit tests can no longer edit the dev app's real settings. The test bundle is hosted by `WolfWave Dev.app`, so `UserDefaults.standard` inside a test process was literally that app's live preference domain: tests wrote settings into it, and `WolfWaveTestCase.resetAllSettings()` deleted every known key out of it. One such write (`voteSkipWindowSeconds = 1`, not a valid picker tag) crashed the Song Requests pane inside SwiftUI on the next launch. Every non-`@AppStorage` read and write now goes through a new `DefaultsStore.store`, which resolves to a dedicated suite under test and to `.standard` in a normal launch, mirroring `KeychainService.backend`. Pinned by `DefaultsStoreTests` and a blocking `user_defaults_standard` SwiftLint rule.
 - Docs restructure: merged the Features/Usage and Getting Started/Development pages, added Settings and Stream Deck Control API pages, trimmed the comparison page, and refreshed the legal pages.
 - Debug builds can treat every chatter, or selected Twitch logins, as normal viewers for permission and cooldown testing. Release builds omit the simulator.
 

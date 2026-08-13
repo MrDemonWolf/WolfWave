@@ -451,7 +451,7 @@ final class ListeningHistoryService {
         let tallyStore = self.tallyStore
         let clearMarkerStore = self.clearMarkerStore
         let loadReadBarrier = self.loadReadBarrier
-        let retentionDays = Foundation.UserDefaults.standard.integer(
+        let retentionDays = DefaultsStore.store.integer(
             forKey: AppConstants.UserDefaults.historyRetentionDays
         )
         let cap = AppConstants.History.maxRetainedRecords
@@ -717,7 +717,7 @@ final class ListeningHistoryService {
     /// lifetime sidecar has no per-play dates, so merging it would resurrect
     /// plays outside the user's chosen retention window.
     private var usesLifetimeTally: Bool {
-        Foundation.UserDefaults.standard.integer(
+        DefaultsStore.store.integer(
             forKey: AppConstants.UserDefaults.historyRetentionDays) <= 0
     }
 }

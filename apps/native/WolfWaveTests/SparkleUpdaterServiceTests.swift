@@ -97,18 +97,18 @@ final class SparkleUpdaterServiceTests: XCTestCase {
     // MARK: - Channel Persistence Tests
 
     func testChannelDefaultsToStable() {
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.updateChannel)
+        DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.updateChannel)
         let service = SparkleUpdaterService()
         XCTAssertEqual(service.channel, .stable)
     }
 
     func testChannelPersistsRawValue() {
         let service = SparkleUpdaterService()
-        defer { UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.updateChannel) }
+        defer { DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.updateChannel) }
 
         service.channel = .nightly
         XCTAssertEqual(
-            UserDefaults.standard.string(forKey: AppConstants.UserDefaults.updateChannel),
+            DefaultsStore.store.string(forKey: AppConstants.UserDefaults.updateChannel),
             UpdateChannel.nightly.rawValue
         )
         XCTAssertEqual(service.channel, .nightly)

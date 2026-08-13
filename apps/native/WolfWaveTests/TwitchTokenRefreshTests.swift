@@ -47,7 +47,7 @@ final class TwitchTokenRefreshTests: XCTestCase {
     }
 
     nonisolated private static func resetRedemptionDefaults() {
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         [
             AppConstants.UserDefaults.songRequestEnabled,
             AppConstants.UserDefaults.songRequestChannelPointsEnabled,
@@ -72,11 +72,11 @@ final class TwitchTokenRefreshTests: XCTestCase {
     }
 
     private func enableManagedReward(rewardID: String) {
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        DefaultsStore.store.set(
             true,
             forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled)
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             false,
             forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
         storeManagedRewardIdentity(rewardID: rewardID)
@@ -348,7 +348,7 @@ final class TwitchTokenRefreshTests: XCTestCase {
         XCTAssertTrue(outbox.pendingItems().isEmpty)
         XCTAssertEqual(
             RedemptionStatus(
-                rawValue: UserDefaults.standard.string(
+                rawValue: DefaultsStore.store.string(
                     forKey: AppConstants.UserDefaults.songRequestRedemptionStatus) ?? ""),
             .ok)
         let completed = operations.value
@@ -443,7 +443,7 @@ final class TwitchTokenRefreshTests: XCTestCase {
         XCTAssertTrue(operations.value.contains("pause"))
         XCTAssertEqual(
             RedemptionStatus(
-                rawValue: UserDefaults.standard.string(
+                rawValue: DefaultsStore.store.string(
                     forKey: AppConstants.UserDefaults.songRequestRedemptionStatus) ?? ""),
             .storageUnavailable)
     }
@@ -507,7 +507,7 @@ final class TwitchTokenRefreshTests: XCTestCase {
         XCTAssertFalse(outbox.intakeStorageIsUnavailable())
         XCTAssertEqual(
             RedemptionStatus(
-                rawValue: UserDefaults.standard.string(
+                rawValue: DefaultsStore.store.string(
                     forKey: AppConstants.UserDefaults.songRequestRedemptionStatus) ?? ""),
             .subscribeFailed)
     }
@@ -582,7 +582,7 @@ final class TwitchTokenRefreshTests: XCTestCase {
         await service.subscribeToRedemptionsIfEnabled()
 
         XCTAssertEqual(
-            UserDefaults.standard.string(
+            DefaultsStore.store.string(
                 forKey: AppConstants.UserDefaults.songRequestChannelPointsRewardID),
             "fresh-reward")
         XCTAssertTrue(outbox.pendingItems().isEmpty)
@@ -795,7 +795,7 @@ final class TwitchTokenRefreshTests: XCTestCase {
         XCTAssertFalse(cleared)
         XCTAssertEqual(KeychainService.loadTwitchCredentialGrant(), grant)
         XCTAssertEqual(
-            UserDefaults.standard.string(
+            DefaultsStore.store.string(
                 forKey: AppConstants.UserDefaults.songRequestChannelPointsRewardID),
             "reward")
         XCTAssertEqual(restarts.value, 1)
@@ -882,7 +882,7 @@ final class TwitchTokenRefreshTests: XCTestCase {
         XCTAssertTrue(cleared)
         XCTAssertNil(KeychainService.loadTwitchToken())
         XCTAssertNil(
-            UserDefaults.standard.string(
+            DefaultsStore.store.string(
                 forKey: AppConstants.UserDefaults.songRequestChannelPointsRewardID))
     }
 
@@ -1040,7 +1040,7 @@ final class TwitchTokenRefreshTests: XCTestCase {
             operations.value.firstIndex(of: "repair-unpause"))
         XCTAssertLessThan(subscribe, unpause)
 
-        UserDefaults.standard.removeObject(
+        DefaultsStore.store.removeObject(
             forKey: AppConstants.UserDefaults.songRequestChannelPointsRewardID)
         await service.leaveChannel()
     }

@@ -29,7 +29,7 @@ struct SongRequestSettingsView: View {
     @State private var isTwitchConnected = false
     /// Mirrors the Twitch pane's reauth flag so this pane can surface the same
     /// "sign-in expired" warning instead of the calmer "connect" info note.
-    @State private var twitchReauthNeeded = UserDefaults.standard.bool(
+    @State private var twitchReauthNeeded = DefaultsStore.store.bool(
         forKey: AppConstants.UserDefaults.twitchReauthNeeded)
 
     /// Drives the guided setup sheet. `setupStartStep` lets the broken-playlist
@@ -131,7 +131,7 @@ struct SongRequestSettingsView: View {
     /// model writes, so the notice flips to the warning style the moment the
     /// token expires (or back once it's renewed).
     private func refreshReauthState() {
-        twitchReauthNeeded = UserDefaults.standard.bool(
+        twitchReauthNeeded = DefaultsStore.store.bool(
             forKey: AppConstants.UserDefaults.twitchReauthNeeded)
     }
 

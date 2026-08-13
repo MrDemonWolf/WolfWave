@@ -165,7 +165,7 @@ extension TwitchChatService {
             // the user has actually enabled Polls mode, so existing users are
             // not forced to re-authorize unless they opt in.
             var effectiveScopes = requiredScopes
-            let defaults = UserDefaults.standard
+            let defaults = DefaultsStore.store
             if defaults.bool(forKey: AppConstants.UserDefaults.voteSkipUsePolls),
                !effectiveScopes.contains(AppConstants.Twitch.pollsScope) {
                 effectiveScopes.append(AppConstants.Twitch.pollsScope)

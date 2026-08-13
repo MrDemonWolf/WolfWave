@@ -15,7 +15,7 @@ extension TwitchChatService {
     /// with real chat messages. Never compiled into release builds.
     static func shouldTreatAsViewer(
         event: [String: Any],
-        defaults: UserDefaults = .standard
+        defaults: UserDefaults = DefaultsStore.store
     ) -> Bool {
         if defaults.bool(forKey: AppConstants.UserDefaults.debugTreatAllChattersAsViewers) {
             return true
@@ -759,7 +759,7 @@ extension TwitchChatService {
     ) async {
         guard receiveContextIsCurrent(receiveContext) else { return }
         guard FeatureFlags.voteSkipEnabled,
-              UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.voteSkipUsePolls) else { return }
+              DefaultsStore.store.bool(forKey: AppConstants.UserDefaults.voteSkipUsePolls) else { return }
 
         guard let sessionID,
               let broadcasterID,

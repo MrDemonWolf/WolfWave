@@ -40,7 +40,7 @@ final class SongRequestPriorityTests: WolfWaveTestCase {
     }
 
     func testModeReadsPreference() {
-        UserDefaults.standard.set(SongRequestPriorityMode.queueJump.rawValue,
+        DefaultsStore.store.set(SongRequestPriorityMode.queueJump.rawValue,
                                   forKey: AppConstants.UserDefaults.songRequestPriorityMode)
         XCTAssertEqual(SongRequestPriority.mode(), .queueJump)
     }
@@ -73,13 +73,13 @@ final class SongRequestPriorityTests: WolfWaveTestCase {
     // MARK: - Command cooldown bypass
 
     func testCommandBypassesCooldownForSubWhenEnabled() {
-        UserDefaults.standard.set(SongRequestPriorityMode.cooldownSkip.rawValue,
+        DefaultsStore.store.set(SongRequestPriorityMode.cooldownSkip.rawValue,
                                   forKey: AppConstants.UserDefaults.songRequestPriorityMode)
         XCTAssertTrue(SongRequestCommand().bypassesCooldown(context: context(sub: true)))
     }
 
     func testCommandDoesNotBypassForPlainViewer() {
-        UserDefaults.standard.set(SongRequestPriorityMode.queueJump.rawValue,
+        DefaultsStore.store.set(SongRequestPriorityMode.queueJump.rawValue,
                                   forKey: AppConstants.UserDefaults.songRequestPriorityMode)
         XCTAssertFalse(SongRequestCommand().bypassesCooldown(context: context()))
     }
@@ -89,7 +89,7 @@ final class SongRequestPriorityTests: WolfWaveTestCase {
     }
 
     func testCommandDoesNotBypassWithoutContext() {
-        UserDefaults.standard.set(SongRequestPriorityMode.queueJump.rawValue,
+        DefaultsStore.store.set(SongRequestPriorityMode.queueJump.rawValue,
                                   forKey: AppConstants.UserDefaults.songRequestPriorityMode)
         XCTAssertFalse(SongRequestCommand().bypassesCooldown(context: nil))
     }

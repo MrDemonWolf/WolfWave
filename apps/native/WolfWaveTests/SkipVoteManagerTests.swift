@@ -157,11 +157,11 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     override func setUp() {
         super.setUp()
-        keys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
+        keys.forEach { DefaultsStore.store.removeObject(forKey: $0) }
     }
 
     override func tearDown() {
-        keys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
+        keys.forEach { DefaultsStore.store.removeObject(forKey: $0) }
         super.tearDown()
     }
 
@@ -185,7 +185,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
     }
 
     private func enableFeature(minVotes: Int = 3, cooldown: Double = 0, window: Int = 60) {
-        let d = UserDefaults.standard
+        let d = DefaultsStore.store
         d.set(true, forKey: AppConstants.UserDefaults.voteSkipEnabled)
         d.set(minVotes, forKey: AppConstants.UserDefaults.voteSkipMinVotes)
         d.set(cooldown, forKey: AppConstants.UserDefaults.voteSkipSessionCooldown)
@@ -286,7 +286,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testSubscriberOnlyRejectsNonSubscriber() async {
         enableFeature(minVotes: 3)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipSubscriberOnly)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipSubscriberOnly)
         let manager = SkipVoteManager()
         let outcome = await manager.recordVote(context: context(userID: "1", isSubscriber: false))
         XCTAssertEqual(outcome, .subscriberOnly)
@@ -294,7 +294,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testSubscriberOnlyAllowsSubscriber() async {
         enableFeature(minVotes: 3)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipSubscriberOnly)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipSubscriberOnly)
         let manager = SkipVoteManager()
         let outcome = await manager.recordVote(context: context(userID: "1", isSubscriber: true))
         XCTAssertEqual(outcome, .started(count: 1, needed: 3))
@@ -302,7 +302,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testSubscriberOnlyAllowsModerator() async {
         enableFeature(minVotes: 3)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipSubscriberOnly)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipSubscriberOnly)
         let manager = SkipVoteManager()
         let outcome = await manager.recordVote(context: context(userID: "1", isModerator: true))
         XCTAssertEqual(outcome, .started(count: 1, needed: 3))
@@ -336,7 +336,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         // The cooldown key is user-writable (exportable backup, `defaults write`).
         // An out-of-range value flows into Int(ceil(...)) on the next vote and
         // would trap unclamped. The accessor must clamp to 0...3600.
-        UserDefaults.standard.set(1e300, forKey: AppConstants.UserDefaults.voteSkipSessionCooldown)
+        DefaultsStore.store.set(1e300, forKey: AppConstants.UserDefaults.voteSkipSessionCooldown)
         let manager = SkipVoteManager()
         XCTAssertEqual(manager.sessionCooldown, 3600, accuracy: 0.001)
 
@@ -448,7 +448,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testTrackChangeLeavesActivePollAlone() async {
         enableFeature(minVotes: 3)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
         await manager.configure(
             capturePlaybackTarget: { PlaybackTarget(trackKey: "target\tartist", revision: 0) },
@@ -523,7 +523,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testTrackChangeDuringPollTargetCaptureDoesNotCreatePoll() async {
         enableFeature(minVotes: 3)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
         let gate = PlaybackTargetCaptureGate()
         let createCalls = ThreadSafeBox(0)
@@ -557,7 +557,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testResetDuringPollTargetCaptureDoesNotCreatePoll() async {
         enableFeature(minVotes: 3)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
         let gate = PlaybackTargetCaptureGate()
         let createCalls = ThreadSafeBox(0)
@@ -591,7 +591,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testConcurrentModeratorVotesCreateOnlyOnePoll() async {
         enableFeature(minVotes: 3)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
         let gate = PlaybackTargetCaptureGate()
         let createCalls = ThreadSafeBox(0)
@@ -643,7 +643,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
             await gate.startedCount() == 1
         }
         XCTAssertTrue(reachedCapture)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         await gate.release()
 
         let outcome = await vote.value
@@ -654,7 +654,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testPollModeToggleDuringTargetCaptureDoesNotCreatePoll() async {
         enableFeature(minVotes: 3)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
         let gate = PlaybackTargetCaptureGate()
         let createCalls = ThreadSafeBox(0)
@@ -676,7 +676,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
             await gate.startedCount() == 1
         }
         XCTAssertTrue(reachedCapture)
-        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(false, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         await gate.release()
 
         let outcome = await vote.value
@@ -688,7 +688,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testActivePollBlocksChatTallyAfterPollModeIsDisabled() async {
         enableFeature(minVotes: 3)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
         let createCalls = ThreadSafeBox(0)
         await manager.configure(
@@ -704,7 +704,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         )
         _ = await manager.recordVote(
             context: context(userID: "starter", isModerator: true))
-        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(false, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
 
         let outcome = await manager.recordVote(context: context(userID: "viewer"))
 
@@ -716,7 +716,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testPollEndDrainsWithoutSkippingAfterFeatureIsDisabled() async {
         enableFeature(minVotes: 1)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
         let skipped = ThreadSafeBox(false)
         await manager.configure(
@@ -732,7 +732,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         )
         _ = await manager.recordVote(
             context: context(userID: "starter", isModerator: true))
-        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.voteSkipEnabled)
+        DefaultsStore.store.set(false, forKey: AppConstants.UserDefaults.voteSkipEnabled)
 
         await manager.handlePollEnded(
             pollID: "disabled-result", skipVotes: 10, keepVotes: 0)
@@ -760,7 +760,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
             await gate.startedCount() == 1
         }
         XCTAssertTrue(reachedCapture)
-        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.voteSkipEnabled)
+        DefaultsStore.store.set(false, forKey: AppConstants.UserDefaults.voteSkipEnabled)
         await gate.release()
 
         let outcome = await vote.value
@@ -771,7 +771,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testFeatureDisableDuringPollTargetCaptureDoesNotCreatePoll() async {
         enableFeature(minVotes: 3)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
         let gate = PlaybackTargetCaptureGate()
         let createCalls = ThreadSafeBox(0)
@@ -793,7 +793,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
             await gate.startedCount() == 1
         }
         XCTAssertTrue(reachedCapture)
-        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.voteSkipEnabled)
+        DefaultsStore.store.set(false, forKey: AppConstants.UserDefaults.voteSkipEnabled)
         await gate.release()
 
         let outcome = await vote.value
@@ -807,7 +807,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testPollsModeRejectsNonModerator() async {
         enableFeature(minVotes: 3)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
         let outcome = await manager.recordVote(context: context(userID: "1"))
         XCTAssertEqual(outcome, .pollNotAllowed)
@@ -815,7 +815,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testPollsModeStartsPollForModerator() async {
         enableFeature(minVotes: 3)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
         await manager.configure(
             capturePlaybackTarget: { PlaybackTarget(trackKey: "target\tartist", revision: 0) },
@@ -829,7 +829,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testPollsModeDoesNotCallTwitchWithoutVerifiedPlaybackTarget() async {
         enableFeature(minVotes: 3)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
         let createCalls = ThreadSafeBox(0)
         await manager.configure(
@@ -850,7 +850,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testPollsModeFallsBackToChatTallyOnFailure() async {
         enableFeature(minVotes: 3)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
         let chatMessages = ThreadSafeBox<[String]>([])
         let createCalls = ThreadSafeBox(0)
@@ -875,7 +875,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testExistingNativePollLatchesWithoutOpeningChatFallback() async {
         enableFeature(minVotes: 3)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager(pollTimeoutDuration: .seconds(30))
         let chatMessages = ThreadSafeBox<[String]>([])
         await manager.configure(
@@ -897,7 +897,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testIndeterminatePollCreationLatchesUntilTimeoutAndBlocksFallback() async {
         enableFeature(minVotes: 3)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager(pollTimeoutDuration: .milliseconds(50))
         let createCalls = ThreadSafeBox(0)
         let chatMessages = ThreadSafeBox<[String]>([])
@@ -942,7 +942,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testPollEndedSkipsWhenSkipWins() async {
         enableFeature(minVotes: 3)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
         let skipped = ThreadSafeBox(false)
         await manager.configure(
@@ -958,7 +958,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testPollPassUsesOpeningTargetAndDoesNotClaimSuccessWhenMutationIsStale() async {
         enableFeature(minVotes: 1)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
         let openingTarget = PlaybackTarget(trackKey: "Opening\tArtist", revision: 7)
         let suppliedTarget = ThreadSafeBox(openingTarget)
@@ -1027,7 +1027,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testPollEndedDoesNotSkipBelowMinimum() async {
         enableFeature(minVotes: 10)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
         let skipped = ThreadSafeBox(false)
         await manager.configure(
@@ -1043,7 +1043,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testPollEndedDoesNotSkipWhenKeepWins() async {
         enableFeature(minVotes: 1)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
         let skipped = ThreadSafeBox(false)
         await manager.configure(
@@ -1059,7 +1059,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testWrongPollIDDoesNotClearOrApplyActivePoll() async {
         enableFeature(minVotes: 1)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
         let skipped = ThreadSafeBox(false)
         await manager.configure(
@@ -1085,7 +1085,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testPollForPreviousTrackCannotSkipReplacementTrack() async {
         enableFeature(minVotes: 1)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
         let skipped = ThreadSafeBox(false)
         await manager.configure(
@@ -1107,7 +1107,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testTrackChangeDuringPollCreationRetainsSuccessfulRemotePollUntilDrain() async {
         enableFeature(minVotes: 1)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
         let gate = PollCreationGate(result: .created(id: "poll-delayed"))
         let skipped = ThreadSafeBox(false)
@@ -1145,7 +1145,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testTrackChangeDuringFailedPollCreationDoesNotFallbackVote() async {
         enableFeature(minVotes: 3)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
         let gate = PollCreationGate(result: .definitiveFailure)
         await manager.configure(
@@ -1172,7 +1172,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testDisableDuringDefinitivePollFailureDoesNotFallbackOrSkip() async {
         enableFeature(minVotes: 1)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
         let gate = PollCreationGate(result: .definitiveFailure)
         let skipped = ThreadSafeBox(false)
@@ -1199,7 +1199,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
             await gate.started()
         }
         XCTAssertTrue(createStarted)
-        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.voteSkipEnabled)
+        DefaultsStore.store.set(false, forKey: AppConstants.UserDefaults.voteSkipEnabled)
         await gate.release()
 
         let outcome = await creation.value
@@ -1216,7 +1216,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testResetDuringPollCreationReturnsSilentCancellationWithoutFallback() async {
         enableFeature(minVotes: 3)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
         let gate = PollCreationGate(result: .indeterminate)
         let chatMessages = ThreadSafeBox<[String]>([])
@@ -1248,7 +1248,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testPollTimeoutClearsStuckPoll() async {
         enableFeature(minVotes: 3)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         // Inject a sub-100ms fallback timeout so the "poll.end never arrived"
         // path is observed in milliseconds instead of pollDuration plus grace.
         let manager = SkipVoteManager(pollTimeoutDuration: .milliseconds(50))
@@ -1278,7 +1278,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testPollEndedCancelsTimeoutFallback() async {
         enableFeature(minVotes: 1)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager(pollTimeoutDuration: .milliseconds(50))
         await manager.configure(
             capturePlaybackTarget: { PlaybackTarget(trackKey: "target\tartist", revision: 0) },
@@ -1303,7 +1303,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testResetClearsActivePoll() async {
         enableFeature(minVotes: 3)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
         await manager.configure(
             capturePlaybackTarget: { PlaybackTarget(trackKey: "target\tartist", revision: 0) },
@@ -1370,7 +1370,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     func testOnVoteEventFiresPassedFromPollResult() async {
         enableFeature(minVotes: 3)
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
         let events = ThreadSafeBox<[String]>([])
         await manager.configure(

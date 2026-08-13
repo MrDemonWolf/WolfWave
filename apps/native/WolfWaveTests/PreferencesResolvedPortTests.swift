@@ -20,7 +20,7 @@ struct PreferencesResolvedPortTests {
     /// Runs `body` with `value` stored under `key`, restoring the previous
     /// value afterwards so the suite never leaks state into other tests.
     private func withStoredValue(_ value: Int?, forKey key: String, body: () -> Void) {
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         let previous = defaults.object(forKey: key)
         defer {
             if let previous {

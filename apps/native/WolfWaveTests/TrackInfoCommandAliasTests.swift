@@ -18,7 +18,7 @@ final class TrackInfoCommandAliasTests: XCTestCase {
     private let testKey = "TrackInfoCommandAliasTests.aliases"
 
     override func tearDown() {
-        Foundation.UserDefaults.standard.removeObject(forKey: testKey)
+        DefaultsStore.store.removeObject(forKey: testKey)
         super.tearDown()
     }
 
@@ -32,20 +32,20 @@ final class TrackInfoCommandAliasTests: XCTestCase {
     }
 
     func testAliasesAppearInAllTriggers() {
-        Foundation.UserDefaults.standard.set("np, track ", forKey: testKey)
+        DefaultsStore.store.set("np, track ", forKey: testKey)
         let cmd = makeCommand()
         XCTAssertEqual(cmd.allTriggers, ["!song", "!np", "!track"])
     }
 
     func testExecuteMatchesAlias() {
-        Foundation.UserDefaults.standard.set("np", forKey: testKey)
+        DefaultsStore.store.set("np", forKey: testKey)
         let cmd = makeCommand()
         cmd.getTrackInfo = { "Artist - Song" }
         XCTAssertEqual(cmd.execute(message: "!np"), "Artist - Song")
     }
 
     func testExecuteAsyncMatchesAlias() async {
-        Foundation.UserDefaults.standard.set("track", forKey: testKey)
+        DefaultsStore.store.set("track", forKey: testKey)
         let cmd = makeCommand()
         cmd.getTrackInfoAsync = { "Async Artist - Async Song" }
         let result = await cmd.executeAsync(message: "!track")
@@ -53,19 +53,19 @@ final class TrackInfoCommandAliasTests: XCTestCase {
     }
 
     func testEmptyAliasesKeepsCanonicalTriggers() {
-        Foundation.UserDefaults.standard.set("", forKey: testKey)
+        DefaultsStore.store.set("", forKey: testKey)
         let cmd = makeCommand()
         XCTAssertEqual(cmd.allTriggers, ["!song"])
     }
 
     func testMissingAliasesKeepsCanonicalTriggers() {
-        Foundation.UserDefaults.standard.removeObject(forKey: testKey)
+        DefaultsStore.store.removeObject(forKey: testKey)
         let cmd = makeCommand()
         XCTAssertEqual(cmd.allTriggers, ["!song"])
     }
 
     func testAliasesHandleBangPrefixAndWhitespace() {
-        Foundation.UserDefaults.standard.set(" !np ,  track,, !go ", forKey: testKey)
+        DefaultsStore.store.set(" !np ,  track,, !go ", forKey: testKey)
         let cmd = makeCommand()
         XCTAssertEqual(cmd.allTriggers, ["!song", "!np", "!track", "!go"])
     }
@@ -74,7 +74,7 @@ final class TrackInfoCommandAliasTests: XCTestCase {
         // Stored aliases under a *different* key should not leak into a command
         // initialized with `aliasesKey: nil`. Defends against future regressions
         // where someone wires the wrong key through TrackInfoCommand's init.
-        Foundation.UserDefaults.standard.set("np, track", forKey: testKey)
+        DefaultsStore.store.set("np, track", forKey: testKey)
         let cmd = TrackInfoCommand(
             triggers: ["!song"],
             description: "test",

@@ -14,7 +14,7 @@ import Foundation
 /// pattern so default semantics are defined once. Adding a new toggle means adding
 /// one computed property here rather than hunting for every read site.
 nonisolated enum FeatureFlags {
-    private static var defaults: Foundation.UserDefaults { .standard }
+    private static var defaults: Foundation.UserDefaults { DefaultsStore.store }
 
     // MARK: Integrations
 

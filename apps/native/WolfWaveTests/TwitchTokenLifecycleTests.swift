@@ -40,7 +40,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
     }
 
     nonisolated private static func resetRedemptionDefaults() {
-        let defaults = UserDefaults.standard
+        let defaults = DefaultsStore.store
         [
             AppConstants.UserDefaults.songRequestEnabled,
             AppConstants.UserDefaults.songRequestChannelPointsEnabled,
@@ -613,7 +613,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
             channelID: "old_channel"
         )
         try KeychainService.saveTwitchCredentialGrant(prior)
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             "imported_channel",
             forKey: AppConstants.UserDefaults.twitchPendingImportedChannelName
         )
@@ -662,7 +662,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
                 channelID: "old_channel"
             )
         )
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             "  Imported_Channel  ",
             forKey: AppConstants.UserDefaults.twitchPendingImportedChannelName
         )
@@ -730,7 +730,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
                 channelID: "old_channel"
             )
         )
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             "missing_channel",
             forKey: AppConstants.UserDefaults.twitchPendingImportedChannelName
         )
@@ -790,7 +790,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
                 channelID: "old_channel"
             )
         )
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             "pending_channel",
             forKey: AppConstants.UserDefaults.twitchPendingImportedChannelName
         )
@@ -852,7 +852,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
                 channelID: "old_channel"
             )
         )
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             "first_channel",
             forKey: AppConstants.UserDefaults.twitchPendingImportedChannelName
         )
@@ -1060,7 +1060,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
                 channelID: "old_channel"
             )
         )
-        UserDefaults.standard.set(
+        DefaultsStore.store.set(
             "pending_channel",
             forKey: AppConstants.UserDefaults.twitchPendingImportedChannelName
         )

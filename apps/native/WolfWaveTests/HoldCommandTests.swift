@@ -152,7 +152,7 @@ final class HoldCommandTests: WolfWaveTestCase {
     // MARK: - Resume Path (privileged)
 
     func testResumeDisablesHoldAndReplies() async {
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
         let command = HoldCommand()
         let service = makeService()
         command.songRequestService = { service }
@@ -163,7 +163,7 @@ final class HoldCommandTests: WolfWaveTestCase {
     }
 
     func testUnholdAliasAlsoResumes() async {
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
         let command = HoldCommand()
         let service = makeService()
         command.songRequestService = { service }

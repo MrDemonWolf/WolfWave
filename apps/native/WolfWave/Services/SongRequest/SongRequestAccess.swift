@@ -157,7 +157,7 @@ enum SongRequestPreset: String, CaseIterable, Identifiable {
     /// responsible for re-running `refreshRedemptionSubscriptions()` so the
     /// managed Twitch reward is actually created or torn down. The settings
     /// Access card does this after every `apply(_:)`.
-    func apply(to defaults: Foundation.UserDefaults = .standard) {
+    func apply(to defaults: Foundation.UserDefaults = DefaultsStore.store) {
         defaults.set(rawValue, forKey: AppConstants.UserDefaults.songRequestPolicyMode)
         switch self {
         case .open:
@@ -188,7 +188,7 @@ enum SongRequestPreset: String, CaseIterable, Identifiable {
     /// On a fresh install or a pre-mode upgrade (no stored value) the chat
     /// settings are inferred so an existing config maps to a sensible chip;
     /// a brand-new install lands on `.open`.
-    static func current(in defaults: Foundation.UserDefaults = .standard) -> SongRequestPreset {
+    static func current(in defaults: Foundation.UserDefaults = DefaultsStore.store) -> SongRequestPreset {
         if let raw = defaults.string(forKey: AppConstants.UserDefaults.songRequestPolicyMode),
            let stored = SongRequestPreset(rawValue: raw) {
             return stored
@@ -244,7 +244,7 @@ enum QueueLimitMode: String, CaseIterable, Identifiable {
 enum SongRequestLimits {
 
     /// The configured combine mode (defaults to `.highest`).
-    static func mode(in defaults: Foundation.UserDefaults = .standard) -> QueueLimitMode {
+    static func mode(in defaults: Foundation.UserDefaults = DefaultsStore.store) -> QueueLimitMode {
         QueueLimitMode(rawValue: defaults.string(forKey: AppConstants.UserDefaults.songRequestLimitStackMode) ?? "")
             ?? .highest
     }
@@ -261,7 +261,7 @@ enum SongRequestLimits {
         isVIP: Bool,
         isModerator: Bool,
         isBroadcaster: Bool,
-        in defaults: Foundation.UserDefaults = .standard
+        in defaults: Foundation.UserDefaults = DefaultsStore.store
     ) -> Int {
         let everyone = positiveLimit(
             defaults.object(forKey: AppConstants.UserDefaults.songRequestPerUserLimit) as? Int)
@@ -299,7 +299,7 @@ enum SongRequestLimits {
 
     /// Effective limit for a requester arriving via a non-chat source (channel
     /// points / bits), where no chat badges are available. Uses the everyone tier.
-    static func nonChatLimit(in defaults: Foundation.UserDefaults = .standard) -> Int {
+    static func nonChatLimit(in defaults: Foundation.UserDefaults = DefaultsStore.store) -> Int {
         effectiveLimit(
             isSubscriber: false, isVIP: false, isModerator: false, isBroadcaster: false, in: defaults)
     }
@@ -350,7 +350,7 @@ enum SongRequestPriorityMode: String, CaseIterable, Identifiable {
 enum SongRequestPriority {
 
     /// The configured priority mode (defaults to `.off` so the perk is opt-in).
-    static func mode(in defaults: Foundation.UserDefaults = .standard) -> SongRequestPriorityMode {
+    static func mode(in defaults: Foundation.UserDefaults = DefaultsStore.store) -> SongRequestPriorityMode {
         SongRequestPriorityMode(rawValue: defaults.string(forKey: AppConstants.UserDefaults.songRequestPriorityMode) ?? "")
             ?? .off
     }

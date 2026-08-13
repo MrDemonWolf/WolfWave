@@ -129,21 +129,21 @@ final class OnboardingViewModelTests: WolfWaveTestCase {
 
     func testCompleteOnboardingSetsFlag() {
         viewModel.completeOnboarding()
-        XCTAssertTrue(UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.hasCompletedOnboarding))
+        XCTAssertTrue(DefaultsStore.store.bool(forKey: AppConstants.UserDefaults.hasCompletedOnboarding))
     }
 
     func testHasCompletedOnboardingReadsTrue() {
-        UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
         XCTAssertTrue(OnboardingViewModel.hasCompletedOnboarding)
     }
 
     func testHasCompletedOnboardingReadsFalse() {
-        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
+        DefaultsStore.store.set(false, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
         XCTAssertFalse(OnboardingViewModel.hasCompletedOnboarding)
     }
 
     func testHasCompletedOnboardingDefaultsFalse() {
-        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
+        DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
         XCTAssertFalse(OnboardingViewModel.hasCompletedOnboarding)
     }
 

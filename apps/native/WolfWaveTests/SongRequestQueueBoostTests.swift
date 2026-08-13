@@ -18,8 +18,8 @@ final class SongRequestQueueBoostTests: WolfWaveTestCase {
     override func setUp() {
         super.setUp()
         // Generous limits so multi-item-by-same-user tests aren't blocked.
-        UserDefaults.standard.set(50, forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
-        UserDefaults.standard.set(10, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
+        DefaultsStore.store.set(50, forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
+        DefaultsStore.store.set(10, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
         queue = SongRequestQueue()
     }
 

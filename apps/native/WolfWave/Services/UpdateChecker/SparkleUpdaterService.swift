@@ -68,7 +68,7 @@ final class SparkleUpdaterService: NSObject {
                 return
             }
             updater.automaticallyChecksForUpdates = newValue
-            UserDefaults.standard.set(newValue, forKey: AppConstants.UserDefaults.updateCheckEnabled)
+            DefaultsStore.store.set(newValue, forKey: AppConstants.UserDefaults.updateCheckEnabled)
             Log.info("SparkleUpdaterService: Automatic checking \(newValue ? "enabled" : "disabled")", category: "Update")
         }
     }
@@ -80,10 +80,10 @@ final class SparkleUpdaterService: NSObject {
     /// Call `recheckAfterChannelChange()` to consult the new feed immediately.
     var channel: UpdateChannel {
         get {
-            UpdateChannel.from(rawValue: UserDefaults.standard.string(forKey: AppConstants.UserDefaults.updateChannel))
+            UpdateChannel.from(rawValue: DefaultsStore.store.string(forKey: AppConstants.UserDefaults.updateChannel))
         }
         set {
-            UserDefaults.standard.set(newValue.rawValue, forKey: AppConstants.UserDefaults.updateChannel)
+            DefaultsStore.store.set(newValue.rawValue, forKey: AppConstants.UserDefaults.updateChannel)
             Log.info("SparkleUpdaterService: Update channel set to \(newValue.rawValue)", category: "Update")
         }
     }
