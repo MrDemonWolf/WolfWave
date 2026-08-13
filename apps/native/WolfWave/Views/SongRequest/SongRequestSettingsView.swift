@@ -569,14 +569,23 @@ fileprivate struct SongRequestQueueConfigCard: View {
     private var priorityMode: SongRequestPriorityMode = .off
 
     private let limitOptions = [1, 2, 3, 5, 10, 15, 20]
+    fileprivate static let maxQueueSizeOptions = [5, 10, 15, 20, 25, 50]
 
     /// One labelled per-role limit stepper row.
+    ///
+    /// Snaps the selection so a stored value outside `limitOptions` renders as
+    /// `fallback` rather than reaching the picker with no matching tag.
     @ViewBuilder
-    private func limitRow(_ title: String, selection: Binding<Int>, id: String) -> some View {
+    private func limitRow(
+        _ title: String,
+        selection: Binding<Int>,
+        fallback: Int,
+        id: String
+    ) -> some View {
         HStack {
             Text(title).font(.system(size: DSFont.Size.body))
             Spacer()
-            Picker("", selection: selection) {
+            Picker("", selection: selection.snapped(to: limitOptions, fallback: fallback)) {
                 ForEach(limitOptions, id: \.self) { limit in
                     Text("\(limit)").tag(limit)
                 }
@@ -627,8 +636,13 @@ fileprivate struct SongRequestQueueConfigCard: View {
             HStack {
                 Text("Max queue size").font(.system(size: DSFont.Size.body))
                 Spacer()
-                Picker("", selection: $maxQueueSize) {
-                    ForEach([5, 10, 15, 20, 25, 50], id: \.self) { size in
+                Picker(
+                    "",
+                    selection: $maxQueueSize.snapped(
+                        to: Self.maxQueueSizeOptions,
+                        fallback: AppConstants.UserDefaults.Defaults.songRequestMaxQueueSize)
+                ) {
+                    ForEach(Self.maxQueueSizeOptions, id: \.self) { size in
                         Text("\(size)").tag(size)
                     }
                 }
@@ -648,10 +662,14 @@ fileprivate struct SongRequestQueueConfigCard: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            limitRow("Everyone", selection: $everyoneLimit, id: "everyone")
-            limitRow("Subscribers", selection: $subLimit, id: "subscriber")
-            limitRow("VIPs", selection: $vipLimit, id: "vip")
-            limitRow("Moderators", selection: $modLimit, id: "moderator")
+            limitRow(
+                "Everyone",
+                selection: $everyoneLimit,
+                fallback: AppConstants.UserDefaults.Defaults.songRequestPerUserLimit,
+                id: "everyone")
+            limitRow("Subscribers", selection: $subLimit, fallback: 2, id: "subscriber")
+            limitRow("VIPs", selection: $vipLimit, fallback: 2, id: "vip")
+            limitRow("Moderators", selection: $modLimit, fallback: 2, id: "moderator")
 
             Divider()
 
@@ -873,6 +891,9 @@ fileprivate struct SongRequestRedemptionsCard: View {
     private var bitsEnabled = false
     @AppStorage(AppConstants.UserDefaults.songRequestBitsMinimum)
     private var bitsMinimum = AppConstants.UserDefaults.Defaults.songRequestBitsMinimum
+
+    fileprivate static let channelPointsCostOptions = [100, 250, 500, 1000, 2500, 5000]
+    fileprivate static let bitsMinimumOptions = [1, 50, 100, 200, 500, 1000]
     @AppStorage(AppConstants.UserDefaults.songRequestBitsBoostEnabled)
     private var bitsBoostEnabled = false
 
@@ -922,8 +943,13 @@ fileprivate struct SongRequestRedemptionsCard: View {
                 HStack {
                     Text("Reward cost").font(.system(size: DSFont.Size.body))
                     Spacer()
-                    Picker("", selection: $channelPointsCost) {
-                        ForEach([100, 250, 500, 1000, 2500, 5000], id: \.self) { cost in
+                    Picker(
+                        "",
+                        selection: $channelPointsCost.snapped(
+                            to: Self.channelPointsCostOptions,
+                            fallback: AppConstants.UserDefaults.Defaults.songRequestChannelPointsCost)
+                    ) {
+                        ForEach(Self.channelPointsCostOptions, id: \.self) { cost in
                             Text("\(cost)").tag(cost)
                         }
                     }
@@ -980,8 +1006,13 @@ fileprivate struct SongRequestRedemptionsCard: View {
                 HStack {
                     Text("Minimum bits").font(.system(size: DSFont.Size.body))
                     Spacer()
-                    Picker("", selection: $bitsMinimum) {
-                        ForEach([1, 50, 100, 200, 500, 1000], id: \.self) { amount in
+                    Picker(
+                        "",
+                        selection: $bitsMinimum.snapped(
+                            to: Self.bitsMinimumOptions,
+                            fallback: AppConstants.UserDefaults.Defaults.songRequestBitsMinimum)
+                    ) {
+                        ForEach(Self.bitsMinimumOptions, id: \.self) { amount in
                             Text("\(amount)").tag(amount)
                         }
                     }
