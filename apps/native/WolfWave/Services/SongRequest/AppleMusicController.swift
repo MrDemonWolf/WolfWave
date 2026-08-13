@@ -139,6 +139,35 @@ protocol AppleMusicControlling {
 
     /// Starts a named Apple Music library playlist as the fallback source.
     func playFallbackPlaylist(name: String) async throws
+
+    /// Whether Music.app itself can resolve the `WolfWave Requests` playlist.
+    ///
+    /// The requests playlist is created through the Apple Music **cloud** library
+    /// API but played through AppleScript against Music.app's **local** library,
+    /// so "the create call succeeded" is not evidence that playback can ever find
+    /// it. This probe closes that gap by asking the same question playback asks.
+    func requestsPlaylistLocalVisibility() async -> PlaylistLocalVisibility
+}
+
+extension AppleMusicControlling {
+    /// Stubs and any future conformer default to "no information", which every
+    /// caller already treats as "change nothing".
+    func requestsPlaylistLocalVisibility() async -> PlaylistLocalVisibility { .unknown }
+}
+
+/// Whether Music.app can see the `WolfWave Requests` playlist in the local
+/// library that AppleScript playback resolves against.
+///
+/// `unknown` is a genuine third state, not a failure: Music.app being closed or
+/// an Apple Event timing out proves nothing about the playlist, so callers must
+/// leave banners and toggles exactly as they are.
+enum PlaylistLocalVisibility: Equatable, Sendable {
+    /// Music.app resolves the playlist, so playback can address it.
+    case visible
+    /// Music.app answered and has no such playlist. Playback cannot work.
+    case notVisible
+    /// Music.app was closed or the probe failed. No conclusion.
+    case unknown
 }
 
 /// Controls Apple Music playback and search via MusicKit (search) and AppleScript (playback).
@@ -711,6 +740,42 @@ final class AppleMusicController: AppleMusicControlling {
                 "AppleMusicController: Could not reveal requests playlist: \(failure.message)",
                 category: "SongRequest"
             )
+        }
+    }
+
+    /// Asks Music.app whether it can resolve the `WolfWave Requests` playlist.
+    ///
+    /// Playback resolves `playlist "WolfWave Requests"` against Music.app's local
+    /// library; the playlist is created against the Apple Music cloud library. A
+    /// cloud playlist only reaches the local library through Sync Library, so the
+    /// create call succeeding says nothing about whether playback can find it.
+    /// This probe asks in the same terminology playback uses, which is the whole
+    /// point: the setup gate must validate the layer that actually plays songs.
+    ///
+    /// Counts matching playlists rather than using `exists`, because a `reveal` or
+    /// property read against a name that does not exist fails `-1708` and reads
+    /// like "Music does not understand the command" instead of "no such playlist".
+    ///
+    /// Never launches Music.app: a closed Music yields `.unknown`, same as a
+    /// timeout, so a quiet machine can never be mistaken for a broken setup.
+    func requestsPlaylistLocalVisibility() async -> PlaylistLocalVisibility {
+        guard let pid = MusicProcess.pid else { return .unknown }
+        let name = sanitizeForAppleScript(AppConstants.Music.requestsPlaylistName)
+        let source = Self.musicTargetedScript("""
+        if (count of (every playlist whose name is "\(name)")) > 0 then return "yes"
+        return "no"
+        """, seconds: ScriptTimeout.probe)
+        return Self.parseLocalVisibility(runAppleScript(source, targetPID: pid).output)
+    }
+
+    /// Maps the probe's script output to a visibility. Anything other than the two
+    /// expected sentinels is `.unknown`, so a failed or truncated read is never
+    /// read as a definitive "the playlist is gone".
+    static func parseLocalVisibility(_ raw: String?) -> PlaylistLocalVisibility {
+        switch raw?.trimmingCharacters(in: .whitespacesAndNewlines) {
+        case "yes": return .visible
+        case "no": return .notVisible
+        default: return .unknown
         }
     }
 

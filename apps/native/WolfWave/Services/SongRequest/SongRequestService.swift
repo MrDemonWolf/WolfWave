@@ -103,27 +103,45 @@ final class SongRequestService {
     /// - `.notPublic` only matters when a link was stored; then it's a cosmetic
     ///   `!playlist` break. With no stored link, a private playlist is fine.
     /// - `.ok` refreshes the stored link if the public URL changed (republished).
+    ///
+    /// `localVisibility` is the second, independent layer. The probe above only
+    /// proves the playlist exists in the Apple Music **cloud** library, while
+    /// playback resolves it through AppleScript against Music.app's **local**
+    /// library, so a cloud-healthy playlist can still be unplayable. A definitive
+    /// `.notVisible` relabels an otherwise-cosmetic outcome to
+    /// `.playlistNotInMusic` while leaving every side effect intact: it must not
+    /// escalate to an essential break, because Sync Library latency and an
+    /// empty-playlist edge case can both produce a `.notVisible` that clears
+    /// itself, and holding the whole feature on that would be worse than the
+    /// banner. `.unknown` (Music closed, probe failed) changes nothing.
     static func resolveHealth(
         probe: AppleMusicLibraryService.PlaylistProbe,
-        storedShareURL: String
+        storedShareURL: String,
+        localVisibility: PlaylistLocalVisibility = .unknown
     ) -> HealthOutcome? {
         let trimmed = storedShareURL.trimmingCharacters(in: .whitespacesAndNewlines)
         let hasLink = !trimmed.isEmpty
+        var outcome: HealthOutcome
         switch probe {
         case .unreachable:
             return nil
         case .missing:
-            return HealthOutcome(status: .playlistMissing, reEngageGate: true)
+            outcome = HealthOutcome(status: .playlistMissing, reEngageGate: true)
         case .notPublic:
-            return hasLink
+            outcome = hasLink
                 ? HealthOutcome(status: .linkUnshared, disableLink: true)
                 : HealthOutcome(status: .ok)
         case .ok(let url):
             if hasLink, let url, url != trimmed {
-                return HealthOutcome(status: .ok, updatedShareURL: url)
+                outcome = HealthOutcome(status: .ok, updatedShareURL: url)
+            } else {
+                outcome = HealthOutcome(status: .ok)
             }
-            return HealthOutcome(status: .ok)
         }
+        if localVisibility == .notVisible, !outcome.status.isEssential {
+            outcome.status = .playlistNotInMusic
+        }
+        return outcome
     }
 
     /// Checks that the song-request playlist setup is still healthy and applies
@@ -165,7 +183,16 @@ final class SongRequestService {
             }
         }
 
-        guard let outcome = Self.resolveHealth(probe: probe, storedShareURL: storedURL) else { return }
+        // Second layer: the cloud probe above can say "healthy" about a playlist
+        // Music.app cannot see, and AppleScript playback only ever reads the local
+        // library. Ask Music directly, in the terminology playback uses.
+        let localVisibility = await musicController.requestsPlaylistLocalVisibility()
+
+        guard let outcome = Self.resolveHealth(
+            probe: probe,
+            storedShareURL: storedURL,
+            localVisibility: localVisibility
+        ) else { return }
         applyHealth(outcome)
     }
 

@@ -74,6 +74,84 @@ struct SongRequestSetupHealthTests {
         #expect(outcome.updatedShareURL == nil)
     }
 
+    // MARK: - Local (AppleScript) visibility layer
+
+    @Test("a cloud-healthy playlist Music can't see is flagged, not celebrated")
+    func localInvisibilityOverridesOK() throws {
+        // The whole defect: the cloud API says the playlist is fine while
+        // AppleScript playback has nothing to play from.
+        let outcome = try #require(
+            SongRequestService.resolveHealth(
+                probe: .ok(shareURL: "https://x"),
+                storedShareURL: "https://x",
+                localVisibility: .notVisible))
+        #expect(outcome.status == .playlistNotInMusic)
+    }
+
+    @Test("a local sync gap never holds the feature or flips a toggle")
+    func localInvisibilityIsNonDestructive() throws {
+        let outcome = try #require(
+            SongRequestService.resolveHealth(
+                probe: .ok(shareURL: nil),
+                storedShareURL: "",
+                localVisibility: .notVisible))
+        #expect(outcome.reEngageGate == false)
+        #expect(outcome.disableLink == false)
+        #expect(outcome.status.isEssential == false)
+    }
+
+    @Test("local invisibility does not mask an essential break")
+    func localInvisibilityYieldsToMissing() throws {
+        let outcome = try #require(
+            SongRequestService.resolveHealth(
+                probe: .missing,
+                storedShareURL: "",
+                localVisibility: .notVisible))
+        #expect(outcome.status == .playlistMissing)
+        #expect(outcome.reEngageGate)
+    }
+
+    @Test("local invisibility relabels the link break but keeps its side effect")
+    func localInvisibilityKeepsDisableLink() throws {
+        let outcome = try #require(
+            SongRequestService.resolveHealth(
+                probe: .notPublic,
+                storedShareURL: "https://music.apple.com/x",
+                localVisibility: .notVisible))
+        #expect(outcome.status == .playlistNotInMusic)
+        #expect(outcome.disableLink)
+    }
+
+    @Test("an unknown local probe changes nothing")
+    func localUnknownIsInert() throws {
+        // Music.app closed, or the Apple Event timed out. Proves nothing.
+        let outcome = try #require(
+            SongRequestService.resolveHealth(
+                probe: .ok(shareURL: nil),
+                storedShareURL: "",
+                localVisibility: .unknown))
+        #expect(outcome.status == .ok)
+    }
+
+    @Test("an unreachable cloud probe still wins over a local answer")
+    func unreachableStillNoOpWithLocalAnswer() {
+        #expect(
+            SongRequestService.resolveHealth(
+                probe: .unreachable,
+                storedShareURL: "",
+                localVisibility: .notVisible) == nil)
+    }
+
+    @Test("visible local playlist leaves the healthy outcome alone")
+    func localVisibleIsHealthy() throws {
+        let outcome = try #require(
+            SongRequestService.resolveHealth(
+                probe: .ok(shareURL: nil),
+                storedShareURL: "",
+                localVisibility: .visible))
+        #expect(outcome.status == .ok)
+    }
+
     // MARK: - classifyProbe
 
     @Test("classify: no playlist id is missing")
