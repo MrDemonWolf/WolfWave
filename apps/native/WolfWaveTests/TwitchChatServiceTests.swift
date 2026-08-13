@@ -963,8 +963,29 @@ struct TwitchChatServiceTests {
         #expect(!operations.value.contains { $0.url.contains("/redemptions?") })
     }
 
-    @Test("Containment ends instead of retrying when no account can resolve it")
-    func testContainmentEndsWhenBroadcasterCredentialsCannotResolveIt() async throws {
+    @Test("Containment ends instead of retrying when the managed reward is gone")
+    func testContainmentEndsWhenManagedRewardIdentityIsGone() async throws {
+        // Nothing on this machine claims the reward, so the identity clause of
+        // the guard is what stops the pause/refund.
+        try await assertContainmentEndsWithoutRetrying(
+            installingManagedRewardIdentity: false,
+            activeBroadcasterID: "broadcaster")
+    }
+
+    @Test("Containment ends instead of retrying when the account has moved on")
+    func testContainmentEndsWhenBroadcasterCredentialsNoLongerMatch() async throws {
+        // The reward is still ours, but the signed-in account is a different
+        // broadcaster, so the credential clauses are what stop the pause/refund.
+        // This is the account-switch case that produced the original hot loop.
+        try await assertContainmentEndsWithoutRetrying(
+            installingManagedRewardIdentity: true,
+            activeBroadcasterID: "replacement-broadcaster")
+    }
+
+    private func assertContainmentEndsWithoutRetrying(
+        installingManagedRewardIdentity: Bool,
+        activeBroadcasterID: String
+    ) async throws {
         enum InjectedFailure: Error {
             case write
         }
@@ -991,11 +1012,16 @@ struct TwitchChatServiceTests {
             resolution: .canceled)
         let defaults = UserDefaults.standard
         let statusKey = AppConstants.UserDefaults.songRequestRedemptionStatus
-        // Deliberately no managed reward identity: nothing on this machine can
-        // authorize the pause/refund the containment exists to perform.
-        clearManagedRewardIdentity()
+        if installingManagedRewardIdentity {
+            installManagedRewardIdentity()
+        } else {
+            clearManagedRewardIdentity()
+        }
         defaults.removeObject(forKey: statusKey)
-        defer { defaults.removeObject(forKey: statusKey) }
+        defer {
+            clearManagedRewardIdentity()
+            defaults.removeObject(forKey: statusKey)
+        }
 
         let requests = ThreadSafeBox(0)
         let handler: MockURLProtocol.Handler = { request in
@@ -1007,7 +1033,7 @@ struct TwitchChatServiceTests {
                 session: MockURLProtocol.makeSession(handler: handler)),
             redemptionResolutionOutbox: outbox)
         await service.configureBroadcasterRedemptionCredentialsForTesting(
-            broadcasterID: "broadcaster")
+            broadcasterID: activeBroadcasterID)
         // Throwing keeps a regression bounded: an unresolvable containment that
         // starts backing off again fails this test instead of spinning forever.
         let backoffs = ThreadSafeBox(0)
