@@ -53,6 +53,30 @@ final class MockAppleMusicController: AppleMusicControlling {
         if let searchProvider { return await searchProvider(query) }
         return .notFound
     }
+
+    /// Makes `search` resolve, so `processRequest` gets past its `.notFound`
+    /// branch and actually reaches the queue-add and auto-play gates.
+    ///
+    /// Without this every request short-circuits, and any test that asserts
+    /// `playNowCalled == false` afterwards passes no matter what the gate under
+    /// test does. Call it in any test whose subject is downstream of the search.
+    ///
+    /// Each distinct query resolves to a distinct song, so two different
+    /// requests in one test do not collide on the queue's duplicate check.
+    /// Pass `title` only when a test needs one fixed title.
+    func stubSearchSuccess(title: String? = nil, artist: String = "Test Artist") {
+        searchProvider = { query in
+            let slug = query.unicodeScalars
+                .filter { CharacterSet.alphanumerics.contains($0) }
+                .map(String.init)
+                .joined()
+            return .found(makeTestSong(
+                id: slug.isEmpty ? "1440857781" : slug,
+                title: title ?? query,
+                artist: artist
+            ))
+        }
+    }
     func resolve(url: URL) async -> AppleMusicController.SearchResult { .notFound }
     func playbackSnapshot() async -> PlaybackSnapshot? {
         playbackSnapshotCallCount += 1
@@ -348,21 +372,42 @@ final class SongRequestServiceTests: WolfWaveTestCase {
 
     func testProcessRequestRedemptionSourcesBypassAudienceGate() async {
         // Even with the strictest audience, points/bits sources are not gated here.
+        //
+        // This test used to prove nothing twice over. Its assertions sat inside
+        // `if case .error`, which never matched because search resolved to
+        // `.notFound` long before any audience decision; and the substring it
+        // looked for ("Mods") does not appear in the real denial text
+        // ("Only mods can request songs right now."). Moving the audience check
+        // to cover every source would have rejected every channel-point and bit
+        // request on a mods-only channel with this test still green.
+        mockController.stubSearchSuccess()
         UserDefaults.standard.set(
             RequestAudience.modsOnly.rawValue,
             forKey: AppConstants.UserDefaults.songRequestChatAudience)
 
+        // Distinct queries so the second request is not rejected as a duplicate
+        // of the first, which would hide the audience answer behind a queue answer.
         let pointsResult = await service.processRequest(
-            query: "any song", username: "viewer",
+            query: "points song", username: "viewer",
             source: .channelPoints(redemptionID: "r", rewardID: "rw"))
-        if case .error(let msg) = pointsResult {
-            XCTAssertFalse(msg.contains("Mods"), "Channel-point requests must not hit the audience gate")
+        guard case .added = pointsResult else {
+            return XCTFail("channel-point request must bypass the audience gate, got \(pointsResult)")
         }
 
         let bitsResult = await service.processRequest(
-            query: "any song", username: "viewer", source: .bits(amount: 100))
-        if case .error(let msg) = bitsResult {
-            XCTAssertFalse(msg.contains("Mods"), "Bit requests must not hit the audience gate")
+            query: "bits song", username: "viewer", source: .bits(amount: 100))
+        guard case .added = bitsResult else {
+            return XCTFail("bit request must bypass the audience gate, got \(bitsResult)")
+        }
+
+        // The gate really is closed for chat on this channel, so the two passes
+        // above are a bypass and not an audience setting that never applied.
+        let chatResult = await service.processRequest(
+            query: "chat song", username: "viewer", source: chatSource(username: "viewer"))
+        if case .error = chatResult {
+            // expected: a plain viewer is blocked on a mods-only channel
+        } else {
+            XCTFail("mods-only audience should block a plain chat viewer, got \(chatResult)")
         }
     }
 
@@ -669,25 +714,47 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     // MARK: - Buffered Mode (Music.app closed)
 
     func testRequestWhileMusicAppClosedBuffers() async {
+        mockController.stubSearchSuccess()
         mockController.isMusicAppRunning = false
 
-        _ = await service.processRequest(
+        let result = await service.processRequest(
             query: "any song", username: "viewer", source: chatSource())
+
+        // Assert the request actually reached the gate. Without this the test
+        // passes on a `.notFound` that never touched the Music-closed branch.
+        guard case .added = result else {
+            return XCTFail("request did not queue, so the Music-closed gate was never reached: \(result)")
+        }
+        XCTAssertEqual(queue.items.count, 1, "a request arriving with Music closed must stay buffered")
         XCTAssertFalse(mockController.playNowCalled, "playNow should not fire when Music.app is closed")
     }
 
     func testPlayNextInQueueRequeuesItemWhenMusicAppNotRunning() async {
         mockController.shouldThrowMusicAppNotRunning = true
 
-        queue.add(SongRequestItem(title: "Buffered Song", artist: "Artist", requesterUsername: "user1"))
-        queue.dequeue()
+        // The item must carry a real Song. `performPlayback` has an
+        // `#if DEBUG return` escape hatch for a nil `song`, so an item built
+        // with the test-only initializer fakes a successful start and never
+        // reaches `musicController.playNow` at all. That hatch is why the old
+        // version of this test could not have caught anything.
+        queue.add(SongRequestItem(
+            song: makeTestSong(title: "Buffered Song", artist: "Artist"),
+            requesterUsername: "user1"))
 
-        mockController.isMusicAppRunning = true
-        _ = await service.processRequest(
-            query: "any song", username: "viewer", source: chatSource())
-        XCTAssertFalse(
-            mockController.playNowCalled,
-            "playNow threw: item should be re-queued, not marked as played")
+        // Actually exercise playNextInQueue. The old version called
+        // processRequest instead, which resolved to .notFound, so playNow was
+        // never invoked and the requeue-on-throw path could be deleted whole
+        // while the test stayed green.
+        let started = await service.playNextInQueue()
+
+        XCTAssertTrue(
+            mockController.playNowCallCount > 0,
+            "guard against vacuity: playNow must actually have been attempted")
+        XCTAssertNil(started, "playNow threw musicAppNotRunning, so nothing should be playing")
+        XCTAssertNil(queue.nowPlaying, "a throwing start must not leave the item marked as playing")
+        XCTAssertEqual(
+            queue.items.map(\.title), ["Buffered Song"],
+            "the item must be re-queued for the launch flush, not dropped")
     }
 
     // MARK: - Fallback Playlist
@@ -746,13 +813,39 @@ final class SongRequestServiceTests: WolfWaveTestCase {
 
     func testHoldBlocksAutoPlayOnRequest() async {
         UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
+        mockController.stubSearchSuccess()
         mockController.isMusicAppRunning = true
         mockController.isPlaying = false
 
-        _ = await service.processRequest(
+        let result = await service.processRequest(
             query: "song", username: "viewer", source: chatSource())
 
+        // Every other condition in the auto-play gate is deliberately satisfied
+        // above (Music running, nothing playing, request queued), so hold is the
+        // only thing left that can stop playback. Without the `.added` check the
+        // request resolved to `.notFound` and this asserted nothing at all.
+        guard case .added = result else {
+            return XCTFail("request did not queue, so the hold gate was never reached: \(result)")
+        }
         XCTAssertFalse(mockController.playNowCalled, "Hold should block auto-play on new requests")
+    }
+
+    func testAutoPlayFiresWhenHoldIsOff() async {
+        // The control for `testHoldBlocksAutoPlayOnRequest`. Identical setup with
+        // hold off must reach playNow, which is what proves the assertion above
+        // is about hold and not about some unrelated short-circuit.
+        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
+        mockController.stubSearchSuccess()
+        mockController.isMusicAppRunning = true
+        mockController.isPlaying = false
+
+        let result = await service.processRequest(
+            query: "song", username: "viewer", source: chatSource())
+
+        guard case .added = result else {
+            return XCTFail("request did not queue: \(result)")
+        }
+        XCTAssertTrue(mockController.playNowCalled, "with hold off an idle Music should start the request")
     }
 
     func testSetHoldTogglesFlag() async {

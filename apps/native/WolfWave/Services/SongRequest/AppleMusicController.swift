@@ -58,7 +58,7 @@ struct PlaybackSnapshot: Equatable {
 
 /// Exact Music.app identity a vote-skip was opened against.
 ///
-/// The track key is re-checked inside the final PID-targeted AppleScript event.
+/// The track key is re-checked inside the final AppleScript event.
 /// `revision` is a cheap in-process guard that rejects work as soon as the music
 /// monitor has observed a replacement, without relying on actor task ordering.
 struct PlaybackTarget: Equatable, Sendable {
@@ -117,7 +117,7 @@ protocol AppleMusicControlling {
 
     /// Performs a vote-skip mutation only while Music.app still has
     /// `targetTrackKey` loaded. The identity check and mutation execute in one
-    /// PID-targeted AppleScript event, removing the read-then-command race.
+    /// AppleScript event, removing the read-then-command race.
     ///
     /// - Returns: `true` when the mutation ran; `false` for a stale target.
     func performTargetedPlayback(
@@ -231,10 +231,6 @@ final class AppleMusicController: AppleMusicControlling {
     /// Maximum number of compiled scripts retained before the small cache clears.
     private static let compiledScriptsCap = 32
 
-    /// Handler invoked through `executeAppleEvent`; its argument is a PID-addressed
-    /// application descriptor, so no command can auto-launch a replacement Music.
-    private static let scriptHandlerName = "wolfWaveRun"
-
     // MARK: - Authorization Status
 
     /// Current MusicKit authorization status.
@@ -277,7 +273,7 @@ final class AppleMusicController: AppleMusicControlling {
     /// empty key (parsed back to `nil`) rather than aborting the whole script.
     func playbackSnapshot() async -> PlaybackSnapshot? {
         guard let pid = MusicProcess.pid else { return nil }
-        let source = Self.pidTargetedScript("""
+        let source = Self.musicTargetedScript("""
         set stateText to "stopped"
         if player state is playing then
             set stateText to "playing"
@@ -478,7 +474,7 @@ final class AppleMusicController: AppleMusicControlling {
         let name = sanitizeForAppleScript(song.title)
         let artist = sanitizeForAppleScript(song.artistName)
         let guardSource = targetTrackKey.map { targetGuardSource(for: $0) } ?? ""
-        let script = Self.pidTargetedScript("""
+        let script = Self.musicTargetedScript("""
         \(guardSource)
         set ms to (every track of playlist "\(playlist)" whose name is "\(name)" and artist is "\(artist)")
         if (count of ms) > 0 then
@@ -529,12 +525,15 @@ final class AppleMusicController: AppleMusicControlling {
 
     /// Skip the current song in Music.app via AppleScript.
     ///
-    /// Throws when Music.app is closed or rejects the command. The event targets
-    /// the observed PID, so a quit target cannot be relaunched accidentally.
+    /// Throws when Music.app is closed or rejects the command. The event is
+    /// addressed by bundle id; a quit Music is caught by the caller's
+    /// `MusicProcess.pid` check and, decisively, by the in-script `is running`
+    /// guard in `musicTargetedScript`. Nothing about the *address* prevents a
+    /// relaunch, so that guard is load-bearing.
     func skipToNext() async throws {
         guard let pid = MusicProcess.pid else { throw PlaybackError.musicAppNotRunning }
         let result = runAppleScript(
-            Self.pidTargetedScript("next track", seconds: ScriptTimeout.command),
+            Self.musicTargetedScript("next track", seconds: ScriptTimeout.command),
             targetPID: pid
         )
         try requireCommandSuccess(result, command: "next track")
@@ -583,7 +582,7 @@ final class AppleMusicController: AppleMusicControlling {
         guard let pid = MusicProcess.pid else {
             throw PlaybackError.musicAppNotRunning
         }
-        let script = Self.pidTargetedScript("""
+        let script = Self.musicTargetedScript("""
         \(targetGuardSource(for: targetTrackKey))
         \(body)
         return "ok"
@@ -603,12 +602,15 @@ final class AppleMusicController: AppleMusicControlling {
     /// Uses `previous track` (not `back track`) so Music.app moves to the
     /// prior queue entry rather than restarting the current track.
     ///
-    /// Throws when Music.app is closed or rejects the command. The event targets
-    /// the observed PID, so a quit target cannot be relaunched accidentally.
+    /// Throws when Music.app is closed or rejects the command. The event is
+    /// addressed by bundle id; a quit Music is caught by the caller's
+    /// `MusicProcess.pid` check and, decisively, by the in-script `is running`
+    /// guard in `musicTargetedScript`. Nothing about the *address* prevents a
+    /// relaunch, so that guard is load-bearing.
     func previousTrack() async throws {
         guard let pid = MusicProcess.pid else { throw PlaybackError.musicAppNotRunning }
         let result = runAppleScript(
-            Self.pidTargetedScript("previous track", seconds: ScriptTimeout.command),
+            Self.musicTargetedScript("previous track", seconds: ScriptTimeout.command),
             targetPID: pid
         )
         try requireCommandSuccess(result, command: "previous track")
@@ -618,12 +620,15 @@ final class AppleMusicController: AppleMusicControlling {
     /// preserving runner so calling from the tray does not steal focus from
     /// the frontmost app.
     ///
-    /// Throws when Music.app is closed or rejects the command. The event targets
-    /// the observed PID, so a quit target cannot be relaunched accidentally.
+    /// Throws when Music.app is closed or rejects the command. The event is
+    /// addressed by bundle id; a quit Music is caught by the caller's
+    /// `MusicProcess.pid` check and, decisively, by the in-script `is running`
+    /// guard in `musicTargetedScript`. Nothing about the *address* prevents a
+    /// relaunch, so that guard is load-bearing.
     func playPause() async throws {
         guard let pid = MusicProcess.pid else { throw PlaybackError.musicAppNotRunning }
         let result = await runAppleScriptPreservingFocus(
-            Self.pidTargetedScript("playpause", seconds: ScriptTimeout.command),
+            Self.musicTargetedScript("playpause", seconds: ScriptTimeout.command),
             targetPID: pid
         )
         try requireCommandSuccess(result, command: "play/pause")
@@ -636,7 +641,7 @@ final class AppleMusicController: AppleMusicControlling {
     func clearPlayerQueue() async {
         guard let pid = MusicProcess.pid else { return }
         let result = runAppleScript(
-            Self.pidTargetedScript("stop", seconds: ScriptTimeout.command),
+            Self.musicTargetedScript("stop", seconds: ScriptTimeout.command),
             targetPID: pid
         )
         switch result {
@@ -663,7 +668,7 @@ final class AppleMusicController: AppleMusicControlling {
     func playFallbackPlaylist(name: String) async throws {
         guard let pid = MusicProcess.pid else { throw PlaybackError.musicAppNotRunning }
         let safeName = sanitizeForAppleScript(name)
-        let script = Self.pidTargetedScript("""
+        let script = Self.musicTargetedScript("""
         play playlist "\(safeName)"
         """, seconds: ScriptTimeout.command)
         let result = await runAppleScriptPreservingFocus(script, targetPID: pid)
@@ -679,11 +684,13 @@ final class AppleMusicController: AppleMusicControlling {
     ///
     /// Deliberately launches Music.app if it is closed (the user asked to open
     /// it), unlike the playback probes that avoid relaunching a quit app.
+    /// `ensureMusicRunningForReveal()` runs first and waits for the process, so
+    /// the script's own liveness guard is normally a no-op here; if Music dies in
+    /// that window the reveal becomes a logged no-op rather than a relaunch.
     ///
-    /// Music is raised through `NSRunningApplication`, never an AppleScript
-    /// `activate`: the script is addressed by process id, and a raw pid
-    /// specifier does not implement `activate` (error -1708), which aborted the
-    /// whole script before `reveal` ever ran.
+    /// Music is raised through `NSRunningApplication` rather than an AppleScript
+    /// `activate` so macOS cooperative activation and the focus-restoration
+    /// policy stay in AppKit's hands.
     func revealRequestsPlaylist() async {
         await ensureMusicRunningForReveal()
         guard let pid = MusicProcess.pid else {
@@ -725,14 +732,15 @@ final class AppleMusicController: AppleMusicControlling {
 
     /// AppleScript source that reveals a playlist by name.
     ///
-    /// Contains only `reveal`. Application-level verbs such as `activate` must
-    /// never be added here: the script is dispatched against a process-id
-    /// specifier, which does not understand them (`-1708`).
+    /// Contains only `reveal`. Music is brought forward from Swift via
+    /// `NSRunningApplication`, not an AppleScript `activate`, so macOS
+    /// cooperative activation and the focus-restoration policy stay in AppKit's
+    /// hands rather than being forced by the script.
     ///
     /// - Parameter playlistName: Playlist to select, sanitized before embedding.
-    /// - Returns: PID-targeted AppleScript source.
+    /// - Returns: AppleScript source addressed at Music.
     func revealScript(playlistName: String) -> String {
-        Self.pidTargetedScript("""
+        Self.musicTargetedScript("""
         reveal playlist "\(sanitizeForAppleScript(playlistName))"
         """, seconds: ScriptTimeout.command)
     }
@@ -753,24 +761,47 @@ final class AppleMusicController: AppleMusicControlling {
         """
     }
 
-    /// Builds a handler whose target is supplied at execution time as a process-id
-    /// address descriptor. Unlike `tell application "Music"`, a dead PID cannot
-    /// cause LaunchServices to launch a replacement process.
+    /// Builds a script addressed at Music by bundle id, gated on Music actually
+    /// being alive.
+    ///
+    /// ## Why not address by process id
+    ///
+    /// A raw kernel-pid descriptor is an Apple Event *address*, not an
+    /// application specifier. `NSAppleScript` has no way to consume one: handed
+    /// to `tell` as a value it arrives as opaque `«data kpid…»` with no
+    /// terminology bound, so AppleScript evaluates the body against a
+    /// meaningless object and every property read fails `-1728` while every verb
+    /// fails `-1708`. Only ScriptingBridge can genuinely address by pid; see
+    /// `MusicProcess`.
+    ///
+    /// ## Why the in-script running check
+    ///
+    /// A bundle-id `tell` is auto-launched by LaunchServices, which is how
+    /// "WolfWave keeps reopening Music" shipped twice (PR #203, PR #273). Callers
+    /// already resolve `MusicProcess.pid` first, but that leaves a check-then-send
+    /// window across the Swift/AppleScript boundary. Re-checking *inside* the
+    /// script narrows that window to the microseconds between two adjacent
+    /// AppleScript statements. `is running` is answered without launching the
+    /// target, and the `error` aborts before the `tell` block is ever entered.
+    ///
+    /// Raising `-600` (`procNotFound`) rather than returning a sentinel keeps a
+    /// closed Music on the path callers already handle: `scriptFailure(from:)`
+    /// reads the number straight out of Foundation's error dictionary, and both
+    /// `requireCommandSuccess` and `playFromRequestsPlaylist` already translate
+    /// `-600` into `PlaybackError.musicAppNotRunning`. This guard shipped in
+    /// PR #392 and was lost in PR #410; do not remove it again.
     ///
     /// - Parameters:
-    ///   - body: Music terminology to execute inside the PID-targeted `tell`.
+    ///   - body: Music terminology to execute inside the `tell`.
     ///   - seconds: Apple Event reply timeout; see `ScriptTimeout`.
-    static func pidTargetedScript(_ body: String, seconds: Int) -> String {
+    static func musicTargetedScript(_ body: String, seconds: Int) -> String {
         """
-        using terms from application "Music"
-            on \(scriptHandlerName)(musicTarget)
-                with timeout of \(seconds) seconds
-                    tell musicTarget
+        with timeout of \(seconds) seconds
+            if application id "\(AppConstants.Music.bundleIdentifier)" is not running then error "Music is not running" number -600
+            tell application id "\(AppConstants.Music.bundleIdentifier)"
         \(body)
-                    end tell
-                end timeout
-            end \(scriptHandlerName)
-        end using terms from
+            end tell
+        end timeout
         """
     }
 
@@ -837,28 +868,15 @@ final class AppleMusicController: AppleMusicControlling {
         return fresh
     }
 
-    /// Builds the AppleScript subroutine event and passes Music as a kernel-PID
-    /// address descriptor. Internal so the descriptor shape is unit-testable.
-    static func scriptInvocationEvent(targetPID: pid_t) -> NSAppleEventDescriptor {
-        let event = NSAppleEventDescriptor(
-            eventClass: AEEventClass(kASAppleScriptSuite),
-            eventID: AEEventID(kASSubroutineEvent),
-            targetDescriptor: nil,
-            returnID: AEReturnID(kAutoGenerateReturnID),
-            transactionID: AETransactionID(kAnyTransactionID)
-        )
-        event.setParam(
-            NSAppleEventDescriptor(string: scriptHandlerName),
-            forKeyword: AEKeyword(keyASSubroutineName)
-        )
-        let arguments = NSAppleEventDescriptor.list()
-        arguments.insert(NSAppleEventDescriptor(processIdentifier: targetPID), at: 1)
-        event.setParam(arguments, forKeyword: AEKeyword(keyDirectObject))
-        return event
-    }
-
-    /// Executes a PID-targeted script and preserves the Apple Event error number
-    /// instead of collapsing every failure into a successful nil result.
+    /// Executes the script and preserves the Apple Event error number instead of
+    /// collapsing every failure into a successful nil result.
+    ///
+    /// `targetPID` is a cheap pre-filter, not the address: callers resolve Music's
+    /// pid first so a quit Music short-circuits before any script runs. The event
+    /// itself is addressed by bundle id, because a raw kernel-pid descriptor is
+    /// not an application specifier. See `musicTargetedScript` for why, and for
+    /// the in-script `is running` guard that closes the check-then-send window
+    /// this pre-filter alone would leave open.
     private func executeAppleScript(
         _ source: String,
         targetPID: pid_t
@@ -870,9 +888,8 @@ final class AppleMusicController: AppleMusicControlling {
             ))
         }
 
-        let event = Self.scriptInvocationEvent(targetPID: targetPID)
         var error: NSDictionary?
-        let descriptor = script.executeAppleEvent(event, error: &error)
+        let descriptor = script.executeAndReturnError(&error)
         if let error {
             let failure = Self.scriptFailure(from: error)
             Log.warn(

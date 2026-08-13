@@ -22,6 +22,8 @@ struct DebugServiceControlsCard: View {
     @State private var queueCount: Int = 3
     @State private var wsTestTitle: String = "WS Test"
     @State private var wsTestArtist: String = "Debug"
+    @State private var musicSelfTestReport: String = ""
+    @State private var musicSelfTestRunning: Bool = false
     @AppStorage(AppConstants.UserDefaults.debugTreatAllChattersAsViewers)
     private var treatAllChattersAsViewers = false
     @AppStorage(AppConstants.UserDefaults.debugViewerUsernames)
@@ -36,6 +38,8 @@ struct DebugServiceControlsCard: View {
                 .foregroundStyle(.secondary)
 
             playbackSection
+            Divider()
+            musicAccessSection
             Divider()
             twitchSection
             Divider()
@@ -95,6 +99,74 @@ struct DebugServiceControlsCard: View {
                 .pointerCursor()
             }
         }
+    }
+
+    // MARK: - Music Access Self-Test
+
+    /// Exercises the real Apple Event path against the running Music.app.
+    ///
+    /// No unit test can cover this: the failure it catches only exists inside the
+    /// sandboxed app talking to a live Music. 2.1.0 shipped with every Apple
+    /// Event failing at runtime while CI stayed green, because the tests asserted
+    /// the shape of an event descriptor instead of whether Music answered. This
+    /// button is the check that would have caught it in seconds.
+    ///
+    /// The ScriptingBridge half needs no button: the now-playing card is already
+    /// its live indicator. If music is playing and the card says otherwise, that
+    /// read is broken.
+    private var musicAccessSection: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
+            sectionLabel("Apple Music: Access Self-Test")
+            Text("Sends a real Apple Event to Music.app. Play a track first.")
+                .font(.system(size: DSFont.Size.xs))
+                .foregroundStyle(.secondary)
+
+            Button {
+                Task { await runMusicAccessSelfTest() }
+            } label: {
+                Label("Run Music Access Self-Test", systemImage: "stethoscope")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .pointerCursor()
+            .disabled(musicSelfTestRunning)
+
+            if !musicSelfTestReport.isEmpty {
+                Text(musicSelfTestReport)
+                    .font(.system(size: DSFont.Size.sm, design: .monospaced))
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func runMusicAccessSelfTest() async {
+        musicSelfTestRunning = true
+        defer { musicSelfTestRunning = false }
+
+        var lines: [String] = []
+        let pid = MusicProcess.pid
+        lines.append("MusicProcess.pid: \(pid.map(String.init) ?? "nil (Music not running)")")
+
+        guard let controller = appDelegate?.songRequestService?.musicController else {
+            lines.append("musicController: unavailable (Song Requests not started)")
+            musicSelfTestReport = lines.joined(separator: "\n")
+            return
+        }
+        lines.append("isMusicAppRunning: \(controller.isMusicAppRunning ? "yes" : "no")")
+
+        if let snapshot = await controller.playbackSnapshot() {
+            let key = snapshot.trackKey?.replacingOccurrences(of: "\t", with: " — ") ?? "nil"
+            lines.append("playbackSnapshot: PASS")
+            lines.append("  state: \(snapshot.state)")
+            lines.append("  track: \(key)")
+        } else {
+            lines.append("playbackSnapshot: FAIL (nil)")
+            lines.append("  Music unreachable, or nothing loaded.")
+            lines.append("  Apple Event error number is in the Logs card.")
+        }
+
+        musicSelfTestReport = lines.joined(separator: "\n")
     }
 
     // MARK: - Twitch
