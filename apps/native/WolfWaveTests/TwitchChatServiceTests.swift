@@ -962,6 +962,99 @@ struct TwitchChatServiceTests {
         })
         #expect(!operations.value.contains { $0.url.contains("/redemptions?") })
     }
+
+    @Test("Containment ends instead of retrying when the managed reward is gone")
+    func testContainmentEndsWhenManagedRewardIdentityIsGone() async throws {
+        // Nothing on this machine claims the reward, so the identity clause of
+        // the guard is what stops the pause/refund.
+        try await assertContainmentEndsWithoutRetrying(
+            installingManagedRewardIdentity: false,
+            activeBroadcasterID: "broadcaster")
+    }
+
+    @Test("Containment ends instead of retrying when the account has moved on")
+    func testContainmentEndsWhenBroadcasterCredentialsNoLongerMatch() async throws {
+        // The reward is still ours, but the signed-in account is a different
+        // broadcaster, so the credential clauses are what stop the pause/refund.
+        // This is the account-switch case that produced the original hot loop.
+        try await assertContainmentEndsWithoutRetrying(
+            installingManagedRewardIdentity: true,
+            activeBroadcasterID: "replacement-broadcaster")
+    }
+
+    private func assertContainmentEndsWithoutRetrying(
+        installingManagedRewardIdentity: Bool,
+        activeBroadcasterID: String
+    ) async throws {
+        enum InjectedFailure: Error {
+            case write
+        }
+
+        let directory = makeIsolatedTempDirectory(prefix: "redemption-containment-abandon")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let writes = ThreadSafeBox(0)
+        let outbox = TwitchRedemptionResolutionOutbox(
+            fileURL: directory.appending(path: "outbox.json"),
+            atomicWriter: { data, url in
+                var attempt = 0
+                writes.mutate {
+                    $0 += 1
+                    attempt = $0
+                }
+                if attempt == 2 { throw InjectedFailure.write }
+                try data.write(to: url, options: .atomic)
+            }
+        )
+        let item = try outbox.enqueue(
+            broadcasterID: "broadcaster",
+            rewardID: "reward",
+            redemptionID: "abandoned",
+            resolution: .canceled)
+        let defaults = UserDefaults.standard
+        let statusKey = AppConstants.UserDefaults.songRequestRedemptionStatus
+        if installingManagedRewardIdentity {
+            installManagedRewardIdentity()
+        } else {
+            clearManagedRewardIdentity()
+        }
+        defaults.removeObject(forKey: statusKey)
+        defer {
+            clearManagedRewardIdentity()
+            defaults.removeObject(forKey: statusKey)
+        }
+
+        let requests = ThreadSafeBox(0)
+        let handler: MockURLProtocol.Handler = { request in
+            requests.mutate { $0 += 1 }
+            return (MockURLProtocol.httpResponse(for: request, status: 204), Data())
+        }
+        let service = TwitchChatService(
+            channelPointsService: TwitchChannelPointsService(
+                session: MockURLProtocol.makeSession(handler: handler)),
+            redemptionResolutionOutbox: outbox)
+        await service.configureBroadcasterRedemptionCredentialsForTesting(
+            broadcasterID: activeBroadcasterID)
+        // Throwing keeps a regression bounded: an unresolvable containment that
+        // starts backing off again fails this test instead of spinning forever.
+        let backoffs = ThreadSafeBox(0)
+        await service.setRedemptionResolutionSleep { _ in
+            backoffs.mutate { $0 += 1 }
+            throw CancellationError()
+        }
+
+        await service.acknowledgeRedemptionResolutionForTesting(item)
+        await service.awaitPaidRedemptionTasksForTesting()
+
+        #expect(backoffs.value == 0)
+        #expect(requests.value == 0)
+        #expect(await service.activePaidRedemptionTaskCount == 0)
+        #expect(!TwitchRedemptionTeardownGate.hasContainment(
+            serviceID: ObjectIdentifier(service),
+            broadcasterID: "broadcaster"))
+        // The refund is deferred, not dropped: the item stays on disk and Twitch
+        // still lists the redemption as unfulfilled for the next owning session.
+        #expect(outbox.pendingItems() == [item])
+    }
     #endif
 
     private func assertRedemptionStorageFailureFailsClosed(
