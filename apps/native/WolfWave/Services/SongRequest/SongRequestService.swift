@@ -1274,20 +1274,14 @@ final class SongRequestService {
     }
 
     /// Routes playback through a narrow injectable seam for deterministic race
-    /// tests. An item with no MusicKit `Song` cannot be played, so it is treated
-    /// as not playable rather than silently committing it. DEBUG once returned
-    /// early here so song-less test fixtures "succeeded" without the controller
-    /// ever being called; that made every downstream `playNowCalled` assertion
-    /// vacuous, so tests now carry a real `Song` (see `makeTestSong`).
+    /// tests. Every item carries a `Song`, so there is no unplayable-item branch
+    /// to get wrong here (see `SongRequestItem.song`).
     private func performPlayback(for item: SongRequestItem) async throws {
         if let playbackOverride {
             try await playbackOverride(item)
             return
         }
-        guard let song = item.song else {
-            throw PlaybackError.notPlayable(title: item.title)
-        }
-        try await musicController.playNow(song: song)
+        try await musicController.playNow(song: item.song)
     }
 
     /// Advances to the next queued track when the current request finishes,

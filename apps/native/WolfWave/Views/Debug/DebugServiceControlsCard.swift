@@ -368,8 +368,12 @@ struct DebugServiceControlsCard: View {
         guard let queue = appDelegate?.songRequestService?.queue else { return }
         for index in 0..<queueCount {
             let item = SongRequestItem(
-                title: "Debug Song \(index + 1)",
-                artist: "Debug Artist",
+                song: .debugPlaceholder(
+                    id: "debug\(index + 1)",
+                    title: "Debug Song \(index + 1)",
+                    artist: "Debug Artist",
+                    album: "Debug Album"
+                ),
                 requesterUsername: queueRequester.isEmpty ? "tester" : queueRequester
             )
             _ = queue.add(item)

@@ -38,8 +38,9 @@ func testSongID(for text: String) -> String {
 /// the hold gate, the Music-closed buffering gate, and the requeue-on-throw path
 /// could all be deleted outright.
 ///
-/// `Song` is `Decodable` from the Apple Music API resource shape, which is the
-/// supported way to get one without a network round trip.
+/// Decoding lives in `Song.debugPlaceholder` in the app target, shared with the
+/// Debug tab's fake-request injector, so the Apple Music resource shape has one
+/// copy rather than one per target.
 func makeTestSong(
     id: String = defaultTestSongID,
     title: String = "Test Song",
@@ -47,44 +48,23 @@ func makeTestSong(
     album: String = "Test Album",
     durationInMillis: Int = 180_000
 ) -> Song {
-    let json = """
-    {
-      "id": "\(id)",
-      "type": "songs",
-      "href": "/v1/catalog/us/songs/\(id)",
-      "attributes": {
-        "name": "\(title)",
-        "artistName": "\(artist)",
-        "albumName": "\(album)",
-        "durationInMillis": \(durationInMillis),
-        "genreNames": ["Rock"],
-        "trackNumber": 1,
-        "discNumber": 1,
-        "hasLyrics": false,
-        "playParams": { "id": "\(id)", "kind": "song" },
-        "url": "https:/\("/")music.apple.com/us/album/test/1?i=\(id)"
-      }
-    }
-    """
-    do {
-        return try JSONDecoder().decode(Song.self, from: Data(json.utf8))
-    } catch {
-        // A decode failure here means MusicKit changed its resource shape. Trap
-        // loudly rather than letting every caller silently fall back to
-        // `.notFound`, which is the exact vacuity this factory exists to end.
-        preconditionFailure("makeTestSong could not decode a MusicKit Song: \(error)")
-    }
+    .debugPlaceholder(
+        id: id,
+        title: title,
+        artist: artist,
+        album: album,
+        durationInMillis: durationInMillis
+    )
 }
 
-/// Builds a queue item backed by a real `Song`, so playback actually reaches
-/// `AppleMusicControlling.playNow`.
+/// Builds a queue item for tests.
 ///
-/// Use this for any test whose subject is downstream of playback: takeover at a
-/// track boundary, auto-advance, hold release, boost from an idle player. The
-/// song-less `SongRequestItem(title:artist:...)` fixture is for pure queue
-/// bookkeeping only, where no controller call is expected. `performPlayback`
-/// used to return early in DEBUG for song-less items, which let a test assert
-/// `playNowCalled == false` about a request that could never have called it.
+/// The only way to make a `SongRequestItem` in a test, since `song` is
+/// non-optional. There used to be a song-less test initializer, which made "a
+/// queue item that cannot be played" representable and forced a nil branch into
+/// playback; a `#if DEBUG` hatch in that branch then let song-less fixtures fake
+/// a successful start, so a test could assert `playNowCalled == false` about a
+/// request that could never have called it. Both are gone.
 @MainActor
 func makeTestRequestItem(
     title: String,

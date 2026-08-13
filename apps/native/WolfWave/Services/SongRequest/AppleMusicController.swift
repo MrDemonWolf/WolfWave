@@ -577,9 +577,7 @@ final class AppleMusicController: AppleMusicControlling {
         let preservesFocus: Bool
         switch action {
         case .request(let item):
-            guard let song = item.song else {
-                throw PlaybackError.notPlayable(title: item.title)
-            }
+            let song = item.song
             try await prepareForPlayback(song: song)
             switch try await playFromRequestsPlaylist(
                 song: song,

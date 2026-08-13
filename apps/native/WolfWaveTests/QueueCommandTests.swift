@@ -20,7 +20,7 @@ final class QueueCommandTests: WolfWaveTestCase {
     private func makeQueue(itemCount: Int) -> SongRequestQueue {
         let queue = SongRequestQueue()
         for i in 0..<itemCount {
-            let item = SongRequestItem(
+            let item = makeTestRequestItem(
                 title: "Song \(i + 1)",
                 artist: "Artist \(i + 1)",
                 requesterUsername: "user\(i + 1)"

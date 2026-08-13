@@ -249,9 +249,9 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     // MARK: - Bit Boost
 
     func testBoostMovesUsersEarliestItemToFront() async {
-        queue.add(SongRequestItem(title: "B", artist: "y", requesterUsername: "bob"))
-        queue.add(SongRequestItem(title: "A", artist: "x", requesterUsername: "alice"))
-        queue.add(SongRequestItem(title: "C", artist: "z", requesterUsername: "alice"))
+        queue.add(makeTestRequestItem(title: "B", artist: "y", requesterUsername: "bob"))
+        queue.add(makeTestRequestItem(title: "A", artist: "x", requesterUsername: "alice"))
+        queue.add(makeTestRequestItem(title: "C", artist: "z", requesterUsername: "alice"))
         // Streamer's own track is playing, so boost only reorders (no takeover).
         mockController.isMusicAppRunning = true
         mockController.isPlaying = true
@@ -265,7 +265,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
 
     func testBoostRejectedWhenFeatureDisabled() async {
         UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.songRequestEnabled)
-        queue.add(SongRequestItem(title: "A", artist: "x", requesterUsername: "alice"))
+        queue.add(makeTestRequestItem(title: "A", artist: "x", requesterUsername: "alice"))
 
         let boosted = await service.boost(username: "alice")
         XCTAssertNil(boosted, "Boost must be rejected while the feature is off")
@@ -283,7 +283,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         mockController.isPlaying = false
         mockController.isPaused = false
 
-        queue.add(SongRequestItem(title: "Last", artist: "a", requesterUsername: "u"))
+        queue.add(makeTestRequestItem(title: "Last", artist: "a", requesterUsername: "u"))
         queue.dequeue() // nowPlaying = Last, queue now empty
 
         service.startPlaybackMonitoring()
@@ -494,7 +494,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     func testSkipCallsNativeSkip() async {
         // No fallback + autoplay-off → draining the queue via skip stops Music.app.
         UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.songRequestAutoplayWhenEmpty)
-        queue.add(SongRequestItem(title: "Song A", artist: "Artist", requesterUsername: "user1"))
+        queue.add(makeTestRequestItem(title: "Song A", artist: "Artist", requesterUsername: "user1"))
         queue.dequeue()
 
         _ = await service.skip()
@@ -511,8 +511,8 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     }
 
     func testClearQueueReturnsClearedCount() async {
-        queue.add(SongRequestItem(title: "Song 1", artist: "A", requesterUsername: "user1"))
-        queue.add(SongRequestItem(title: "Song 2", artist: "B", requesterUsername: "user2"))
+        queue.add(makeTestRequestItem(title: "Song 1", artist: "A", requesterUsername: "user1"))
+        queue.add(makeTestRequestItem(title: "Song 2", artist: "B", requesterUsername: "user2"))
 
         let count = await service.clearQueue()
         XCTAssertEqual(count, 2)
@@ -520,7 +520,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     }
 
     func testClearQueueAlsoClearsPlayerQueue() async {
-        queue.add(SongRequestItem(title: "Song 1", artist: "A", requesterUsername: "user1"))
+        queue.add(makeTestRequestItem(title: "Song 1", artist: "A", requesterUsername: "user1"))
 
         _ = await service.clearQueue()
         XCTAssertTrue(mockController.clearCalled)
@@ -539,13 +539,13 @@ final class SongRequestServiceTests: WolfWaveTestCase {
                 startedIDs.mutate { $0.append(item.id) }
             }
         )
-        let removed = SongRequestItem(
+        let removed = makeTestRequestItem(
             title: "Removed", artist: "Artist", requesterUsername: "old")
         queue.add(removed)
 
         let clearing = Task { await self.service.clearQueue() }
         await clearGate.waitUntilStarted()
-        let fresh = SongRequestItem(
+        let fresh = makeTestRequestItem(
             title: "Fresh", artist: "Artist", requesterUsername: "new")
         queue.add(fresh)
 
@@ -577,14 +577,14 @@ final class SongRequestServiceTests: WolfWaveTestCase {
                 startedIDs.mutate { $0.append(item.id) }
             }
         )
-        let firstRemoved = SongRequestItem(
+        let firstRemoved = makeTestRequestItem(
             title: "First removed", artist: "Artist", requesterUsername: "old")
         queue.add(firstRemoved)
 
         let firstClear = Task { await self.service.clearQueue() }
         await clearGate.waitUntilStarted()
 
-        let secondRemoved = SongRequestItem(
+        let secondRemoved = makeTestRequestItem(
             title: "Second removed", artist: "Artist", requesterUsername: "middle")
         queue.add(secondRemoved)
         let secondClear = Task { await self.service.clearQueue() }
@@ -593,7 +593,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         }
         XCTAssertTrue(secondClearStarted)
 
-        let latest = SongRequestItem(
+        let latest = makeTestRequestItem(
             title: "Latest", artist: "Artist", requesterUsername: "new")
         queue.add(latest)
         let startWhileClearing = await service.playNextInQueue()
@@ -612,9 +612,9 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         XCTAssertTrue(queue.isEmpty)
     }
     func testPlaybackFailureLeavesReservedHeadAndCurrentItemUntouched() async {
-        let current = SongRequestItem(
+        let current = makeTestRequestItem(
             title: "Current", artist: "Artist", requesterUsername: "first")
-        let reserved = SongRequestItem(
+        let reserved = makeTestRequestItem(
             title: "Reserved", artist: "Artist", requesterUsername: "second")
         queue.add(current)
         queue.add(reserved)
@@ -635,9 +635,9 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     }
 
     func testCancelledPlaybackRetainsQueueHead() async {
-        let current = SongRequestItem(
+        let current = makeTestRequestItem(
             title: "Current", artist: "Artist", requesterUsername: "first")
-        let reserved = SongRequestItem(
+        let reserved = makeTestRequestItem(
             title: "Reserved", artist: "Artist", requesterUsername: "second")
         queue.add(current)
         queue.add(reserved)
@@ -657,7 +657,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
 
     func testClearDuringSuspendedPlaybackCannotResurrectRequest() async {
         let gate = PlaybackGate()
-        let reserved = SongRequestItem(
+        let reserved = makeTestRequestItem(
             title: "Reserved", artist: "Artist", requesterUsername: "viewer")
         queue.add(reserved)
         service = SongRequestService(
@@ -683,9 +683,9 @@ final class SongRequestServiceTests: WolfWaveTestCase {
 
     func testReorderDuringSuspendedPlaybackRetriesNewHead() async {
         let gate = PlaybackGate()
-        let first = SongRequestItem(
+        let first = makeTestRequestItem(
             title: "First", artist: "Artist", requesterUsername: "first")
-        let second = SongRequestItem(
+        let second = makeTestRequestItem(
             title: "Second", artist: "Artist", requesterUsername: "second")
         queue.add(first)
         queue.add(second)
@@ -728,14 +728,8 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     func testPlayNextInQueueRequeuesItemWhenMusicAppNotRunning() async {
         mockController.shouldThrowMusicAppNotRunning = true
 
-        // The item must carry a real Song. `performPlayback` has an
-        // `#if DEBUG return` escape hatch for a nil `song`, so an item built
-        // with the test-only initializer fakes a successful start and never
-        // reaches `musicController.playNow` at all. That hatch is why the old
-        // version of this test could not have caught anything.
-        queue.add(SongRequestItem(
-            song: makeTestSong(title: "Buffered Song", artist: "Artist"),
-            requesterUsername: "user1"))
+        queue.add(makeTestRequestItem(
+            title: "Buffered Song", artist: "Artist", requesterUsername: "user1"))
 
         // Actually exercise playNextInQueue. The old version called
         // processRequest instead, which resolved to .notFound, so playNow was
@@ -774,7 +768,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
             "Gaming Vibes",
             forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
         mockController.isMusicAppRunning = true
-        let current = SongRequestItem(
+        let current = makeTestRequestItem(
             title: "Last request", artist: "Artist", requesterUsername: "viewer")
         queue.add(current)
         queue.dequeue()
@@ -793,7 +787,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     func testClearQueueDoesNotStartFallback() async {
         UserDefaults.standard.set(
             "Gaming Vibes", forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
-        queue.add(SongRequestItem(title: "Song 1", artist: "A", requesterUsername: "user1"))
+        queue.add(makeTestRequestItem(title: "Song 1", artist: "A", requesterUsername: "user1"))
 
         _ = await service.clearQueue()
 
@@ -1119,7 +1113,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         service.startPlaybackMonitoring()
 
         let unrelatedQueue = SongRequestQueue()
-        unrelatedQueue.add(SongRequestItem(
+        unrelatedQueue.add(makeTestRequestItem(
             title: "Other", artist: "Artist", requesterUsername: "viewer"))
         try? await Task.sleep(for: .milliseconds(80))
 
@@ -1231,7 +1225,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     func testVoteSkipLastRequestWithAutoplayAdvancesMusic() async {
         // Natural queue drain leaves Music autoplay alone, but a passed vote
         // against the last request must actively advance off the voted track.
-        queue.add(SongRequestItem(title: "Playing", artist: "A", requesterUsername: "user1"))
+        queue.add(makeTestRequestItem(title: "Playing", artist: "A", requesterUsername: "user1"))
         queue.dequeue()  // nowPlaying = "Playing"
         XCTAssertNotNil(queue.nowPlaying, "Precondition: a request must be in nowPlaying")
         mockController.currentTrackID = "Playing\tA"
@@ -1246,7 +1240,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         UserDefaults.standard.set(
             "Gaming Vibes",
             forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
-        let current = SongRequestItem(
+        let current = makeTestRequestItem(
             title: "Playing", artist: "A", requesterUsername: "viewer")
         queue.add(current)
         queue.dequeue()
@@ -1263,7 +1257,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         UserDefaults.standard.set(
             false,
             forKey: AppConstants.UserDefaults.songRequestAutoplayWhenEmpty)
-        let current = SongRequestItem(
+        let current = makeTestRequestItem(
             title: "Playing", artist: "A", requesterUsername: "viewer")
         queue.add(current)
         queue.dequeue()
@@ -1277,9 +1271,9 @@ final class SongRequestServiceTests: WolfWaveTestCase {
 
     func testTargetedVoteSkipDoesNotReplaceTrackOrCommitQueueAfterTargetChanges() async {
         let gate = PlaybackGate()
-        let current = SongRequestItem(
+        let current = makeTestRequestItem(
             title: "Current", artist: "Artist", requesterUsername: "first")
-        let queued = SongRequestItem(
+        let queued = makeTestRequestItem(
             title: "Queued", artist: "Artist", requesterUsername: "second")
         queue.add(current)
         queue.add(queued)
@@ -1317,9 +1311,9 @@ final class SongRequestServiceTests: WolfWaveTestCase {
 
     func testSuccessfulTargetedVoteCommitsReservedHeadAfterOwnTrackCallback() async {
         let gate = PlaybackGate()
-        let current = SongRequestItem(
+        let current = makeTestRequestItem(
             title: "Current", artist: "Artist", requesterUsername: "first")
-        let queued = SongRequestItem(
+        let queued = makeTestRequestItem(
             title: "Queued", artist: "Artist", requesterUsername: "second")
         queue.add(current)
         queue.add(queued)
@@ -1367,9 +1361,9 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         var capturedMessages: [String] = []
         service.sendChatMessage = { capturedMessages.append($0) }
 
-        let unavailable = SongRequestItem(
+        let unavailable = makeTestRequestItem(
             title: "Unavailable", artist: "A", requesterUsername: "u1")
-        let playable = SongRequestItem(
+        let playable = makeTestRequestItem(
             title: "Playable", artist: "B", requesterUsername: "u2")
         queue.add(unavailable)
         queue.add(playable)
@@ -1404,7 +1398,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         mockController.isMusicAppRunning = true
         mockController.isPlaying = true
 
-        queue.add(SongRequestItem(title: "Last", artist: "A", requesterUsername: "u1"))
+        queue.add(makeTestRequestItem(title: "Last", artist: "A", requesterUsername: "u1"))
         queue.dequeue()  // nowPlaying = "Last", queue now empty
 
         service.startPlaybackMonitoring()

@@ -30,16 +30,16 @@ final class SongRequestQueueBoostTests: WolfWaveTestCase {
     }
 
     func testBoostReturnsNilWhenUserHasNothingQueued() {
-        queue.add(SongRequestItem(title: "Other", artist: "X", requesterUsername: "other"))
+        queue.add(makeTestRequestItem(title: "Other", artist: "X", requesterUsername: "other"))
         XCTAssertNil(queue.boost(username: "viewer"))
         // Queue unchanged.
         XCTAssertEqual(queue.items.first?.title, "Other")
     }
 
     func testBoostMovesUsersItemToFront() {
-        queue.add(SongRequestItem(title: "A", artist: "X", requesterUsername: "first"))
-        queue.add(SongRequestItem(title: "B", artist: "X", requesterUsername: "second"))
-        queue.add(SongRequestItem(title: "C", artist: "X", requesterUsername: "viewer"))
+        queue.add(makeTestRequestItem(title: "A", artist: "X", requesterUsername: "first"))
+        queue.add(makeTestRequestItem(title: "B", artist: "X", requesterUsername: "second"))
+        queue.add(makeTestRequestItem(title: "C", artist: "X", requesterUsername: "viewer"))
 
         let boosted = queue.boost(username: "viewer")
 
@@ -48,9 +48,9 @@ final class SongRequestQueueBoostTests: WolfWaveTestCase {
     }
 
     func testBoostPicksEarliestItemForUserWithMultiple() {
-        queue.add(SongRequestItem(title: "Other", artist: "X", requesterUsername: "other"))
-        queue.add(SongRequestItem(title: "A", artist: "X", requesterUsername: "viewer"))
-        queue.add(SongRequestItem(title: "B", artist: "X", requesterUsername: "viewer"))
+        queue.add(makeTestRequestItem(title: "Other", artist: "X", requesterUsername: "other"))
+        queue.add(makeTestRequestItem(title: "A", artist: "X", requesterUsername: "viewer"))
+        queue.add(makeTestRequestItem(title: "B", artist: "X", requesterUsername: "viewer"))
 
         let boosted = queue.boost(username: "viewer")
 
@@ -59,8 +59,8 @@ final class SongRequestQueueBoostTests: WolfWaveTestCase {
     }
 
     func testBoostIsCaseInsensitive() {
-        queue.add(SongRequestItem(title: "First", artist: "X", requesterUsername: "OtherUser"))
-        queue.add(SongRequestItem(title: "Mine", artist: "X", requesterUsername: "Viewer"))
+        queue.add(makeTestRequestItem(title: "First", artist: "X", requesterUsername: "OtherUser"))
+        queue.add(makeTestRequestItem(title: "Mine", artist: "X", requesterUsername: "Viewer"))
 
         let boosted = queue.boost(username: "viewer")
 
