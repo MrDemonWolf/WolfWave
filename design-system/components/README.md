@@ -18,6 +18,7 @@ in `MonthlyWrapView.swift`). They are grouped by the directory they belong to.
 | CommandAliasField | [command-alias-field.md](command-alias-field.md) |
 | LabeledSlider | [labeled-slider.md](labeled-slider.md) |
 | CooldownSliderPair | [cooldown-slider-pair.md](cooldown-slider-pair.md) |
+| Binding+Sanitized | [binding-sanitized.md](binding-sanitized.md) |
 | SuccessFeedbackRow | [success-feedback-row.md](success-feedback-row.md) |
 | SectionHeaderWithStatus | [section-header-with-status.md](section-header-with-status.md) |
 | NowPlayingHeroCard | [now-playing-hero-card.md](now-playing-hero-card.md) |

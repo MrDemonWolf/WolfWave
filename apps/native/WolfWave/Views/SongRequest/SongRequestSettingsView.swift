@@ -365,10 +365,54 @@ fileprivate struct VoteSkipCard: View {
     @AppStorage(AppConstants.UserDefaults.voteSkipCommandAliases)
     private var commandAliases = ""
 
+    // Shared by each `ForEach` and its matching `snapped(to:fallback:)`, so a
+    // tag can never exist in one and not the other.
+    private static let minVotesOptions = [2, 3, 5, 7, 10]
+    private static let pollDurationOptions = [30, 60, 90, 120, 180, 300]
+    private static let windowOptions = [30, 60, 90, 120]
+    private static let cooldownRange: ClosedRange<Double> = 0...120
+
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             voteSkipHeader
             voteSkipCard
+        }
+    }
+
+    /// The segmented picker that crashed the settings window when
+    /// `voteSkipWindowSeconds` held a value outside its tags (a stored `1`).
+    private var voteWindowRow: some View {
+        let window = $windowSeconds.snapped(
+            to: Self.windowOptions,
+            fallback: AppConstants.UserDefaults.Defaults.voteSkipWindowSeconds)
+        return VStack(alignment: .leading, spacing: DSSpace.s0) {
+            Text("Vote window: \(window.wrappedValue)s")
+                .font(.system(size: DSFont.Size.sm))
+                .foregroundStyle(.secondary)
+            Picker("", selection: window) {
+                ForEach(Self.windowOptions, id: \.self) { seconds in
+                    Text("\(seconds)s").tag(seconds)
+                }
+            }
+            .pickerStyle(.segmented)
+            .accessibilityLabel("Vote window in seconds")
+        }
+    }
+
+    /// Reads the clamped binding, not the raw one, so the two `Int(…)`
+    /// conversions below are total. `Int(Double.nan)` and `Int(1e300)` trap.
+    private var voteCooldownRow: some View {
+        let cooldown = $sessionCooldown.clamped(
+            to: Self.cooldownRange,
+            fallback: AppConstants.UserDefaults.Defaults.voteSkipSessionCooldown)
+        return VStack(alignment: .leading, spacing: DSSpace.s0) {
+            Text("Cooldown between votes: \(Int(cooldown.wrappedValue))s")
+                .font(.system(size: DSFont.Size.sm))
+                .foregroundStyle(.secondary)
+            Slider(value: cooldown, in: Self.cooldownRange, step: 15)
+                .controlSize(.small)
+                .accessibilityLabel("Cooldown between votes")
+                .accessibilityValue("\(Int(cooldown.wrappedValue)) seconds")
         }
     }
 
@@ -411,8 +455,13 @@ fileprivate struct VoteSkipCard: View {
                 HStack {
                     Text("Minimum votes to skip").font(.system(size: DSFont.Size.body))
                     Spacer()
-                    Picker("", selection: $minVotes) {
-                        ForEach([2, 3, 5, 7, 10], id: \.self) { count in
+                    Picker(
+                        "",
+                        selection: $minVotes.snapped(
+                            to: Self.minVotesOptions,
+                            fallback: AppConstants.UserDefaults.Defaults.voteSkipMinVotes)
+                    ) {
+                        ForEach(Self.minVotesOptions, id: \.self) { count in
                             Text("\(count)").tag(count)
                         }
                     }
@@ -446,8 +495,13 @@ fileprivate struct VoteSkipCard: View {
                     HStack {
                         Text("Poll duration").font(.system(size: DSFont.Size.body))
                         Spacer()
-                        Picker("", selection: $pollDuration) {
-                            ForEach([30, 60, 90, 120, 180, 300], id: \.self) { seconds in
+                        Picker(
+                            "",
+                            selection: $pollDuration.snapped(
+                                to: Self.pollDurationOptions,
+                                fallback: AppConstants.UserDefaults.Defaults.voteSkipPollDuration)
+                        ) {
+                            ForEach(Self.pollDurationOptions, id: \.self) { seconds in
                                 Text("\(seconds)s").tag(seconds)
                             }
                         }
@@ -460,28 +514,8 @@ fileprivate struct VoteSkipCard: View {
                 } else {
                     Divider()
 
-                    VStack(alignment: .leading, spacing: DSSpace.s0) {
-                        Text("Vote window: \(windowSeconds)s")
-                            .font(.system(size: DSFont.Size.sm))
-                            .foregroundStyle(.secondary)
-                        Picker("", selection: $windowSeconds) {
-                            ForEach([30, 60, 90, 120], id: \.self) { seconds in
-                                Text("\(seconds)s").tag(seconds)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        .accessibilityLabel("Vote window in seconds")
-                    }
-
-                    VStack(alignment: .leading, spacing: DSSpace.s0) {
-                        Text("Cooldown between votes: \(Int(sessionCooldown))s")
-                            .font(.system(size: DSFont.Size.sm))
-                            .foregroundStyle(.secondary)
-                        Slider(value: $sessionCooldown, in: 0...120, step: 15)
-                            .controlSize(.small)
-                            .accessibilityLabel("Cooldown between votes")
-                            .accessibilityValue("\(Int(sessionCooldown)) seconds")
-                    }
+                    voteWindowRow
+                    voteCooldownRow
                 }
 
                 Divider()
