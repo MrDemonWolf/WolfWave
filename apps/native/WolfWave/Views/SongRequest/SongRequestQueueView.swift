@@ -257,7 +257,7 @@ struct SongRequestQueueView: View {
 
                     Button {
                         queue?.remove(id: item.id)
-                        let remainingSongs = queue?.items.compactMap { $0.song } ?? []
+                        let remainingSongs = queue?.items.map(\.song) ?? []
                         Task {
                             try? await service?.musicController.rebuildPlayerQueue(from: remainingSongs)
                         }
