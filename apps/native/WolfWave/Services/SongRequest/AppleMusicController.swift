@@ -679,17 +679,22 @@ final class AppleMusicController: AppleMusicControlling {
     ///
     /// Deliberately launches Music.app if it is closed (the user asked to open
     /// it), unlike the playback probes that avoid relaunching a quit app.
+    ///
+    /// Music is raised through `NSRunningApplication`, never an AppleScript
+    /// `activate`: the script is addressed by process id, and a raw pid
+    /// specifier does not implement `activate` (error -1708), which aborted the
+    /// whole script before `reveal` ever ran.
     func revealRequestsPlaylist() async {
         await ensureMusicRunningForReveal()
         guard let pid = MusicProcess.pid else {
             Log.warn("AppleMusicController: Could not launch Music.app to reveal requests playlist", category: "SongRequest")
             return
         }
-        let name = sanitizeForAppleScript(AppConstants.Music.requestsPlaylistName)
-        let result = runAppleScript(Self.pidTargetedScript("""
-        activate
-        reveal playlist "\(name)"
-        """, seconds: ScriptTimeout.command), targetPID: pid)
+        NSRunningApplication(processIdentifier: pid)?.activate()
+        let result = runAppleScript(
+            revealScript(playlistName: AppConstants.Music.requestsPlaylistName),
+            targetPID: pid
+        )
         if case .failure(let failure) = result {
             Log.warn(
                 "AppleMusicController: Could not reveal requests playlist: \(failure.message)",
@@ -712,6 +717,20 @@ final class AppleMusicController: AppleMusicControlling {
             .filter { $0.value >= 32 && $0.value != 127 }
             .map(String.init)
             .joined()
+    }
+
+    /// AppleScript source that reveals a playlist by name.
+    ///
+    /// Contains only `reveal`. Application-level verbs such as `activate` must
+    /// never be added here: the script is dispatched against a process-id
+    /// specifier, which does not understand them (`-1708`).
+    ///
+    /// - Parameter playlistName: Playlist to select, sanitized before embedding.
+    /// - Returns: PID-targeted AppleScript source.
+    func revealScript(playlistName: String) -> String {
+        Self.pidTargetedScript("""
+        reveal playlist "\(sanitizeForAppleScript(playlistName))"
+        """, seconds: ScriptTimeout.command)
     }
 
     /// AppleScript source that rejects a playback mutation unless the loaded
