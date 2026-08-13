@@ -106,7 +106,10 @@ struct SettingsBackupService {
             (Data) async -> Bool = { data in
             let blocklist = AppDelegate.shared?.songRequestService?.blocklist
                 ?? SongBlocklist()
-            return await blocklist.replaceFromImportedData(data)
+            // `replaceFromImportedData` is synchronous. The closure's type stays
+            // `async` so an injected implementation may suspend; this default
+            // one has nothing to await.
+            return blocklist.replaceFromImportedData(data)
         },
         sideEffects: SideEffects = .live
     ) {
