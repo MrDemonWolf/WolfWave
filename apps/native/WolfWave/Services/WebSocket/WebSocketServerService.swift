@@ -110,6 +110,14 @@ actor WebSocketServerService {
     /// thread. Used by the tray menu's "Stream Widgets" status subtitle.
     nonisolated var connectedClientCount: Int { connectionCount }
 
+    /// The port the listener actually bound, or `nil` before it binds. Differs
+    /// from the configured port only when that was `0`, which asks the kernel
+    /// for a free ephemeral port. Tests bind `0` and read this back so they can
+    /// never collide with an unrelated process holding a hardcoded port.
+    var boundPort: UInt16? {
+        listener?.port?.rawValue
+    }
+
     // MARK: - Properties
 
     private var port: UInt16

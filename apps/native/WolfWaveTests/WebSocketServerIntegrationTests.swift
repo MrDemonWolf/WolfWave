@@ -11,7 +11,7 @@ import XCTest
 @testable import WolfWave
 
 // Integration tests for the WebSocket server lifecycle and replay protocol. Each
-// case binds a high-numbered loopback port and gates on observed state changes;
+// case owns an OS-assigned loopback port and gates on observed state changes;
 // no timing sleep stands in for a transport assertion.
 final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
 
@@ -68,6 +68,30 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
             overlayToken: Self.overlayToken,
             controlToken: Self.controlToken
         )
+    }
+
+    /// Starts a service on an OS-assigned port, awaits `.listening`, and returns
+    /// it with the port the kernel handed back.
+    ///
+    /// Binding `0` is what keeps this suite independent of the machine: a
+    /// hardcoded high port sits inside the macOS ephemeral range, so any
+    /// unrelated process holding it (a browser's outbound connections, reliably)
+    /// would fail the bind and the test with it.
+    private func startListeningService() async throws -> (WebSocketServerService, UInt16) {
+        let service = makeService(port: 0)
+        let listening = expectation(description: "server listening")
+        let observer = observe(service, fulfilling: listening) { state, _ in
+            state == .listening
+        }
+        await service.setEnabled(true)
+        await fulfillment(of: [listening], timeout: 5)
+        observer.cancel()
+
+        // Hoisted out of XCTUnwrap: its argument is a nonisolated autoclosure,
+        // which cannot await an actor-isolated property.
+        let bound = await service.boundPort
+        let port = try XCTUnwrap(bound, "A listening server must report the port it bound")
+        return (service, port)
     }
 
     private func makeClient(port: UInt16) throws -> (URLSession, URLSessionWebSocketTask) {
@@ -145,7 +169,7 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
     // MARK: - Server Lifecycle Tests
 
     func testServerRestartCycle() async {
-        let service = makeService(port: 59003)
+        let service = makeService(port: 0)
         let firstListen = expectation(description: "first listen")
         let stopped = expectation(description: "stopped")
         let secondListen = expectation(description: "second listen")
@@ -176,17 +200,12 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
 
     // MARK: - Port Conflict Tests
 
-    func testTwoServersOnSamePortHandledGracefully() async {
-        let service1 = makeService(port: 59004)
-        let service2 = makeService(port: 59004)
-
-        let listening = expectation(description: "service1 listening")
-        let firstObserver = observe(service1, fulfilling: listening) { state, _ in
-            state == .listening
-        }
-        await service1.setEnabled(true)
-        await fulfillment(of: [listening], timeout: 5)
-        firstObserver.cancel()
+    func testTwoServersOnSamePortHandledGracefully() async throws {
+        // Let the kernel pick the contested port, then aim the second server at
+        // it. The conflict is guaranteed because service1 already holds it, and
+        // no unrelated process can be squatting on a port we were just given.
+        let (service1, port) = try await startListeningService()
+        let service2 = makeService(port: port)
 
         let conflict = expectation(description: "service2 reports port conflict")
         let secondObserver = observe(service2, fulfilling: conflict) { state, _ in
@@ -205,17 +224,8 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
     /// A freshly connected client should immediately receive the last known
     /// now-playing frame so an OBS browser source does not stay blank after reload.
     func testFreshConnectionReceivesLastKnownState() async throws {
-        let port: UInt16 = 59009
+        let (service, port) = try await startListeningService()
         let (session, task) = try makeClient(port: port)
-        let service = makeService(port: port)
-
-        let listening = expectation(description: "server listening")
-        let observer = observe(service, fulfilling: listening) { state, _ in
-            state == .listening
-        }
-        await service.setEnabled(true)
-        await fulfillment(of: [listening], timeout: 5)
-        observer.cancel()
 
         await service.updateNowPlaying(
             track: "Replay Test Track",
@@ -241,17 +251,8 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
     /// A paused update must broadcast isPlaying=false so the overlay renders the
     /// paused affordance rather than treating the track as live.
     func testUpdateNowPlaying_isPaused_broadcastsNotPlaying() async throws {
-        let port: UInt16 = 59010
+        let (service, port) = try await startListeningService()
         let (session, task) = try makeClient(port: port)
-        let service = makeService(port: port)
-
-        let listening = expectation(description: "server listening")
-        let listenObserver = observe(service, fulfilling: listening) { state, _ in
-            state == .listening
-        }
-        await service.setEnabled(true)
-        await fulfillment(of: [listening], timeout: 5)
-        listenObserver.cancel()
 
         let connected = expectation(description: "overlay connected")
         let connectionObserver = observe(service, fulfilling: connected) { _, count in
@@ -286,17 +287,8 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
     /// A freshly connected client receives the cached upcoming queue snapshot so
     /// an OBS browser-source reload never shows a stale ticker.
     func testFreshConnectionReceivesQueueUpcomingSnapshot() async throws {
-        let port: UInt16 = 59011
+        let (service, port) = try await startListeningService()
         let (session, task) = try makeClient(port: port)
-        let service = makeService(port: port)
-
-        let listening = expectation(description: "server listening")
-        let observer = observe(service, fulfilling: listening) { state, _ in
-            state == .listening
-        }
-        await service.setEnabled(true)
-        await fulfillment(of: [listening], timeout: 5)
-        observer.cancel()
 
         await service.broadcastQueueUpcoming(items: [
             WebSocketServerService.QueueUpcomingItem(
@@ -322,17 +314,8 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
     /// With no prior queue update, the cached snapshot is an empty items array,
     /// meaning the queue is open, rather than a missing message.
     func testFreshConnectionWithNoQueueGetsEmptyItemsArray() async throws {
-        let port: UInt16 = 59012
+        let (service, port) = try await startListeningService()
         let (session, task) = try makeClient(port: port)
-        let service = makeService(port: port)
-
-        let listening = expectation(description: "server listening")
-        let observer = observe(service, fulfilling: listening) { state, _ in
-            state == .listening
-        }
-        await service.setEnabled(true)
-        await fulfillment(of: [listening], timeout: 5)
-        observer.cancel()
 
         let received = expectation(description: "received empty queue_upcoming")
         task.resume()

@@ -11,8 +11,9 @@ import XCTest
 @testable import WolfWave
 
 /// Focused request-policy checks plus integration tests that cross the real
-/// NWListener boundary. Port-binding tests use `startBoundService` to avoid
-/// coupling the suite to a single machine-global port.
+/// NWListener boundary. Port-binding tests use `startBoundService`, which owns
+/// an OS-assigned loopback port, so the suite never depends on a machine-global
+/// port being free.
 @MainActor
 final class WidgetHTTPServiceTests: XCTestCase {
 
@@ -74,28 +75,31 @@ final class WidgetHTTPServiceTests: XCTestCase {
 
     // MARK: - Served HTML Body Tests
 
-    /// Starts a `WidgetHTTPService` on the first port in a small high range that
-    /// binds, awaiting readiness. Retries on the next port when a bind fails so a
-    /// busy or lingering port can't flake CI. Returns the ready service and the
-    /// port it bound, or fails the test if none bind.
+    /// Starts a `WidgetHTTPService` on an OS-assigned port and awaits readiness,
+    /// returning the ready service and the port it bound.
+    ///
+    /// Binding `0` makes the kernel hand back a port nothing else holds. The
+    /// previous approach walked a fixed 59900-window, which overlaps the macOS
+    /// ephemeral range: any unrelated process (a browser's outbound connections,
+    /// reliably) could own the whole window and fail the test.
     private func startBoundService(
-        from base: UInt16 = 59900,
-        attempts: Int = 20,
         make: (UInt16) -> WidgetHTTPService = { WidgetHTTPService(port: $0) }
     ) async -> (service: WidgetHTTPService, port: UInt16)? {
-        for offset in 0..<attempts {
-            let port = base &+ UInt16(offset)
-            let service = make(port)
-            service.start()
-            do {
-                try await service.ready()
-                return (service, port)
-            } catch {
-                service.stop()
-            }
+        let service = make(0)
+        service.start()
+        do {
+            try await service.ready()
+        } catch {
+            service.stop()
+            XCTFail("WidgetHTTPService failed to bind an ephemeral port: \(error)")
+            return nil
         }
-        XCTFail("WidgetHTTPService never bound a port in \(base)…\(base &+ UInt16(attempts - 1))")
-        return nil
+        guard let port = service.boundPort else {
+            service.stop()
+            XCTFail("WidgetHTTPService reported ready without a bound port")
+            return nil
+        }
+        return (service, port)
     }
 
     /// Fetches `GET /` from a service that has already reported readiness.
@@ -146,7 +150,6 @@ final class WidgetHTTPServiceTests: XCTestCase {
     func testLoopbackWidgetInjectsReadOnlyOverlayCredential() async throws {
         let overlayToken = String(repeating: "a", count: 64)
         guard let (service, port) = await startBoundService(
-            from: 59880,
             make: { WidgetHTTPService(port: $0, overlayToken: overlayToken) }
         ) else { return }
         defer { service.stop() }
@@ -212,10 +215,11 @@ final class WidgetHTTPServiceTests: XCTestCase {
     // MARK: - Connection Lifecycle Tests
 
     func testStopCancelsAcceptedIdleConnections() async throws {
-        // Walk for a free port instead of pinning one. A hardcoded port fails with
-        // `listenerFailed` whenever the previous run's socket is still in TIME_WAIT
-        // or the real app is running, which made this suite flake on every rerun.
-        guard let (service, port) = await startBoundService(from: 38995) else { return }
+        // Owns an OS-assigned port instead of pinning one. A hardcoded port fails
+        // with `listenerFailed` whenever the previous run's socket is still in
+        // TIME_WAIT or the real app is running, which made this suite flake on
+        // every rerun.
+        guard let (service, port) = await startBoundService() else { return }
         defer { service.stop() }
 
         let closed = expectation(description: "server closed the idle client on stop()")
@@ -238,7 +242,6 @@ final class WidgetHTTPServiceTests: XCTestCase {
     func testHeaderTimeoutCancelsConnectionWithIncompleteHeaders() async throws {
         // Short timeout so the test stays fast; production default is 10s.
         guard let (service, port) = await startBoundService(
-            from: 38994,
             make: { WidgetHTTPService(port: $0, headerTimeout: 0.5) }
         ) else { return }
         defer { service.stop() }
@@ -260,9 +263,8 @@ final class WidgetHTTPServiceTests: XCTestCase {
 
     func testConnectionCapRefusesExtraConnections() async throws {
         // Tiny cap so the test doesn't need 32 sockets; production default is 32.
-        // Port-walks for the same reason as `testStopCancelsAcceptedIdleConnections`.
+        // Owns its port for the same reason as `testStopCancelsAcceptedIdleConnections`.
         guard let (service, port) = await startBoundService(
-            from: 38993,
             make: { WidgetHTTPService(port: $0, maxConcurrentConnections: 2) }
         ) else { return }
         defer { service.stop() }
