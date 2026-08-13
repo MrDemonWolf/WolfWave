@@ -28,6 +28,18 @@ import AppKit
 /// resolve `pid` and hand it to `SBApplication(processIdentifier:)`, treating nil
 /// as "Music isn't running".
 ///
+/// ## Only ScriptingBridge can do this
+///
+/// Pid addressing is a ScriptingBridge capability, not a general one. It does
+/// **not** transfer to `NSAppleScript`: an `NSAppleEventDescriptor(processIdentifier:)`
+/// is an event *address*, and AppleScript has no coercion from one to an
+/// application specifier. Passed into a script it arrives as opaque
+/// `«data kpid…»` with no terminology bound, so `tell` evaluates the body against
+/// a meaningless object and every property read fails `-1728` while every verb
+/// fails `-1708`. That shipped in 2.1.0 and silently killed all Music control.
+/// See `AppleMusicController.musicTargetedScript` for the AppleScript-side
+/// answer.
+///
 /// ## Trap: an unresolvable pid does not yield nil
 ///
 /// `SBApplication(processIdentifier:)` is documented to return nil when no such

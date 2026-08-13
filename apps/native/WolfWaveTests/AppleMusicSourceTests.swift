@@ -54,18 +54,48 @@ final class AppleMusicSourceTests: XCTestCase {
 
     func testBridgeErrorStatusMapsTargetAndPermissionFailures() {
         let domain = "AppleMusicSourceTests"
+        let anyStage = "playerState"
         XCTAssertEqual(
-            AppleMusicSource.status(forBridgeError: NSError(domain: domain, code: -600)),
+            AppleMusicSource.status(forBridgeError: NSError(domain: domain, code: -600), in: anyStage),
             "NOT_RUNNING"
         )
         XCTAssertEqual(
-            AppleMusicSource.status(forBridgeError: NSError(domain: domain, code: -609)),
+            AppleMusicSource.status(forBridgeError: NSError(domain: domain, code: -609), in: anyStage),
             "NOT_RUNNING"
         )
         XCTAssertEqual(
-            AppleMusicSource.status(forBridgeError: NSError(domain: domain, code: -1_743)),
+            AppleMusicSource.status(forBridgeError: NSError(domain: domain, code: -1_743), in: anyStage),
             "ACCESS_DENIED"
         )
+    }
+
+    /// `errAENoSuchObject` on `current track` is Music's ordinary answer for
+    /// "nothing is loaded". Music running with an empty player is the
+    /// not-playing state, and reporting it as a script error left the UI with
+    /// nothing it could act on.
+    func testCurrentTrackMinusOneSevenTwoEightMeansNotPlaying() {
+        let error = NSError(domain: "AppleMusicSourceTests", code: -1_728)
+
+        XCTAssertEqual(
+            AppleMusicSource.status(forBridgeError: error, in: "currentTrack"),
+            "NOT_PLAYING"
+        )
+    }
+
+    /// Only the `currentTrack` stage gets that reading. Elsewhere -1728 has no
+    /// established meaning, and claiming one (an earlier revision of this
+    /// mapping asserted a permission denial) would put a banner in front of the
+    /// user on a guess.
+    func testMinusOneSevenTwoEightIsNotReinterpretedOnOtherStages() {
+        let error = NSError(domain: "AppleMusicSourceTests", code: -1_728)
+
+        for stage in ["isRunning", "playerState"] {
+            let status = AppleMusicSource.status(forBridgeError: error, in: stage)
+            XCTAssertTrue(
+                status.hasPrefix("ERROR:"),
+                "stage \(stage) should stay a diagnostic error, got \(status)"
+            )
+        }
     }
 
     func testIntervalElapsedUsesMonotonicInstants() {
