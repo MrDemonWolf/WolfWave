@@ -29,7 +29,7 @@ final class SongRequestQueuePendingTests: WolfWaveTestCase {
     }
 
     func testAddPendingHoldsWithoutTouchingQueue() {
-        let item = SongRequestItem(title: "Howl", artist: "Grey Wolf", requesterUsername: "viewer1")
+        let item = makeTestRequestItem(title: "Howl", artist: "Grey Wolf", requesterUsername: "viewer1")
         let result = queue.addPending(item)
         guard case .added = result else { return XCTFail("expected .added, got \(result)") }
         XCTAssertEqual(queue.pendingCount, 1)
@@ -37,8 +37,8 @@ final class SongRequestQueuePendingTests: WolfWaveTestCase {
     }
 
     func testAddPendingDedupsSameSongSameUser() {
-        let a = SongRequestItem(title: "Howl", artist: "Grey Wolf", requesterUsername: "viewer1")
-        let b = SongRequestItem(title: "howl", artist: "grey wolf", requesterUsername: "VIEWER1")
+        let a = makeTestRequestItem(title: "Howl", artist: "Grey Wolf", requesterUsername: "viewer1")
+        let b = makeTestRequestItem(title: "howl", artist: "grey wolf", requesterUsername: "VIEWER1")
         _ = queue.addPending(a)
         guard case .alreadyInQueue = queue.addPending(b) else {
             return XCTFail("expected duplicate rejection")
@@ -51,8 +51,8 @@ final class SongRequestQueuePendingTests: WolfWaveTestCase {
         // approvable, since the manual approval is the gate (addApproved skips the
         // per-user check).
         Foundation.UserDefaults.standard.set(1, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
-        let a = SongRequestItem(title: "Song A", artist: "Wolf", requesterUsername: "viewer1")
-        let b = SongRequestItem(title: "Song B", artist: "Wolf", requesterUsername: "viewer1")
+        let a = makeTestRequestItem(title: "Song A", artist: "Wolf", requesterUsername: "viewer1")
+        let b = makeTestRequestItem(title: "Song B", artist: "Wolf", requesterUsername: "viewer1")
         _ = queue.addPending(a)
         _ = queue.addPending(b)
 
@@ -67,10 +67,10 @@ final class SongRequestQueuePendingTests: WolfWaveTestCase {
     }
 
     func testAddPendingDedupesAgainstLiveQueueAndNowPlaying() {
-        let queued = SongRequestItem(title: "Live", artist: "Wolf", requesterUsername: "viewer1")
+        let queued = makeTestRequestItem(title: "Live", artist: "Wolf", requesterUsername: "viewer1")
         _ = queue.add(queued)
         // Same song + user already in the live queue: must not park in pending.
-        let dupOfQueued = SongRequestItem(title: "live", artist: "wolf", requesterUsername: "VIEWER1")
+        let dupOfQueued = makeTestRequestItem(title: "live", artist: "wolf", requesterUsername: "VIEWER1")
         guard case .alreadyInQueue = queue.addPending(dupOfQueued) else {
             return XCTFail("expected dedupe against the live queue")
         }
@@ -78,7 +78,7 @@ final class SongRequestQueuePendingTests: WolfWaveTestCase {
 
         // Same song + user now-playing: also rejected.
         _ = queue.dequeue() // moves `queued` to nowPlaying
-        let dupOfNowPlaying = SongRequestItem(title: "Live", artist: "Wolf", requesterUsername: "viewer1")
+        let dupOfNowPlaying = makeTestRequestItem(title: "Live", artist: "Wolf", requesterUsername: "viewer1")
         guard case .alreadyInQueue = queue.addPending(dupOfNowPlaying) else {
             return XCTFail("expected dedupe against now-playing")
         }
@@ -93,8 +93,8 @@ final class SongRequestQueuePendingTests: WolfWaveTestCase {
             queue: queue,
             musicController: MockAppleMusicController()
         )
-        _ = queue.add(SongRequestItem(title: "Occupant", artist: "Wolf", requesterUsername: "v1"))
-        let held = SongRequestItem(title: "Waiting", artist: "Wolf", requesterUsername: "v2")
+        _ = queue.add(makeTestRequestItem(title: "Occupant", artist: "Wolf", requesterUsername: "v1"))
+        let held = makeTestRequestItem(title: "Waiting", artist: "Wolf", requesterUsername: "v2")
         _ = queue.addPending(held)
 
         let approved = await service.approve(id: held.id)
@@ -108,8 +108,8 @@ final class SongRequestQueuePendingTests: WolfWaveTestCase {
     }
 
     func testClearAlsoDropsPending() {
-        _ = queue.addPending(SongRequestItem(title: "P", artist: "W", requesterUsername: "v"))
-        _ = queue.add(SongRequestItem(title: "Q", artist: "W", requesterUsername: "v2"))
+        _ = queue.addPending(makeTestRequestItem(title: "P", artist: "W", requesterUsername: "v"))
+        _ = queue.add(makeTestRequestItem(title: "Q", artist: "W", requesterUsername: "v2"))
         _ = queue.clear()
         XCTAssertEqual(queue.pendingCount, 0)
         XCTAssertTrue(queue.isEmpty)

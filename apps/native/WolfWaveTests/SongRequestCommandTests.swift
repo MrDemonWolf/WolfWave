@@ -247,8 +247,8 @@ final class SongRequestCommandTests: WolfWaveTestCase {
         command.getQueue = { queue }
 
         // Set up: dequeue one item as now-playing, leave one in queue
-        queue.add(SongRequestItem(title: "Playing Song", artist: "Artist A", requesterUsername: "viewer1"))
-        queue.add(SongRequestItem(title: "Next Song", artist: "Artist B", requesterUsername: "viewer2"))
+        queue.add(makeTestRequestItem(title: "Playing Song", artist: "Artist A", requesterUsername: "viewer1"))
+        queue.add(makeTestRequestItem(title: "Next Song", artist: "Artist B", requesterUsername: "viewer2"))
         queue.dequeue() // moves "Playing Song" to nowPlaying
 
         let response = command.execute(message: "!queue")
@@ -267,7 +267,7 @@ final class SongRequestCommandTests: WolfWaveTestCase {
         UserDefaults.standard.set(10, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
 
         for i in 1...7 {
-            queue.add(SongRequestItem(title: "Song \(i)", artist: "Artist", requesterUsername: "user\(i)"))
+            queue.add(makeTestRequestItem(title: "Song \(i)", artist: "Artist", requesterUsername: "user\(i)"))
         }
 
         let response = command.execute(message: "!queue")
@@ -286,7 +286,7 @@ final class SongRequestCommandTests: WolfWaveTestCase {
         UserDefaults.standard.set(10, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
 
         for i in 1...5 {
-            queue.add(SongRequestItem(title: "Song \(i)", artist: "Artist", requesterUsername: "user\(i)"))
+            queue.add(makeTestRequestItem(title: "Song \(i)", artist: "Artist", requesterUsername: "user\(i)"))
         }
 
         let response = command.execute(message: "!queue")
@@ -305,9 +305,9 @@ final class SongRequestCommandTests: WolfWaveTestCase {
         command.getQueue = { queue }
         UserDefaults.standard.set(10, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
 
-        queue.add(SongRequestItem(title: "My Song 1", artist: "Artist", requesterUsername: "testuser"))
-        queue.add(SongRequestItem(title: "Other Song", artist: "Artist", requesterUsername: "other"))
-        queue.add(SongRequestItem(title: "My Song 2", artist: "Artist2", requesterUsername: "testuser"))
+        queue.add(makeTestRequestItem(title: "My Song 1", artist: "Artist", requesterUsername: "testuser"))
+        queue.add(makeTestRequestItem(title: "Other Song", artist: "Artist", requesterUsername: "other"))
+        queue.add(makeTestRequestItem(title: "My Song 2", artist: "Artist2", requesterUsername: "testuser"))
 
         let context = BotCommandContext(
             userID: "999", username: "testuser",

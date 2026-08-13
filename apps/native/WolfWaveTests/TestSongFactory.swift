@@ -9,6 +9,24 @@
 import Foundation
 import MusicKit
 
+@testable import WolfWave
+
+/// Catalog ID used when a test does not care which song it gets.
+let defaultTestSongID = "1440857781"
+
+/// Derives a stable, distinct catalog ID from arbitrary text.
+///
+/// Two fixtures built from different titles (or resolved from different search
+/// queries) get different song identities, so nothing in a test collides on a
+/// shared ID by accident.
+func testSongID(for text: String) -> String {
+    let slug = text.unicodeScalars
+        .filter { CharacterSet.alphanumerics.contains($0) }
+        .map(String.init)
+        .joined()
+    return slug.isEmpty ? defaultTestSongID : slug
+}
+
 /// Builds a real MusicKit `Song` for tests.
 ///
 /// `Song` has no public initializer, so before this existed no test could make
@@ -20,40 +38,43 @@ import MusicKit
 /// the hold gate, the Music-closed buffering gate, and the requeue-on-throw path
 /// could all be deleted outright.
 ///
-/// `Song` is `Decodable` from the Apple Music API resource shape, which is the
-/// supported way to get one without a network round trip.
+/// Decoding lives in `Song.debugPlaceholder` in the app target, shared with the
+/// Debug tab's fake-request injector, so the Apple Music resource shape has one
+/// copy rather than one per target.
 func makeTestSong(
-    id: String = "1440857781",
+    id: String = defaultTestSongID,
     title: String = "Test Song",
     artist: String = "Test Artist",
     album: String = "Test Album",
     durationInMillis: Int = 180_000
 ) -> Song {
-    let json = """
-    {
-      "id": "\(id)",
-      "type": "songs",
-      "href": "/v1/catalog/us/songs/\(id)",
-      "attributes": {
-        "name": "\(title)",
-        "artistName": "\(artist)",
-        "albumName": "\(album)",
-        "durationInMillis": \(durationInMillis),
-        "genreNames": ["Rock"],
-        "trackNumber": 1,
-        "discNumber": 1,
-        "hasLyrics": false,
-        "playParams": { "id": "\(id)", "kind": "song" },
-        "url": "https:/\("/")music.apple.com/us/album/test/1?i=\(id)"
-      }
-    }
-    """
-    do {
-        return try JSONDecoder().decode(Song.self, from: Data(json.utf8))
-    } catch {
-        // A decode failure here means MusicKit changed its resource shape. Trap
-        // loudly rather than letting every caller silently fall back to
-        // `.notFound`, which is the exact vacuity this factory exists to end.
-        preconditionFailure("makeTestSong could not decode a MusicKit Song: \(error)")
-    }
+    .debugPlaceholder(
+        id: id,
+        title: title,
+        artist: artist,
+        album: album,
+        durationInMillis: durationInMillis
+    )
+}
+
+/// Builds a queue item for tests.
+///
+/// The only way to make a `SongRequestItem` in a test, since `song` is
+/// non-optional. There used to be a song-less test initializer, which made "a
+/// queue item that cannot be played" representable and forced a nil branch into
+/// playback; a `#if DEBUG` hatch in that branch then let song-less fixtures fake
+/// a successful start, so a test could assert `playNowCalled == false` about a
+/// request that could never have called it. Both are gone.
+@MainActor
+func makeTestRequestItem(
+    title: String,
+    artist: String,
+    requesterUsername: String,
+    isPriority: Bool = false
+) -> SongRequestItem {
+    SongRequestItem(
+        song: makeTestSong(id: testSongID(for: title), title: title, artist: artist),
+        requesterUsername: requesterUsername,
+        isPriority: isPriority
+    )
 }

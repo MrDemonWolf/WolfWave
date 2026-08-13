@@ -31,7 +31,7 @@ final class MyQueueCommandTests: WolfWaveTestCase {
         UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.songRequestFairShare)
         let queue = SongRequestQueue()
         for (index, user) in users.enumerated() {
-            _ = queue.add(SongRequestItem(
+            _ = queue.add(makeTestRequestItem(
                 title: "Song \(index + 1)",
                 artist: "Artist \(index + 1)",
                 requesterUsername: user
