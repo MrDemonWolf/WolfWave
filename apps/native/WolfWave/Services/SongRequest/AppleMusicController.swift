@@ -690,7 +690,11 @@ final class AppleMusicController: AppleMusicControlling {
             Log.warn("AppleMusicController: Could not launch Music.app to reveal requests playlist", category: "SongRequest")
             return
         }
-        NSRunningApplication(processIdentifier: pid)?.activate()
+        // Raising Music is a courtesy; macOS cooperative activation may decline it.
+        // Reveal still runs either way, so the playlist is selected when the user switches over.
+        if NSRunningApplication(processIdentifier: pid)?.activate() != true {
+            Log.debug("AppleMusicController: Music did not come forward for reveal", category: "SongRequest")
+        }
         let result = runAppleScript(
             revealScript(playlistName: AppConstants.Music.requestsPlaylistName),
             targetPID: pid
