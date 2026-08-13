@@ -26,7 +26,8 @@ nonisolated final class UserDefaultsBlocklistStorage: BlocklistStorage, @uncheck
 
     /// - Parameters:
     ///   - key: UserDefaults key holding the encoded blocklist.
-    ///   - defaults: UserDefaults store to read/write. Defaults to `.standard`.
+    ///   - defaults: UserDefaults store to read/write. Defaults to
+    ///     ``DefaultsStore/store``.
     init(
         key: String = AppConstants.UserDefaults.songRequestBlocklist,
         defaults: UserDefaults = DefaultsStore.store

@@ -206,6 +206,14 @@ actor SkipVoteManager {
     }
 
     /// Minimum unique voters required to skip. Clamped to at least 1.
+    ///
+    /// Deliberately *not* snapped to the settings picker's allowlist. Both this
+    /// and ``windowSeconds`` are used as plain integers, so neither can trap the
+    /// way a `Double` feeding `Int(_:)` can, and narrowing them would silently
+    /// move a working threshold (a stored `1` becoming `3`) for anyone whose
+    /// value predates the current picker. The allowlist guards the control,
+    /// which is where the crash was; the service keeps accepting any positive
+    /// value.
     nonisolated var minVotes: Int {
         Preferences.int(AppConstants.UserDefaults.voteSkipMinVotes, default: AppConstants.UserDefaults.Defaults.voteSkipMinVotes)
     }

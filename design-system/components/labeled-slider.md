@@ -19,6 +19,23 @@ LabeledSlider<V: BinaryFloatingPoint>(
 ) where V.Stride: BinaryFloatingPoint
 ```
 
+## Value sanitizing
+
+`LabeledSlider` clamps the value it renders. `displayValue(_:in:)` folds anything
+outside `range` back to the nearest bound and turns a non-finite value into
+`range.lowerBound`. The `Slider` and the readout both use that clamped value, and
+`format` receives it rather than the raw binding.
+
+This is a crash guard, not a cosmetic one. Every caller binds an `@AppStorage`
+double, so the stored value is whatever a hand-edited plist, `defaults write`, or
+an older build left behind, and the default formatter is `Int($0)` — which traps
+outright on NaN or a value past `Int.max`. Clamping here covers every call site,
+including the ones passing their own `"\(Int($0))s"` closure.
+
+The binding is only sanitized on the way *out*. Writes pass through untouched: a
+slider can only produce an in-range value, and repairing stored state as a side
+effect of drawing would fight whatever wrote it.
+
 ## Tokens used
 
 | Token | Where |
@@ -48,6 +65,7 @@ flowchart LR
 - ✅ Use sentence-case labels ("Everyone", "Per person").
 - ❌ Don't omit units in the formatter. Bare numbers next to a slider are ambiguous.
 - ❌ Don't nest two `LabeledSlider`s inside their own cards. Group them in one card with `Divider`s.
+- ❌ Don't hand-roll a `Slider` bound straight to `@AppStorage` to avoid this component. That is the shape that crashed the settings window; use `LabeledSlider`, or [`Binding.clamped(to:fallback:)`](binding-sanitized.md) if the layout genuinely differs.
 
 ## Example
 

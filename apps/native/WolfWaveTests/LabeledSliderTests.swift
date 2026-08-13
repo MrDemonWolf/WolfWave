@@ -52,4 +52,34 @@ final class LabeledSliderTests: XCTestCase {
         binding.wrappedValue = 25
         XCTAssertEqual(stored, 25, accuracy: 0.001)
     }
+
+    // MARK: - Corrupted stored values
+
+    func testDisplayValueClampsIntoRange() {
+        XCTAssertEqual(LabeledSlider<Double>.displayValue(45, in: 0...60), 45, accuracy: 0.001)
+        XCTAssertEqual(LabeledSlider<Double>.displayValue(-10, in: 0...60), 0, accuracy: 0.001)
+        XCTAssertEqual(LabeledSlider<Double>.displayValue(1e308, in: 0...60), 60, accuracy: 0.001)
+    }
+
+    func testDisplayValueRejectsNonFinite() {
+        XCTAssertEqual(LabeledSlider<Double>.displayValue(.nan, in: 5...60), 5, accuracy: 0.001)
+        XCTAssertEqual(LabeledSlider<Double>.displayValue(.infinity, in: 5...60), 5, accuracy: 0.001)
+        XCTAssertEqual(LabeledSlider<Double>.displayValue(-.infinity, in: 5...60), 5, accuracy: 0.001)
+    }
+
+    /// Rendering a corrupted stored value used to trap: the default `format` is
+    /// `Int($0)`, and `Int(Double.nan)` is a hard crash rather than a bad label.
+    func testRendersNonFiniteValueWithoutTrapping() {
+        for value in [Double.nan, .infinity, 1e308] {
+            let view = LabeledSlider(
+                label: "Cooldown",
+                value: .constant(value),
+                range: 0.0...60.0
+            )
+            let host = NSHostingView(rootView: view)
+            host.setFrameSize(NSSize(width: 360, height: 0))
+            host.layoutSubtreeIfNeeded()
+            XCTAssertGreaterThan(host.fittingSize.height, 0)
+        }
+    }
 }

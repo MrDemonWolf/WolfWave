@@ -797,6 +797,22 @@ extension AppConstants {
         /// classification and validation cannot drift into separate lists.
         static let exportableKeys: [String] = exportablePreferences.map(\.key)
 
+        /// `exportablePreferences` keyed for lookup.
+        private static let exportableRulesByKey: [String: ExportedValueRule] =
+            Dictionary(uniqueKeysWithValues: exportablePreferences.map { ($0.key, $0.rule) })
+
+        /// The declared value domain for `key`, or nil when the key is not
+        /// portable (and so has no schema).
+        ///
+        /// Import validation is not the only consumer. `Preferences.resolvedInt`
+        /// and `Preferences.resolvedDouble` clamp live reads against the same
+        /// domains, so the allowed values for a setting are declared exactly
+        /// once. A picker's tag list and the rule here disagreeing is precisely
+        /// the bug class this exists to prevent.
+        static func exportRule(for key: String) -> ExportedValueRule? {
+            exportableRulesByKey[key]
+        }
+
         /// Keys tied to a connected account. Restored only when the user opts to
         /// reconnect that integration during import. The actual credentials
         /// (Twitch OAuth token + user/channel IDs) live in Keychain and never
