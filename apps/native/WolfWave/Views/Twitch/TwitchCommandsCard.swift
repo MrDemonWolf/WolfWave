@@ -206,7 +206,12 @@ struct TwitchCommandsCard: View {
                 Text("Reply")
                     .sectionEyebrow()
                 Spacer()
-                Picker("Reply style", selection: $wolfwaveReplyStyle) {
+                Picker(
+                    "Reply style",
+                    selection: $wolfwaveReplyStyle.snapped(
+                        to: WolfWaveReplyStyle.allCases.map(\.rawValue),
+                        fallback: WolfWaveReplyStyle.default.rawValue)
+                ) {
                     ForEach(WolfWaveReplyStyle.allCases) { style in
                         Text(style.label).tag(style.rawValue)
                     }

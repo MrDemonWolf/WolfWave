@@ -49,3 +49,19 @@ extension Binding where Value == Double {
         )
     }
 }
+
+extension Binding where Value == String {
+
+    /// Renders as `fallback` when the stored value is not one of `allowed`.
+    ///
+    /// For raw-value pickers backed by a `String`. The symptom is milder than
+    /// the integer case (an unmatched selection shows an empty picker rather
+    /// than trapping), but it is the same defect: a control handed a value it
+    /// cannot represent.
+    func snapped(to allowed: [String], fallback: String) -> Binding<String> {
+        Binding(
+            get: { allowed.contains(wrappedValue) ? wrappedValue : fallback },
+            set: { wrappedValue = $0 }
+        )
+    }
+}

@@ -37,7 +37,15 @@ extension Binding where Value == Int {
 extension Binding where Value == Double {
     func clamped(to range: ClosedRange<Double>, fallback: Double) -> Binding<Double>
 }
+
+extension Binding where Value == String {
+    func snapped(to allowed: [String], fallback: String) -> Binding<String>
+}
 ```
+
+The `String` variant covers raw-value pickers (`StatsWindow`, `WolfWaveReplyStyle`).
+Its symptom is milder — an unmatched selection renders an empty picker rather
+than trapping — but it is the same defect, so it uses the same helper.
 
 Both delegate to the pure `Preferences.resolveAllowed` / `Preferences.resolveClamped`,
 which are the same functions `Preferences.resolvedInt` / `resolvedDouble` use for

@@ -182,14 +182,35 @@ struct WidgetAppearanceConfig: Equatable {
     var fontFamily: String
 
     /// Snapshot the currently-applied values from `UserDefaults`.
+    ///
+    /// Theme and layout are checked against the shipped lists on the way in.
+    /// This config feeds `@State` drafts that back pickers, so a stored value
+    /// naming a theme that no longer exists (renamed, or written by a newer
+    /// build) would otherwise reach a `Picker` with no matching tag.
     static func loadApplied(_ defaults: UserDefaults = DefaultsStore.store) -> WidgetAppearanceConfig {
         WidgetAppearanceConfig(
-            theme: defaults.string(forKey: AppConstants.UserDefaults.widgetTheme) ?? AppConstants.Widget.Defaults.theme,
-            layout: defaults.string(forKey: AppConstants.UserDefaults.widgetLayout) ?? AppConstants.Widget.Defaults.layout,
+            theme: validated(
+                defaults.string(forKey: AppConstants.UserDefaults.widgetTheme),
+                in: AppConstants.Widget.themes,
+                default: AppConstants.Widget.Defaults.theme),
+            layout: validated(
+                defaults.string(forKey: AppConstants.UserDefaults.widgetLayout),
+                in: AppConstants.Widget.layouts,
+                default: AppConstants.Widget.Defaults.layout),
             textColor: defaults.string(forKey: AppConstants.UserDefaults.widgetTextColor) ?? AppConstants.Widget.Defaults.textColor,
             backgroundColor: defaults.string(forKey: AppConstants.UserDefaults.widgetBackgroundColor) ?? AppConstants.Widget.Defaults.backgroundColor,
             fontFamily: defaults.string(forKey: AppConstants.UserDefaults.widgetFontFamily) ?? AppConstants.Widget.Defaults.fontFamily
         )
+    }
+
+    /// `stored` when it is one of `allowed`, otherwise `defaultValue`.
+    private static func validated(
+        _ stored: String?,
+        in allowed: [String],
+        default defaultValue: String
+    ) -> String {
+        guard let stored, allowed.contains(stored) else { return defaultValue }
+        return stored
     }
 
     /// Whether the chosen theme exposes editable text/background colors. Preset
