@@ -18,8 +18,79 @@ env:
   PROJECT: apps/native/WolfWave.xcodeproj
 
 jobs:
+  # One paths-filter pass for the whole workflow. Every other job gates on these
+  # outputs at the JOB level, so a docs-only PR shows the native jobs as skipped
+  # instead of running a job full of no-op steps. Branch protection counts a
+  # skipped job as passing, so required checks still resolve.
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      native: ${{ steps.filter.outputs.native }}
+      docs: ${{ steps.filter.outputs.docs }}
+      streamdeck: ${{ steps.filter.outputs.streamdeck }}
+      ds: ${{ steps.filter.outputs.ds }}
+      headers: ${{ steps.filter.outputs.headers }}
+      swiftlint: ${{ steps.filter.outputs.swiftlint }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            native:
+              - 'apps/native/**'
+              - 'apps/widget/**'
+              - 'design-system/tokens.json'
+              - 'design-system/scripts/generate.ts'
+              - '.github/FUNDING.yml'
+              - 'scripts/generate-sponsor-config.sh'
+              - 'scripts/check-generated-drift.sh'
+              - '.github/actions/setup-native-build/**'
+              - 'package.json'
+              - 'bun.lock'
+              - 'turbo.json'
+              - 'Makefile'
+            docs:
+              - 'apps/docs/**'
+              - 'design-system/tokens.json'
+              - 'design-system/scripts/generate.ts'
+              - 'package.json'
+              - 'bun.lock'
+              - 'turbo.json'
+            streamdeck:
+              - 'apps/streamdeck/**'
+              - 'apps/native/WolfWave/Services/WebSocket/StreamDeckCommand.swift'
+              - 'apps/native/WolfWave/Core/AppConstants.swift'
+              - 'apps/native/WolfWave/Services/WebSocket/WebSocketAuthToken.swift'
+              - 'bun.lock'
+            ds:
+              - 'apps/native/WolfWave/Views/**'
+              - 'design-system/scripts/lint.ts'
+              - 'design-system/lint-allowlist.txt'
+              - 'design-system/scripts/validate-tokens.ts'
+              - 'design-system/tokens.json'
+              - 'design-system/tokens.schema.json'
+              - 'package.json'
+              - 'bun.lock'
+            headers:
+              - 'apps/native/**'
+              - 'scripts/check-headers.mjs'
+            swiftlint:
+              - 'apps/native/**'
+              - '.swiftlint.yml'
+              - '.swiftlint-crash-safety.yml'
+              - 'swiftlint-baseline.json'
+              - 'Makefile'
+
   test:
     name: Build & Test
+    needs: changes
+    if: needs.changes.outputs.native == 'true'
     runs-on: macos-26
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -32,129 +103,31 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      - name: Detect native changes
-        id: filter
-        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
-        with:
-          filters: |
-            native:
-              - 'apps/native/**'
-              - 'apps/widget/**'
-              - 'design-system/tokens.json'
-              - 'design-system/scripts/generate.ts'
-              - '.github/FUNDING.yml'
-              - 'scripts/generate-sponsor-config.sh'
-              - 'package.json'
-              - 'bun.lock'
-              - 'turbo.json'
-              - 'Makefile'
+      # Also regenerates widget.html, the design tokens, and SponsorConfig,
+      # which is what the drift gate below inspects.
+      - uses: ./.github/actions/setup-native-build
 
-      - name: Skip notice (docs/marketing only)
-        if: steps.filter.outputs.native != 'true'
-        run: echo "No native changes detected; skipping Swift build & test."
-
-      - name: Install Bun
-        if: steps.filter.outputs.native == 'true'
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-
-      - name: Cache bun dependencies
-        if: steps.filter.outputs.native == 'true'
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
-          restore-keys: ${{ runner.os }}-bun-
-
-      - name: Install JS dependencies
-        if: steps.filter.outputs.native == 'true'
-        run: bun install --frozen-lockfile
-
-      - name: Generate design tokens and build OBS widget
-        if: steps.filter.outputs.native == 'true'
-        run: bun turbo run build --filter=widget
-
-      - name: Verify widget.html is in sync with apps/widget/ sources
-        if: steps.filter.outputs.native == 'true'
-        run: |
-          if ! git diff --exit-code -- apps/native/WolfWave/Resources/widget.html; then
-            echo "::error::widget.html is out of sync with its sources. Run \`make widget\` and commit the result."
-            exit 1
-          fi
-
-      - name: Verify design tokens are in sync with tokens.json
-        if: steps.filter.outputs.native == 'true'
-        run: |
-          if ! git diff --exit-code -- \
-            apps/native/WolfWave/Core/DesignSystem/Tokens.generated.swift \
-            apps/docs/app/tokens.generated.css \
-            apps/native/WolfWave/Resources/widget-tokens.generated.js \
-            apps/marketing/shared/tokens.generated.ts \
-            'apps/docs/app/(home)/_widgets/widget-themes.generated.ts'; then
-            echo "::error::Generated design tokens are out of sync with design-system/tokens.json. Run \`bun run tokens\` and commit the result."
-            exit 1
-          fi
-
-      - name: Create Config.xcconfig
-        if: steps.filter.outputs.native == 'true'
-        run: |
-          printf 'TWITCH_CLIENT_ID = placeholder\nDISCORD_CLIENT_ID = placeholder\nGITHUB_REPO_OWNER = mrdemonwolf\nGITHUB_REPO_NAME = wolfwave\nDOCS_URL = https://mrdemonwolf.github.io/wolfwave\nCOMMUNITY_DISCORD_URL = https://mrdwolf.net/discord\nCOPYRIGHT_HOLDER = MrDemonWolf, Inc.\n' \
-            > apps/native/WolfWave/Config.xcconfig
-
-      - name: Verify SponsorConfig.generated.swift is in sync with FUNDING.yml
-        if: steps.filter.outputs.native == 'true'
-        run: |
-          bash scripts/generate-sponsor-config.sh
-          if ! git diff --exit-code -- apps/native/WolfWave/Core/SponsorConfig.generated.swift; then
-            echo "::error::SponsorConfig.generated.swift is out of sync with .github/FUNDING.yml. Run \`make sponsor-config\` and commit the result."
-            exit 1
-          fi
-
-      - name: Cache SwiftPM packages
-        if: steps.filter.outputs.native == 'true'
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: SourcePackages
-          key: ${{ runner.os }}-spm-${{ hashFiles('apps/native/WolfWave.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
-          restore-keys: ${{ runner.os }}-spm-
+      - name: Verify generated artifacts are in sync with their sources
+        run: bash scripts/check-generated-drift.sh
 
       - name: Build & Test
-        if: steps.filter.outputs.native == 'true'
         env:
-          # Disable the nano malloc zone in the test host. The Swift
-          # runtime + nano allocator on the macos-26 runner image
-          # historically aborted the xctest host with
-          # `malloc: pointer being freed was not allocated` at process
-          # launch. That runner bug is resolved, but MallocNanoZone=0 is
-          # kept as cheap insurance against a regression.
+          # Disable the nano malloc zone in the test host. The Swift runtime +
+          # nano allocator on the macos-26 runner image historically aborted the
+          # xctest host with `malloc: pointer being freed was not allocated` at
+          # process launch. That runner bug is fixed; this stays as cheap
+          # insurance against a regression (as does serial testing in the
+          # Makefile target).
           MallocNanoZone: "0"
-          # Silence routine OSLog chatter (debug/info/warn) for the test
-          # run so the captured xcodebuild output isn't flooded with
-          # thousands of log lines per suite. Errors still surface. The
-          # file sink is untouched, so LoggerTests / LoggerClearTests
-          # keep asserting on on-disk content. Logger.swift also
-          # auto-detects XCTest; this just pins the level explicitly.
+          # Silence routine OSLog chatter so the captured output isn't flooded
+          # with thousands of log lines per suite. Errors still surface, and the
+          # file sink is untouched, so LoggerTests keeps asserting on on-disk
+          # content.
           WOLFWAVE_LOG_LEVEL: error
-        run: |
-          # Full suite runs unskipped. SongRequestCommandTests and
-          # TrackInfoCommandTests were previously -skip-testing'd because
-          # the macos-26 runner image aborted the xctest host with a
-          # malloc nano-zone crash; that runner bug is resolved (verified
-          # 2026-07-15: full suite green on macos-26, both classes pass).
-          # MallocNanoZone=0 + serial testing are kept as cheap insurance.
-          xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
-            -destination 'platform=macOS' \
-            ARCHS="arm64" \
-            -configuration Debug test \
-            -clonedSourcePackagesDirPath SourcePackages \
-            -parallel-testing-enabled NO \
-            -disable-concurrent-destination-testing \
-            CODE_SIGN_IDENTITY="-" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            -resultBundlePath TestResults.xcresult
+        run: make test-ci
 
       - name: Upload Test Results
-        if: always() && steps.filter.outputs.native == 'true'
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: TestResults
@@ -162,35 +135,17 @@ jobs:
 
   docs:
     name: Docs Build
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Detect docs changes
-        id: filter
-        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
-        with:
-          filters: |
-            docs:
-              - 'apps/docs/**'
-              - 'design-system/tokens.json'
-              - 'design-system/scripts/generate.ts'
-              - 'package.json'
-              - 'bun.lock'
-              - 'turbo.json'
-
-      - name: Skip notice (no docs changes)
-        if: steps.filter.outputs.docs != 'true'
-        run: echo "No docs changes detected; skipping docs build & checks."
-
-      - name: Install Bun
-        if: steps.filter.outputs.docs == 'true'
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
       - name: Cache bun dependencies
-        if: steps.filter.outputs.docs == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.bun/install/cache
@@ -198,51 +153,30 @@ jobs:
           restore-keys: ${{ runner.os }}-bun-
 
       - name: Install deps
-        if: steps.filter.outputs.docs == 'true'
         run: bun install --frozen-lockfile
 
       - name: Type check
-        if: steps.filter.outputs.docs == 'true'
         run: bun run --filter docs types:check
 
       - name: Lint
-        if: steps.filter.outputs.docs == 'true'
         run: bun run --filter docs lint
 
       - name: Build docs
-        if: steps.filter.outputs.docs == 'true'
         run: bunx turbo build --filter docs
 
   streamdeck:
     name: Stream Deck Plugin
+    needs: changes
+    if: needs.changes.outputs.streamdeck == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Detect Stream Deck changes
-        id: filter
-        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
-        with:
-          filters: |
-            streamdeck:
-              - 'apps/streamdeck/**'
-              - 'apps/native/WolfWave/Services/WebSocket/StreamDeckCommand.swift'
-              - 'apps/native/WolfWave/Core/AppConstants.swift'
-              - 'apps/native/WolfWave/Services/WebSocket/WebSocketAuthToken.swift'
-              - 'bun.lock'
-
-      - name: Skip notice (no Stream Deck changes)
-        if: steps.filter.outputs.streamdeck != 'true'
-        run: echo "No Stream Deck changes detected; skipping."
-
-      - name: Install Bun
-        if: steps.filter.outputs.streamdeck == 'true'
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
       - name: Cache bun dependencies
-        if: steps.filter.outputs.streamdeck == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.bun/install/cache
@@ -250,25 +184,20 @@ jobs:
           restore-keys: ${{ runner.os }}-bun-
 
       - name: Install deps
-        if: steps.filter.outputs.streamdeck == 'true'
         run: bun install --frozen-lockfile
 
       - name: Type check
-        if: steps.filter.outputs.streamdeck == 'true'
         run: bun run --filter streamdeck typecheck
 
       - name: Test
-        if: steps.filter.outputs.streamdeck == 'true'
         run: bun run --filter streamdeck test
 
       # Packaging validates the manifest and every asset it points at, which is
       # the only automated check that the icons and the bundle are shippable.
       - name: Package
-        if: steps.filter.outputs.streamdeck == 'true'
         run: bun run --filter streamdeck pack
 
       - name: Verify committed icons match the generator
-        if: steps.filter.outputs.streamdeck == 'true'
         run: |
           bun run --filter streamdeck icons
           if ! git diff --exit-code -- apps/streamdeck/com.mrdemonwolf.wolfwave.sdPlugin/imgs apps/streamdeck/marketing; then
@@ -278,62 +207,44 @@ jobs:
 
   lint:
     name: SwiftLint
+    needs: changes
+    if: needs.changes.outputs.swiftlint == 'true'
     # Runs on Linux via the official SwiftLint container; no need to burn a
-    # 10x-billed macOS runner just to lint. SwiftLint is platform-agnostic.
-    runs-on: ubuntu-latest
+    # 10x-billed macOS runner just to lint. SwiftLint is platform-agnostic, and
+    # the Makefile pins the official image by immutable digest so local and CI
+    # path mapping, rules, and baseline interpretation stay identical.
+    #
     # BLOCKING for error-severity violations. The committed baseline records
     # legacy warning debt and should only shrink (regenerate intentionally with
-    # `make lint-baseline`). Advisory warnings still surface in the log. The
-    # Makefile pins the official image by immutable digest so local and CI path
-    # mapping, rules, and baseline interpretation remain identical.
+    # `make lint-baseline`). Advisory warnings still surface in the log.
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 2
           persist-credentials: false
 
-      - name: Detect native changes
-        id: filter
-        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
-        with:
-          filters: |
-            native:
-              - 'apps/native/**'
-              - '.swiftlint.yml'
-              - 'swiftlint-baseline.json'
-              - 'Makefile'
-
       - name: Run SwiftLint
-        if: steps.filter.outputs.native == 'true'
         run: make lint
 
   lint-crash-safety:
     name: SwiftLint (crash-safety, blocking)
+    needs: changes
+    if: needs.changes.outputs.swiftlint == 'true'
     # BLOCKING gate for the three crash-class rules (force unwrap / try! / as!)
-    # on production source. It runs with `--strict`, so a regression fails the PR.
+    # on production source. Runs with --strict, so a regression fails the PR.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 2
           persist-credentials: false
 
-      - name: Detect native changes
-        id: filter
-        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
-        with:
-          filters: |
-            native:
-              - 'apps/native/**'
-              - '.swiftlint-crash-safety.yml'
-              - 'Makefile'
-
       - name: Run crash-safety SwiftLint
-        if: steps.filter.outputs.native == 'true'
         run: make lint-crash-safety
 
   lint-headers:
     name: Swift file headers (blocking)
+    needs: changes
+    if: needs.changes.outputs.headers == 'true'
     # BLOCKING gate that every Swift file carries the canonical Xcode header
     # from IDETemplateMacros.plist, with a Created-by date matching the file's
     # git creation date.
@@ -348,48 +259,22 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Detect native changes
-        id: filter
-        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
-        with:
-          filters: |
-            native:
-              - 'apps/native/**'
-              - 'scripts/check-headers.mjs'
-
       - name: Check Swift file headers
-        if: steps.filter.outputs.native == 'true'
-        run: node scripts/check-headers.mjs
+        run: make lint-headers
 
   ds-lint:
     name: Design-system lint
+    needs: changes
+    if: needs.changes.outputs.ds == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Detect view, lint, or token changes
-        id: filter
-        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
-        with:
-          filters: |
-            ds:
-              - 'apps/native/WolfWave/Views/**'
-              - 'design-system/scripts/lint.ts'
-              - 'design-system/lint-allowlist.txt'
-              - 'design-system/scripts/validate-tokens.ts'
-              - 'design-system/tokens.json'
-              - 'design-system/tokens.schema.json'
-              - 'package.json'
-              - 'bun.lock'
-
-      - name: Install Bun
-        if: steps.filter.outputs.ds == 'true'
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
       - name: Cache bun dependencies
-        if: steps.filter.outputs.ds == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.bun/install/cache
@@ -398,16 +283,13 @@ jobs:
 
       # ds:lint is dependency-free, but ds:schema needs ajv.
       - name: Install deps
-        if: steps.filter.outputs.ds == 'true'
         run: bun install --frozen-lockfile
 
       - name: Run design-system lint
-        if: steps.filter.outputs.ds == 'true'
         run: bun run ds:lint
 
       # tokens.json drives the generated platform outputs and generate.ts does
       # not check shape before emitting, so a typo'd namespace would reach the
       # Swift app, the docs CSS, the widget, and the Remotion projects at once.
       - name: Validate tokens.json against its schema
-        if: steps.filter.outputs.ds == 'true'
         run: bun run ds:schema

@@ -6,6 +6,15 @@ All notable changes to this project will be documented in this file.
 
 > The next release. These changes ship on the [Nightly channel](https://mrdemonwolf.github.io/wolfwave/docs/nightly) off `main` until 2.1.1 is tagged for stable, when this heading gets its date.
 
+### Developer
+
+- **CI/CD deduplicated.** The build preamble (Bun, caches, design tokens, widget, `Config.xcconfig`, `SponsorConfig`, SwiftPM cache) lived in five places across CI, Release, and Nightly; it is now the `.github/actions/setup-native-build` composite action. The ~90-line inside-out signing and notarization block lived in two; it is now `scripts/codesign-app.sh`, `scripts/notarize-dmg.sh`, `scripts/import-signing-cert.sh`, and `scripts/generate-appcast.sh`, which `make notarize` also uses. Three drifting copies of the `xcodebuild test` invocation collapsed onto `make test-ci`, so CI runs exactly what a contributor runs.
+- **CI gates at the job level.** One `changes` job runs `dorny/paths-filter` once and every other job keys off its outputs, replacing five duplicated filter blocks and ~25 per-step `if:` conditions. A docs-only PR now reports the native jobs as skipped instead of running them as no-ops.
+- **`make check-drift`.** Regenerates the widget, design tokens, and `SponsorConfig`, then fails on drift with the fix command named per group — the same gate CI runs, available before you push.
+- **Docs deploys are path-filtered.** A Swift-only push to `main` no longer rebuilds and republishes the site; `workflow_dispatch` forces one.
+- **Scheduled workflows skip forks.** Nightly, Update Sponsors, and Copyright Year now no-op outside `MrDemonWolf/wolfwave` instead of failing on secrets a fork can't have.
+- **CI builds get the real fork-branding URLs.** Every workflow wrote `DOCS_URL` and `COMMUNITY_DISCORD_URL` into `Config.xcconfig` without the `$()` escape, so xcconfig truncated both to `https:` and `AppConstants.validURL` silently fell back to the compiled-in defaults.
+
 ## [2.1.0] - 2026-08-14
 
 ### Security
