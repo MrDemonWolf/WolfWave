@@ -38,7 +38,7 @@ else
 LOCAL_SIGN = CODE_SIGN_IDENTITY="$(LOCAL_SIGN_ID)" CODE_SIGN_STYLE=Manual
 endif
 
-.PHONY: help build clean test test-verbose test-ci lint lint-baseline lint-crash-safety lint-headers update-deps open-xcode ci prod-build prod-install notarize verify-notarize sponsor-config widget
+.PHONY: help build clean test test-verbose test-ci check-drift lint lint-baseline lint-crash-safety lint-headers update-deps open-xcode ci prod-build prod-install notarize verify-notarize sponsor-config widget
 
 help:
 	@echo "Available targets:"
@@ -57,7 +57,8 @@ help:
 	@echo "  open-xcode     Open the Xcode project"
 	@echo "  verify-notarize Verify notarization of builds/$(DMG_NAME)"
 	@echo "  test-verbose   Run tests with full output"
-	@echo "  test-ci        Run tests in CI mode (no signing, result bundle)"
+	@echo "  test-ci        Run tests exactly as CI does (no signing, result bundle)"
+	@echo "  check-drift    Regenerate widget/tokens/SponsorConfig and fail on drift"
 	@echo "  ci             Run CI test suite"
 
 # ---------------------------------------------------------------------------
@@ -100,16 +101,33 @@ test-verbose: sponsor-config
 		-only-testing WolfWaveTests \
 		test 2>/dev/null | tee /dev/stderr | scripts/check-test-results.sh
 
+# The single test entry point for CI. All three workflows (CI, Release,
+# Nightly) run exactly this, so a green `make test-ci` locally means the same
+# thing it means on a runner.
+#
+# Serial testing is cheap insurance against the macos-26 runner's historical
+# malloc nano-zone abort of the xctest host (paired with MallocNanoZone=0 in
+# the workflows); that runner bug is fixed, but the guard stays.
 test-ci: sponsor-config
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
 		-destination '$(DESTINATION)' -configuration Debug \
 		-derivedDataPath '$(TEST_DERIVED_DATA)' \
+		-clonedSourcePackagesDirPath SourcePackages \
 		-only-testing WolfWaveTests \
+		-parallel-testing-enabled NO \
+		-disable-concurrent-destination-testing \
 		CODE_SIGN_IDENTITY="-" \
 		CODE_SIGNING_REQUIRED=NO \
 		CODE_SIGNING_ALLOWED=NO \
 		-resultBundlePath TestResults.xcresult \
 		test
+
+# Regenerate every committed generated artifact, then fail if any of them moved.
+# Mirrors the CI drift gate; run it before pushing a change to tokens.json,
+# apps/widget/, or FUNDING.yml.
+check-drift: sponsor-config
+	@bun turbo run build --filter=widget
+	@bash scripts/check-generated-drift.sh
 
 # Full SwiftLint pass against the committed baseline. Hard errors block while
 # advisory warning debt stays visible. Mirrors the CI `lint` job.
@@ -191,32 +209,19 @@ prod-install: prod-build
 #
 # Also requires "Developer ID Application" certificate in Keychain.
 # ---------------------------------------------------------------------------
+# Same script the Release and Nightly workflows run, so a local notarization
+# failure reproduces the CI one (including the notary-log dump on rejection).
 notarize:
 	@if [ ! -f $(BUILDS_DIR)/$(DMG_NAME) ]; then \
 		echo "❌ $(BUILDS_DIR)/$(DMG_NAME) not found. Run 'make prod-build' first."; exit 1; fi
-	@if [ -z "$(APPLE_ID)" ]; then \
-		echo "❌ APPLE_ID is not set."; \
+	@if [ -z "$(APPLE_ID)" ] || [ -z "$(APPLE_TEAM_ID)" ] || [ -z "$(APPLE_APP_PASSWORD)" ]; then \
+		echo "❌ APPLE_ID, APPLE_TEAM_ID, and APPLE_APP_PASSWORD must all be set."; \
 		echo "   Usage: APPLE_ID=... APPLE_TEAM_ID=... APPLE_APP_PASSWORD=... make notarize"; \
 		exit 1; fi
-	@if [ -z "$(APPLE_TEAM_ID)" ]; then \
-		echo "❌ APPLE_TEAM_ID is not set."; \
-		echo "   Usage: APPLE_ID=... APPLE_TEAM_ID=... APPLE_APP_PASSWORD=... make notarize"; \
-		exit 1; fi
-	@if [ -z "$(APPLE_APP_PASSWORD)" ]; then \
-		echo "❌ APPLE_APP_PASSWORD is not set."; \
-		echo "   Usage: APPLE_ID=... APPLE_TEAM_ID=... APPLE_APP_PASSWORD=... make notarize"; \
-		exit 1; fi
-	@echo "🔏 Signing DMG..."
-	codesign --force --timestamp --sign "Developer ID Application" $(BUILDS_DIR)/$(DMG_NAME)
-	@echo "📤 Submitting to Apple notary service (this may take a few minutes)..."
-	xcrun notarytool submit $(BUILDS_DIR)/$(DMG_NAME) \
-		--apple-id "$(APPLE_ID)" \
-		--team-id "$(APPLE_TEAM_ID)" \
-		--password "$(APPLE_APP_PASSWORD)" \
-		--wait
-	@echo "📎 Stapling ticket..."
-	xcrun stapler staple $(BUILDS_DIR)/$(DMG_NAME)
-	@echo "✅ Notarized: $(BUILDS_DIR)/$(DMG_NAME)"
+	@APPLE_ID="$(APPLE_ID)" \
+		APPLE_TEAM_ID="$(APPLE_TEAM_ID)" \
+		APPLE_APP_PASSWORD="$(APPLE_APP_PASSWORD)" \
+		bash scripts/notarize-dmg.sh "$(BUILDS_DIR)/$(DMG_NAME)"
 
 verify-notarize:
 	@if [ ! -f $(BUILDS_DIR)/$(DMG_NAME) ]; then \

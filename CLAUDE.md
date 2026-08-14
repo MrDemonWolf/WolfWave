@@ -91,6 +91,7 @@ make update-deps    # Resolve SwiftPM dependencies
 make open-xcode     # Open Xcode project
 make ci             # CI-friendly build (alias for test-ci)
 make widget         # Rebuild the OBS widget into Resources/widget.html
+make check-drift    # Regenerate widget/tokens/SponsorConfig and fail on drift (mirrors CI)
 make sponsor-config # Regenerate SponsorConfig.generated.swift from FUNDING.yml
 make prod-build     # Release build → DMG in builds/
 make prod-install   # Release build → install to /Applications
@@ -361,11 +362,29 @@ Test taxonomy is boundary-based:
 
 ## CI/CD
 
-- `.github/workflows/test.yml` (workflow name `CI`) - Runs on every push/PR to `main`. Seven jobs, each path-filtered:
+### Shared CI plumbing (change it here, not per workflow)
+
+CI, Release, and Nightly used to carry their own copy of the build preamble and
+the signing block. They now share one composite action and a set of scripts, so
+a fix lands once and every workflow gets it. Local `make` targets call the same
+scripts, so a green run locally means the same thing it means on a runner.
+
+| Shared piece | Used by | What it does |
+|---|---|---|
+| `.github/actions/setup-native-build` | CI `test`, Release ×2, Nightly ×2 | Bun + caches, `bun install`, design tokens + widget build, `Config.xcconfig`, `SponsorConfig`, SwiftPM cache. Takes `twitch-client-id` / `discord-client-id` inputs (default `placeholder` for test builds). |
+| `make test-ci` | CI, Release, Nightly | The single `xcodebuild test` invocation. Do not inline a different one in a workflow. |
+| `scripts/check-generated-drift.sh` | CI `test`, `make check-drift` | Fails on drift in `widget.html`, the five generated token outputs, or `SponsorConfig.generated.swift`, naming the fix command per group. |
+| `scripts/import-signing-cert.sh` | Release, Nightly | Developer ID `.p12` into a throwaway keychain. |
+| `scripts/codesign-app.sh` | Release, Nightly | Inside-out app signing (never `--deep`; see the comments in the script before touching it). |
+| `scripts/notarize-dmg.sh` | Release, Nightly, `make notarize` | Sign + notarize + staple, dumping the notary log on rejection. |
+| `scripts/generate-appcast.sh` | Release, Nightly | Sparkle appcast generation plus the edSignature / inline-`<description>` / no-`releaseNotesLink` guards. |
+
+- `.github/workflows/test.yml` (workflow name `CI`) - Runs on every push/PR to `main`. A single `changes` job runs `dorny/paths-filter` once and every other job gates on its outputs at the **job** level, so a docs-only PR shows the native jobs as skipped rather than running a job full of no-op steps (branch protection counts a skipped job as passing):
 
   | Job | Name | What it gates |
   |---|---|---|
-  | `test` | Build & Test | `xcodebuild test` on `macos-26`, plus three drift gates: `widget.html` in sync with `apps/widget/`, the generated design tokens in sync with `tokens.json`, and `SponsorConfig.generated.swift` in sync with `FUNDING.yml`. Creates a placeholder `Config.xcconfig` and sets `MallocNanoZone=0` to work around a runner-image allocator crash. |
+  | `changes` | Detect changes | One paths-filter pass feeding every other job's `if:`. Add a new path filter here, not in the consuming job. |
+  | `test` | Build & Test | `make test-ci` on `macos-26`, plus `scripts/check-generated-drift.sh` (widget, design tokens, SponsorConfig). Sets `MallocNanoZone=0` as insurance against a since-fixed runner-image allocator crash. |
   | `docs` | Docs Build | `types:check`, `lint`, and a full docs build |
   | `streamdeck` | Stream Deck Plugin | `typecheck`, `bun test`, `pack`, and an icon-generator drift check for `apps/streamdeck/`. Keeps the TS protocol mirror honest against `StreamDeckCommand.swift`, which is in the path filter so a Swift-only change still re-runs the TS tests |
   | `lint` | SwiftLint | SwiftLint against `swiftlint-baseline.json` |
@@ -374,7 +393,7 @@ Test taxonomy is boundary-based:
   | `ds-lint` | Design-system lint | `bun run ds:lint` plus `bun run ds:schema`, which validates `tokens.json` against `tokens.schema.json` |
 
 - `.github/workflows/build_release.yml` - Builds, signs, notarizes, and creates a GitHub Release on tag push (`v*`). Required secrets: `DEVELOPER_ID_CERT_P12`, `DEVELOPER_ID_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`, `TWITCH_CLIENT_ID`, `DISCORD_CLIENT_ID`, `SPARKLE_PRIVATE_KEY`.
-- `.github/workflows/docs.yml` - Builds and deploys the Fumadocs site to GitHub Pages.
+- `.github/workflows/docs.yml` - Builds and deploys the Fumadocs site to GitHub Pages. Path-filtered, so a Swift-only push to `main` doesn't burn a Pages deployment; use `workflow_dispatch` to force one.
 - `.github/workflows/update_homebrew.yml` - Opens a PR on the Homebrew tap after a GitHub Release is published.
 - `.github/workflows/nightly.yml` - Daily-cron (08:00 UTC) signed + notarized build off `main` that publishes the rolling `nightly` GitHub prerelease feeding the opt-in Nightly update channel. `workflow_dispatch` builds on demand; a scheduled run is skipped when `main` hasn't moved since the last nightly, so quiet days cost nothing.
 - `.github/workflows/update_sponsors.yml` - Refreshes the GitHub Sponsors list. `.github/workflows/license-year.yml` - Keeps the `LICENSE` year current.

@@ -1,0 +1,67 @@
+name: Set up native build
+description: >
+  Bun toolchain, generated assets (design tokens, OBS widget, SponsorConfig),
+  Config.xcconfig, and the SwiftPM clone cache. Everything the WolfWave macOS
+  build needs before xcodebuild runs. Shared by CI, Release, and Nightly.
+
+inputs:
+  twitch-client-id:
+    description: Value baked into Info.plist as TWITCH_CLIENT_ID.
+    required: false
+    default: placeholder
+  discord-client-id:
+    description: Value baked into Info.plist as DISCORD_CLIENT_ID.
+    required: false
+    default: placeholder
+
+runs:
+  using: composite
+  steps:
+    - name: Install Bun
+      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+    - name: Cache bun dependencies
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.bun/install/cache
+        key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+        restore-keys: ${{ runner.os }}-bun-
+
+    - name: Install JS dependencies
+      shell: bash
+      run: bun install --frozen-lockfile
+
+    # `tokens` is a build prerequisite of every workspace, so this regenerates
+    # the five generated design-token outputs and then inlines them into the
+    # shipped widget.html.
+    - name: Generate design tokens and build OBS widget
+      shell: bash
+      run: bun turbo run build --filter=widget
+
+    - name: Create Config.xcconfig
+      shell: bash
+      env:
+        TWITCH_CLIENT_ID: ${{ inputs.twitch-client-id }}
+        DISCORD_CLIENT_ID: ${{ inputs.discord-client-id }}
+      run: |
+        set -euo pipefail
+        # The URL values escape `//` as `$()`: xcconfig treats a bare `//` as a
+        # comment and truncates the value to `https:`. Every workflow used to
+        # write the unescaped form, so DOCS_URL and COMMUNITY_DISCORD_URL never
+        # actually took effect in a CI build — AppConstants.validURL silently
+        # dropped them back to their compiled-in defaults.
+        printf 'TWITCH_CLIENT_ID = %s\nDISCORD_CLIENT_ID = %s\nGITHUB_REPO_OWNER = mrdemonwolf\nGITHUB_REPO_NAME = wolfwave\nDOCS_URL = https:/$()/mrdemonwolf.github.io/wolfwave\nCOMMUNITY_DISCORD_URL = https:/$()/mrdwolf.net/discord\nCOPYRIGHT_HOLDER = MrDemonWolf, Inc.\n' \
+          "$TWITCH_CLIENT_ID" \
+          "$DISCORD_CLIENT_ID" \
+          > apps/native/WolfWave/Config.xcconfig
+
+    - name: Regenerate SponsorConfig from FUNDING.yml
+      shell: bash
+      run: bash scripts/generate-sponsor-config.sh
+
+    - name: Cache SwiftPM packages
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: SourcePackages
+        key: ${{ runner.os }}-spm-${{ hashFiles('apps/native/WolfWave.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+        restore-keys: ${{ runner.os }}-spm-

@@ -10,6 +10,8 @@ permissions: {}
 
 jobs:
   update-year:
+    # A fork has no reason to open this PR against itself every January.
+    if: github.repository == 'MrDemonWolf/wolfwave'
     runs-on: ubuntu-latest
     permissions:
       contents: write
