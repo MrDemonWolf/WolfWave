@@ -286,8 +286,8 @@ struct LoggerTests {
     func testLogFileExport() async throws {
         // `.error` rather than `.info`: under XCTest the severity gate defaults
         // to `.error` and now covers the file sink, so info lines never land.
-        Log.error("Test log entry 1", category: "Test")
-        Log.error("Test log entry 2", category: "Test")
+        Log.error("Test log entry 1", category: .dev)
+        Log.error("Test log entry 2", category: .dev)
         Log.flush()
 
         let logURL = Log.exportLogFile()
@@ -313,7 +313,7 @@ struct LoggerTests {
         #endif
 
         // The real write path must not crash under the active gate.
-        Log.debug("Debug message \(UUID().uuidString)", category: "Test")
+        Log.debug("Debug message \(UUID().uuidString)", category: .dev)
         Log.flush()
     }
 
@@ -328,7 +328,7 @@ struct LoggerTests {
             for i in 0..<iterations {
                 group.addTask {
                     // `.error` so the line survives the XCTest severity gate.
-                    Log.error("Concurrent log \(uniquePrefix)_\(i)", category: "Concurrency")
+                    Log.error("Concurrent log \(uniquePrefix)_\(i)", category: .dev)
                 }
             }
         }
@@ -400,6 +400,30 @@ struct LoggerTests {
         }
     }
 
+    @Test("Category raw values fit the aligned column")
+    func testCategoryRawValuesFitColumn() {
+        // A raw value longer than the column width overflows and ragged-edges
+        // the message column for every line in that category. Caught here rather
+        // than by squinting at a log file.
+        for category in LogCategory.allCases {
+            #expect(category.rawValue.count <= Log.categoryWidth,
+                "\(category.rawValue) is \(category.rawValue.count) chars, over the \(Log.categoryWidth) column")
+        }
+    }
+
+    @Test("Category raw values are unique and contain no spaces")
+    func testCategoryRawValuesAreDistinct() {
+        // Two cases sharing a raw value would silently merge in Console.app's
+        // Category filter; a space would break the line's field separation.
+        let values = LogCategory.allCases.map(\.rawValue)
+        #expect(Set(values).count == values.count, "Duplicate raw values in LogCategory")
+
+        for value in values {
+            #expect(!value.contains(" "), "Category '\(value)' contains a space")
+            #expect(!value.isEmpty)
+        }
+    }
+
     // MARK: - Log Clearing Tests
     //
     // Direct members of this `.serialized` suite (not a nested sub-suite) so the
@@ -418,8 +442,8 @@ struct LoggerTests {
 
     @Test("Clearing the log truncates the file and writes a parseable header")
     func clearLogFileTruncatesAndWritesHeader() {
-        Log.error("Pre-clear marker", category: "Test")
-        Log.error("Another line", category: "Test")
+        Log.error("Pre-clear marker", category: .dev)
+        Log.error("Another line", category: .dev)
         Log.flush()
 
         let sizeBefore = Log.logFileSize()
@@ -456,7 +480,7 @@ struct LoggerTests {
         // exactly the size of the old log. A 300 KB log cleared to a 300 KB
         // file of zero bytes, and the old `lineCount == 1` assertion still
         // passed because NUL bytes contain no newlines.
-        Log.error("Fill the log with something", category: "Test")
+        Log.error("Fill the log with something", category: .dev)
         Log.flush()
 
         Log.clearLogFile()

@@ -37,11 +37,13 @@ extension TwitchChatService {
 
     /// Parses and handles an incoming message from EventSub.
     func handleEventSubMessage(_ json: [String: Any]) async {
-        Log.debug("TwitchChatService: handleEventSubMessage enter (isProcessingDisconnect=\(isProcessingDisconnect))", category: "Twitch")
+        Log.debug(
+            "TwitchChatService: handleEventSubMessage enter (isProcessingDisconnect=\(isProcessingDisconnect))",
+            category: .twitchEvents)
         if isProcessingDisconnect { return }
 
         guard let event = json["event"] as? [String: Any] else {
-            Log.debug("TwitchChatService: handleEventSubMessage: payload has no event, bail", category: "Twitch")
+            Log.debug("TwitchChatService: handleEventSubMessage: payload has no event, bail", category: .twitchEvents)
             return
         }
 
@@ -107,7 +109,7 @@ extension TwitchChatService {
             if isDuplicateCommand {
                 Log.debug(
                     "TwitchChatService: Dropping duplicate command message (id: \(messageID))",
-                    category: "Twitch")
+                    category: .twitchEvents)
             } else if commandsEnabled {
                 let roles = chatMessage.roles
                 #if DEBUG
@@ -184,13 +186,13 @@ extension TwitchChatService {
         // BotCommandDispatcher is MainActor-isolated. The tracked task awaits
         // its async result while the EventSub receive task remains free to read
         // keepalives and later notifications.
-        Log.debug("TwitchChatService: dispatch enter text=\(text.prefix(40))", category: "Twitch")
+        Log.debug("TwitchChatService: dispatch enter text=\(text.prefix(40))", category: .twitchEvents)
         let response = await commandDispatcher.processMessageAsync(
             text,
             userID: userID,
             isModerator: isModerator,
             context: context)
-        Log.debug("TwitchChatService: dispatch exit response=\(response?.prefix(40) ?? "nil")", category: "Twitch")
+        Log.debug("TwitchChatService: dispatch exit response=\(response?.prefix(40) ?? "nil")", category: .twitchEvents)
 
         guard let response, !Task.isCancelled else { return }
         await sendCommandReply(
@@ -225,21 +227,21 @@ extension TwitchChatService {
         resetKeepaliveWatchdog()
 
         guard let data = text.data(using: .utf8) else {
-            Log.warn("TwitchChatService: WebSocket message is not valid UTF-8", category: "Twitch")
+            Log.warn("TwitchChatService: WebSocket message is not valid UTF-8", category: .twitchEvents)
             return
         }
 
         let json: [String: Any]
         do {
             guard let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                Log.warn("TwitchChatService: WebSocket message is not a JSON object", category: "Twitch")
+                Log.warn("TwitchChatService: WebSocket message is not a JSON object", category: .twitchEvents)
                 return
             }
             json = parsed
         } catch {
             Log.warn(
                 "TwitchChatService: Failed to parse WebSocket message JSON - \(error.localizedDescription)",
-                category: "Twitch")
+                category: .twitchEvents)
             return
         }
 
@@ -247,7 +249,7 @@ extension TwitchChatService {
               let messageType = metadata["message_type"] as? String,
               let messageID = metadata["message_id"] as? String, !messageID.isEmpty,
               let messageTimestamp = metadata["message_timestamp"] as? String, !messageTimestamp.isEmpty else {
-            Log.warn("TwitchChatService: EventSub message missing required metadata fields", category: "Twitch")
+            Log.warn("TwitchChatService: EventSub message missing required metadata fields", category: .twitchEvents)
             return
         }
 
@@ -264,14 +266,14 @@ extension TwitchChatService {
             // would make the bounded replay and paid-event dedup horizon false.
             Log.warn(
                 "TwitchChatService: Rejecting EventSub message with invalid timestamp: \(messageTimestamp)",
-                category: "Twitch")
+                category: .twitchEvents)
             return
         }
         let age = Date().timeIntervalSince(timestamp)
         if age > 600 {
             Log.warn(
                 "TwitchChatService: Rejecting stale EventSub message (age: \(Int(age))s)",
-                category: "Twitch")
+                category: .twitchEvents)
             return
         }
         // Reject messages timestamped more than 30s in the future (clock-skew
@@ -279,7 +281,7 @@ extension TwitchChatService {
         if age < -30 {
             Log.warn(
                 "TwitchChatService: Rejecting future-dated EventSub message (skew: \(Int(-age))s)",
-                category: "Twitch")
+                category: .twitchEvents)
             return
         }
 
@@ -290,7 +292,7 @@ extension TwitchChatService {
         if messageDeduplicator.isDuplicate(messageID) {
             Log.debug(
                 "TwitchChatService: Dropping duplicate EventSub message (id: \(messageID))",
-                category: "Twitch")
+                category: .twitchEvents)
             return
         }
 
@@ -329,19 +331,19 @@ extension TwitchChatService {
         guard !isMigratingSession else {
             Log.debug(
                 "TwitchChatService: Ignoring duplicate session_reconnect during migration",
-                category: "Twitch")
+                category: .twitchEvents)
             return
         }
         guard let url = TwitchChatService.reconnectURL(from: json) else {
             Log.warn(
                 "TwitchChatService: session_reconnect missing a valid reconnect_url; reconnecting fresh",
-                category: "Twitch")
+                category: .twitchEvents)
             disconnectFromEventSub()
             scheduleReconnect()
             return
         }
 
-        Log.info("TwitchChatService: Migrating EventSub session to reconnect_url", category: "Twitch")
+        Log.info("TwitchChatService: Migrating EventSub session to reconnect_url", category: .twitchEvents)
 
         // Move ownership of the source socket/loop aside without cancelling it.
         // Session-bound command and paid redemption work remains valid because
@@ -368,7 +370,7 @@ extension TwitchChatService {
               receiveContextIsCurrent(receiveContext) else { return }
         guard let payload = json["payload"] as? [String: Any],
               let subscription = payload["subscription"] as? [String: Any] else {
-            Log.warn("TwitchChatService: revocation missing subscription payload", category: "Twitch")
+            Log.warn("TwitchChatService: revocation missing subscription payload", category: .twitchEvents)
             return
         }
         let type = (subscription["type"] as? String) ?? ""
@@ -378,38 +380,43 @@ extension TwitchChatService {
         case .reauth:
             Log.error(
                 "TwitchChatService: EventSub authorization revoked (\(type)); signaling re-auth",
-                category: "Twitch")
+                category: .twitchEvents)
             signalReauthNeededAndStop()
         case .accountUnavailable:
             stopEventSubWithoutReconnect(
                 error: "The connected Twitch account is no longer available.")
             Log.error(
-                "TwitchChatService: EventSub account removed (\(type)); connection stopped",
-                category: "Twitch")
+                "TwitchChatService: EventSub account removed, connection stopped",
+                category: .twitchEvents,
+                fields: ["subscription": type])
         case .clientUpdateRequired:
             stopEventSubWithoutReconnect(
                 error: "Twitch retired an EventSub version used by WolfWave. Please update WolfWave.")
             Log.error(
-                "TwitchChatService: EventSub version removed (\(type)); client update required",
-                category: "Twitch")
+                "TwitchChatService: EventSub version removed, client update required",
+                category: .twitchEvents,
+                fields: ["subscription": type])
         case .permissionLost:
             stopEventSubWithoutReconnect(
                 error: "WolfWave no longer has permission to receive Twitch chat events.")
             Log.error(
-                "TwitchChatService: EventSub permission/channel access lost (\(type)/\(status))",
-                category: "Twitch")
+                "TwitchChatService: EventSub permission or channel access lost",
+                category: .twitchEvents,
+                fields: ["subscription": type, "revocation": status])
         case .reconnect:
             Log.warn(
-                "TwitchChatService: Transient EventSub revocation (\(type)/\(status)); reconnecting",
-                category: "Twitch")
+                "TwitchChatService: Transient EventSub revocation, reconnecting",
+                category: .twitchEvents,
+                fields: ["subscription": type, "revocation": status])
             disconnectFromEventSub(error: "Twitch temporarily interrupted EventSub delivery.")
             if isNetworkReachable {
                 scheduleReconnect()
             }
         case .ignore:
             Log.debug(
-                "TwitchChatService: Ignoring revocation status \(status) for \(type)",
-                category: "Twitch")
+                "TwitchChatService: Ignoring revocation",
+                category: .twitchEvents,
+                fields: ["subscription": type, "revocation": status])
         }
     }
 
@@ -454,13 +461,13 @@ extension TwitchChatService {
            migrationSourceWebSocketTask === receiveContext.webSocketTask {
             Log.debug(
                 "TwitchChatService: Ignoring unexpected duplicate welcome from migration source",
-                category: "Twitch")
+                category: .twitchEvents)
             return
         }
         guard let payload = json["payload"] as? [String: Any],
               let session = payload["session"] as? [String: Any],
               let sessionID = session["id"] as? String else {
-            Log.error("TwitchChatService: Failed to parse session ID", category: "Twitch")
+            Log.error("TwitchChatService: Failed to parse session ID", category: .twitchEvents)
             return
         }
 
@@ -471,7 +478,7 @@ extension TwitchChatService {
         self.sessionID = sessionID
         Log.info(
             "TwitchChatService: EventSub session established with ID: \(sessionID)",
-            category: "Twitch")
+            category: .twitchEvents)
 
         // Arm the keepalive watchdog from the advertised timeout (+ grace).
         // A migration source may already have a watchdog sleeping against its
@@ -511,7 +518,7 @@ extension TwitchChatService {
             broadcastConnectionState(true)
             Log.info(
                 "TwitchChatService: Session migration complete; subscriptions carried over",
-                category: "Twitch")
+                category: .twitchEvents)
             if shouldRetryPollSubscription {
                 await subscribeToPollEvents(receiveContext: receiveContext)
             }
@@ -558,15 +565,15 @@ extension TwitchChatService {
               let subType = subscription["type"] as? String else {
             Log.warn(
                 "TwitchChatService: EventSub notification missing subscription type",
-                category: "Twitch")
+                category: .twitchEvents)
             return
         }
 
-        Log.debug("TwitchChatService: handleNotification subType=\(subType)", category: "Twitch")
+        Log.debug("TwitchChatService: handleNotification subType=\(subType)", category: .twitchEvents)
 
         switch subType {
         case AppConstants.Twitch.eventSubChatMessage:
-            Log.debug("TwitchChatService: routing chat message → handleEventSubMessage", category: "Twitch")
+            Log.debug("TwitchChatService: routing chat message → handleEventSubMessage", category: .twitchEvents)
             await handleEventSubMessage(payload)
         case "channel.poll.end":
             handlePollEndEvent(payload)
@@ -587,7 +594,7 @@ extension TwitchChatService {
 
         Log.info(
             "TwitchChatService: Vote-skip poll \(result.pollID) ended: \(result.skipVotes) skip / \(result.keepVotes) keep",
-            category: "Twitch")
+            category: .twitchEvents)
         skipPollResultsContinuation.yield(result)
     }
 
@@ -630,7 +637,7 @@ extension TwitchChatService {
         guard let broadcasterID,
               let token = oauthToken,
               let clientID else {
-            Log.warn("TwitchChatService: Cannot create poll: missing credentials", category: "Twitch")
+            Log.warn("TwitchChatService: Cannot create poll: missing credentials", category: .twitchEvents)
             return .definitiveFailure
         }
 
@@ -657,7 +664,7 @@ extension TwitchChatService {
         } catch {
             Log.error(
                 "TwitchChatService: Failed to serialize poll body - \(error.localizedDescription)",
-                category: "Twitch")
+                category: .twitchEvents)
             return .definitiveFailure
         }
 
@@ -670,30 +677,32 @@ extension TwitchChatService {
             case .created(let pollID):
                 Log.info(
                     "TwitchChatService: Vote-skip poll \(pollID) created",
-                    category: "Twitch")
+                    category: .twitchEvents)
             case .definitiveFailure:
                 let text = String(data: data, encoding: .utf8) ?? "No response"
                 Log.warn(
-                    "TwitchChatService: Poll creation rejected: HTTP \(http.statusCode): \(text)",
-                    category: "Twitch")
+                    "TwitchChatService: Poll creation rejected",
+                    category: .twitchEvents,
+                    fields: ["status": http.statusCode, "response": text])
             case .pollAlreadyActive:
                 Log.info(
                     "TwitchChatService: Poll creation rejected because a native poll is already active",
-                    category: "Twitch")
+                    category: .twitchEvents)
             case .indeterminate where (200..<300).contains(http.statusCode):
                 Log.warn(
                     "TwitchChatService: Poll creation succeeded without a usable poll ID",
-                    category: "Twitch")
+                    category: .twitchEvents)
             case .indeterminate:
                 Log.warn(
-                    "TwitchChatService: Poll creation status is unknown after HTTP \(http.statusCode)",
-                    category: "Twitch")
+                    "TwitchChatService: Poll creation status is unknown",
+                    category: .twitchEvents,
+                    fields: ["status": http.statusCode])
             }
             return outcome
         } catch {
             Log.error(
                 "TwitchChatService: Poll creation request outcome is unknown - \(error.localizedDescription)",
-                category: "Twitch")
+                category: .twitchEvents)
             return .indeterminate
         }
     }
@@ -767,7 +776,7 @@ extension TwitchChatService {
               let clientID else {
             Log.warn(
                 "TwitchChatService: Missing credentials for poll EventSub subscription",
-                category: "Twitch")
+                category: .twitchEvents)
             return
         }
         guard pollSubscriptionSessionID != sessionID,
@@ -808,12 +817,12 @@ extension TwitchChatService {
         case .missing:
             Log.warn(
                 "TwitchChatService: Polls scope missing after live enable; reauthorization required",
-                category: "Twitch")
+                category: .twitchEvents)
             signalReauthNeededAndStop()
         case .indeterminate:
             Log.warn(
                 "TwitchChatService: Polls scope refresh was inconclusive; keeping the current session",
-                category: "Twitch")
+                category: .twitchEvents)
         }
     }
 
@@ -847,13 +856,13 @@ extension TwitchChatService {
             // the moment we're notified is close enough.
             streamLiveSince = Date()
             streamLive = true
-            Log.info("TwitchChatService: Stream went live", category: "Twitch")
+            Log.info("TwitchChatService: Stream went live", category: .twitchEvents)
         case "stream.offline":
             streamLive = false
             streamLiveSince = nil
-            Log.info("TwitchChatService: Stream went offline", category: "Twitch")
+            Log.info("TwitchChatService: Stream went offline", category: .twitchEvents)
         default:
-            Log.debug("TwitchChatService: Ignoring unexpected EventSub type: \(type)", category: "Twitch")
+            Log.debug("TwitchChatService: Ignoring unexpected EventSub type: \(type)", category: .twitchEvents)
         }
     }
 
@@ -894,7 +903,7 @@ extension TwitchChatService {
               let clientID else {
             Log.error(
                 "TwitchChatService: Missing credentials for EventSub subscription",
-                category: "Twitch")
+                category: .twitchEvents)
             disconnectFromEventSub()
             return false
         }
@@ -921,7 +930,7 @@ extension TwitchChatService {
             label: "channel.chat.message",
             receiveContext: receiveContext,
             onSuccess: {
-                Log.info("TwitchChatService: Connected to chat", category: "Twitch")
+                Log.info("TwitchChatService: Connected to chat", category: .twitchEvents)
                 if shouldSendConnectionMessageOnSubscribe {
                     sendConnectionMessage()
                 }
@@ -938,7 +947,7 @@ extension TwitchChatService {
             let generation = receiveContext?.generation ?? connectionGeneration
             Log.error(
                 "TwitchChatService: Chat subscription returned 401; attempting token refresh",
-                category: "Twitch")
+                category: .twitchEvents)
             if let expectedCredential {
                 let recovery = await recoverRejectedAccessToken(
                     expectedCredential,
@@ -1029,12 +1038,12 @@ extension TwitchChatService {
                 streamLive = false
                 streamLiveSince = nil
             }
-            Log.info("TwitchChatService: Seeded stream-live state: live=\(live)", category: "Twitch")
+            Log.info("TwitchChatService: Seeded stream-live state: live=\(live)", category: .twitchEvents)
         } catch {
             guard receiveContextIsCurrent(receiveContext) else { return }
             Log.debug(
                 "TwitchChatService: Stream-live seed request failed - \(error.localizedDescription)",
-                category: "Twitch")
+                category: .twitchEvents)
         }
     }
 
@@ -1074,7 +1083,7 @@ extension TwitchChatService {
                 guard receiveContextIsCurrent(receiveContext) else { return false }
                 Log.error(
                     "TwitchChatService: Failed to serialize \(label) subscription - \(error.localizedDescription)",
-                    category: "Twitch")
+                    category: .twitchEvents)
                 return false
             }
 
@@ -1082,7 +1091,7 @@ extension TwitchChatService {
                 let (data, http) = try await eventSubHTTPClient.send(request)
                 guard receiveContextIsCurrent(receiveContext) else { return false }
                 if (200..<300).contains(http.statusCode) {
-                    Log.info("TwitchChatService: Subscribed to \(label)", category: "Twitch")
+                    Log.info("TwitchChatService: Subscribed to \(label)", category: .twitchEvents)
                     onSuccess()
                     return true
                 }
@@ -1102,8 +1111,13 @@ extension TwitchChatService {
 
                 let responseText = String(data: data, encoding: .utf8) ?? "No response"
                 Log.error(
-                    "TwitchChatService: \(label) subscription failed - HTTP \(http.statusCode) - \(responseText)",
-                    category: "Twitch")
+                    "TwitchChatService: EventSub subscription failed",
+                    category: .twitchEvents,
+                    fields: [
+                        "subscription": label,
+                        "status": http.statusCode,
+                        "response": responseText
+                    ])
                 if label == "channel-point redemptions" || label == "bit usage" {
                     setRedemptionStatus(http.statusCode == 403 ? .scopeMissing : .subscribeFailed)
                 }
@@ -1113,7 +1127,7 @@ extension TwitchChatService {
                 guard receiveContextIsCurrent(receiveContext) else { return false }
                 Log.error(
                     "TwitchChatService: \(label) subscription error - \(error.localizedDescription)",
-                    category: "Twitch")
+                    category: .twitchEvents)
                 return false
             }
         }
@@ -1156,19 +1170,20 @@ extension TwitchChatService {
             if response.statusCode == 204 || response.statusCode == 404 {
                 Log.info(
                     "TwitchChatService: Removed conflicting EventSub subscription \(id)",
-                    category: "Twitch")
+                    category: .twitchEvents)
                 return true
             }
             onFailureStatus(response.statusCode)
             Log.error(
-                "TwitchChatService: Could not remove conflicting EventSub subscription - HTTP \(response.statusCode)",
-                category: "Twitch")
+                "TwitchChatService: Could not remove conflicting EventSub subscription",
+                category: .twitchEvents,
+                fields: ["status": response.statusCode])
             return false
         } catch {
             guard receiveContextIsCurrent(receiveContext) else { return false }
             Log.error(
                 "TwitchChatService: Conflicting EventSub delete failed - \(error.localizedDescription)",
-                category: "Twitch")
+                category: .twitchEvents)
             return false
         }
     }

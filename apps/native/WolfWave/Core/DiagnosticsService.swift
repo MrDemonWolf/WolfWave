@@ -76,11 +76,11 @@ nonisolated final class DiagnosticsService: NSObject, MXMetricManagerSubscriber,
         if enabled, !alreadySubscribed {
             MXMetricManager.shared.add(self)
             lock.withLock { isSubscribed = true }
-            Log.info("DiagnosticsService: MetricKit subscriber registered (opt-in on)", category: "Diagnostics")
+            Log.info("DiagnosticsService: MetricKit subscriber registered (opt-in on)", category: .diagnostics)
         } else if !enabled, alreadySubscribed {
             MXMetricManager.shared.remove(self)
             lock.withLock { isSubscribed = false }
-            Log.info("DiagnosticsService: MetricKit subscriber removed (opt-in off)", category: "Diagnostics")
+            Log.info("DiagnosticsService: MetricKit subscriber removed (opt-in off)", category: .diagnostics)
         }
     }
 
@@ -124,7 +124,7 @@ nonisolated final class DiagnosticsService: NSObject, MXMetricManagerSubscriber,
 
         let summary = Self.summarize(payloads)
         lock.withLock { lastDiagnosticSummary = summary }
-        Log.info("DiagnosticsService: \(summary)", category: "Diagnostics")
+        Log.info("DiagnosticsService: \(summary)", category: .diagnostics)
     }
 
     // MARK: - Private Helpers
@@ -144,7 +144,7 @@ nonisolated final class DiagnosticsService: NSObject, MXMetricManagerSubscriber,
         } catch {
             Log.error(
                 "DiagnosticsService: Failed to persist \(prefix) payload: \(error.localizedDescription)",
-                category: "Diagnostics"
+                category: .diagnostics
             )
         }
     }

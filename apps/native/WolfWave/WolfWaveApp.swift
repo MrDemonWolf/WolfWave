@@ -270,7 +270,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Skip full app setup when running unit tests to prevent windows from
         // appearing and services (WebSocket, Discord) from starting.
         if WolfWaveApp.isRunningTests {
-            Log.debug("AppDelegate: Running under XCTest, skipping service setup", category: "App")
+            Log.debug("AppDelegate: Running under XCTest, skipping service setup", category: .app)
             return
         }
 
@@ -298,7 +298,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let crashedLastLaunch = CrashReporter.didCrashLastLaunch()
         DefaultsStore.store.set(crashedLastLaunch, forKey: AppConstants.UserDefaults.lastLaunchCrashed)
         if crashedLastLaunch {
-            Log.warn("AppDelegate: previous launch ended in a crash (breadcrumb found)", category: "App")
+            Log.warn("AppDelegate: previous launch ended in a crash (breadcrumb found)", category: .app)
         }
         CrashReporter.clearMarker()
 
@@ -317,7 +317,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Defer onboarding and What's New past the initial layout pass
         // to avoid "layoutSubtreeIfNeeded on a view already being laid out" warning
         Task { @MainActor [weak self] in
-            Log.debug("AppDelegate: hasCompletedOnboarding = \(OnboardingViewModel.hasCompletedOnboarding)", category: "App")
+            Log.debug(
+                "AppDelegate: hasCompletedOnboarding = \(OnboardingViewModel.hasCompletedOnboarding)",
+                category: .app)
 
             if !OnboardingViewModel.hasCompletedOnboarding {
                 self?.showOnboarding()

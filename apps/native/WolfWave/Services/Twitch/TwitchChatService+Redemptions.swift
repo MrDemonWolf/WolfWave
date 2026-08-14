@@ -223,7 +223,7 @@ extension TwitchChatService {
         guard let broadcasterID, let botID, broadcasterID == botID else {
             Log.warn(
                 "TwitchChatService: Redemption events need the broadcaster account, skipping",
-                category: "Twitch")
+                category: .twitchRedeem)
             setRedemptionStatus(.botAccount)
             return
         }
@@ -238,7 +238,7 @@ extension TwitchChatService {
                 Log.error(
                     "TwitchChatService: Channel-point reward held because redemption "
                         + "storage is unavailable - \(error.localizedDescription)",
-                    category: "Twitch")
+                    category: .twitchRedeem)
                 await pauseManagedRewardIfPossible(receiveContext: receiveContext)
                 guard receiveContextIsCurrent(receiveContext) else { return }
             }
@@ -328,7 +328,7 @@ extension TwitchChatService {
                 receiveContext: receiveContext) { return }
             Log.error(
                 "TwitchChatService: Failed to set up channel-point reward - \(error.localizedDescription)",
-                category: "Twitch")
+                category: .twitchRedeem)
             setRedemptionStatus(.subscribeFailed)
         }
     }
@@ -385,7 +385,7 @@ extension TwitchChatService {
                 "TwitchChatService: Couldn't sync channel-point reward cost; "
                     + "the reward still works at its current cost - "
                     + error.localizedDescription,
-                category: "Twitch")
+                category: .twitchRedeem)
         }
         guard channelPointCredentialsAreCurrent(
             reconciledCredentials,
@@ -470,7 +470,7 @@ extension TwitchChatService {
             Log.error(
                 "TwitchChatService: Could not hold stored channel-point reward before recovery - "
                     + error.localizedDescription,
-                category: "Twitch")
+                category: .twitchRedeem)
             return false
         }
     }
@@ -507,7 +507,7 @@ extension TwitchChatService {
             Log.error(
                 "TwitchChatService: Could not persist missed redemption recovery - "
                     + error.localizedDescription,
-                category: "Twitch")
+                category: .twitchRedeem)
             return nil
         }
 
@@ -542,7 +542,7 @@ extension TwitchChatService {
             }
             Log.error(
                 "TwitchChatService: Managed redemption recovery remains incomplete; keeping reward paused",
-                category: "Twitch")
+                category: .twitchRedeem)
             return nil
         }
         guard !redemptionResolutionOutbox.intakeStorageIsUnavailable() else {
@@ -558,7 +558,7 @@ extension TwitchChatService {
                 Log.error(
                     "TwitchChatService: Held redemption recovery could not clear quarantined data - "
                         + error.localizedDescription,
-                    category: "Twitch")
+                    category: .twitchRedeem)
                 return nil
             }
         }
@@ -613,7 +613,7 @@ extension TwitchChatService {
             Log.error(
                 "TwitchChatService: Could not reconcile unfulfilled channel-point redemptions - "
                     + error.localizedDescription,
-                category: "Twitch")
+                category: .twitchRedeem)
             setRedemptionStatus(.subscribeFailed)
             return nil
         }
@@ -686,13 +686,13 @@ extension TwitchChatService {
             Log.error(
                 "TwitchChatService: Refusing credential teardown because redemption storage cannot be verified - "
                     + error.localizedDescription,
-                category: "Twitch")
+                category: .twitchRedeem)
             return false
         }
         guard !redemptionResolutionOutbox.hasOpaqueRecoveryRisk() else {
             Log.error(
                 "TwitchChatService: Refusing credential teardown while quarantined redemption recovery data remains",
-                category: "Twitch")
+                category: .twitchRedeem)
             return false
         }
         return true
@@ -715,7 +715,7 @@ extension TwitchChatService {
             guard clock.now < deadline else {
                 Log.error(
                     "TwitchChatService: Timed out waiting for managed reward setup before credential teardown",
-                    category: "Twitch")
+                    category: .twitchRedeem)
                 return false
             }
             do {
@@ -778,7 +778,7 @@ extension TwitchChatService {
             guard clock.now < deadline else {
                 Log.error(
                     "TwitchChatService: Timed out waiting for live paid-event intake before credential teardown",
-                    category: "Twitch")
+                    category: .twitchRedeem)
                 return false
             }
             do {
@@ -842,13 +842,13 @@ extension TwitchChatService {
                     || hasContainment else {
                 Log.error(
                     "TwitchChatService: Persisted paid-event work could not be drained before credential teardown",
-                    category: "Twitch")
+                    category: .twitchRedeem)
                 return false
             }
             guard clock.now < deadline else {
                 Log.error(
                     "TwitchChatService: Timed out draining persisted paid-event work before credential teardown",
-                    category: "Twitch")
+                    category: .twitchRedeem)
                 return false
             }
             do {
@@ -886,7 +886,7 @@ extension TwitchChatService {
             Log.error(
                 "TwitchChatService: Refusing credential teardown because the "
                     + "old broadcaster credentials cannot be proven",
-                category: "Twitch")
+                category: .twitchRedeem)
             return false
         }
 
@@ -921,7 +921,7 @@ extension TwitchChatService {
         guard rewardSnapshot != .corrupt else {
             Log.error(
                 "TwitchChatService: Refusing credential teardown because the managed reward identity is corrupt",
-                category: "Twitch")
+                category: .twitchRedeem)
             return false
         }
 
@@ -937,7 +937,7 @@ extension TwitchChatService {
             Log.error(
                 "TwitchChatService: Refusing credential teardown because "
                     + "persisted redemption ownership conflicts with the old broadcaster",
-                category: "Twitch")
+                category: .twitchRedeem)
             return false
         }
 
@@ -965,7 +965,7 @@ extension TwitchChatService {
                 "TwitchChatService: Refusing credential teardown because "
                     + "managed reward ownership could not be verified - "
                     + error.localizedDescription,
-                category: "Twitch")
+                category: .twitchRedeem)
             return false
         }
 
@@ -1007,7 +1007,7 @@ extension TwitchChatService {
             Log.error(
                 "TwitchChatService: Could not pause managed reward before credential teardown - "
                     + (result.failureDescription ?? "unknown failure"),
-                category: "Twitch")
+                category: .twitchRedeem)
             return false
         }
         guard redemptionStorageIsSafe else {
@@ -1039,7 +1039,7 @@ extension TwitchChatService {
                     "TwitchChatService: Could not capture the final paused-reward "
                         + "redemption snapshot before credential teardown - "
                         + error.localizedDescription,
-                    category: "Twitch")
+                    category: .twitchRedeem)
                 return false
             }
         }
@@ -1054,11 +1054,11 @@ extension TwitchChatService {
             }
             Log.info(
                 "TwitchChatService: Managed reward was already absent during credential teardown",
-                category: "Twitch")
+                category: .twitchRedeem)
         } else {
             Log.info(
                 "TwitchChatService: Paused managed reward and drained redemptions before credential teardown",
-                category: "Twitch")
+                category: .twitchRedeem)
         }
         teardownSucceeded = true
         return true
@@ -1092,12 +1092,12 @@ extension TwitchChatService {
             guard receiveContextIsCurrent(receiveContext) else { return }
             Log.info(
                 "TwitchChatService: Paused channel-point reward (requests off)",
-                category: "Twitch")
+                category: .twitchRedeem)
         } catch {
             guard receiveContextIsCurrent(receiveContext) else { return }
             Log.error(
                 "TwitchChatService: Failed to pause channel-point reward - \(error.localizedDescription)",
-                category: "Twitch")
+                category: .twitchRedeem)
         }
     }
 
@@ -1222,7 +1222,7 @@ extension TwitchChatService {
             // losing the only record that they still need to be resolved.
             Log.error(
                 "TwitchChatService: Could not persist redemption intake \(redemptionID): \(error.localizedDescription)",
-                category: "Twitch")
+                category: .twitchRedeem)
             beginRedemptionStorageFailureContainment(
                 broadcasterID: eventBroadcasterID,
                 rewardID: rewardID,
@@ -1386,7 +1386,7 @@ extension TwitchChatService {
                 "TwitchChatService: Could not persist Bits intake "
                     + "\(eventSubMessageID); using process-owned fallback - "
                     + error.localizedDescription,
-                category: "Twitch")
+                category: .twitchRedeem)
             guard let fallback = claimVolatileBitsFallback(
                 messageID: eventSubMessageID,
                 broadcasterID: eventBroadcasterID,
@@ -1597,7 +1597,7 @@ extension TwitchChatService {
                     "TwitchChatService: Bits action \(item.messageID) completed "
                         + "but its durable acknowledgement failed - "
                         + error.localizedDescription,
-                    category: "Twitch")
+                    category: .twitchRedeem)
                 attempt += 1
                 guard await sleepBeforeRedemptionRetry(
                     attempt: attempt,
@@ -1716,7 +1716,7 @@ extension TwitchChatService {
                 "TwitchChatService: Storage failed for redemption \(redemptionID) and the "
                     + "broadcaster credentials that could resolve it are gone; ending containment. "
                     + "The next session for this reward refunds it from its unfulfilled list",
-                category: "Twitch")
+                category: .twitchRedeem)
             return .accountGone
         }
 
@@ -1729,7 +1729,7 @@ extension TwitchChatService {
             sourceIsSafe = true
             Log.info(
                 "TwitchChatService: Paused channel-point reward after redemption storage failure",
-                category: "Twitch")
+                category: .twitchRedeem)
         } catch let TwitchChannelPointsService.RewardError.http(status, _)
             where status == 404 {
             sourceIsSafe = true
@@ -1740,7 +1740,7 @@ extension TwitchChatService {
             Log.error(
                 "TwitchChatService: Could not pause channel-point reward after storage failure - "
                     + error.localizedDescription,
-                category: "Twitch")
+                category: .twitchRedeem)
         }
 
         guard let resolution else {
@@ -1768,7 +1768,7 @@ extension TwitchChatService {
             Log.error(
                 "TwitchChatService: Could not apply \(resolution.rawValue) to redemption "
                     + "\(redemptionID) after storage failure - \(error.localizedDescription)",
-                category: "Twitch")
+                category: .twitchRedeem)
         }
         return sourceIsSafe && redemptionIsSettled ? .settled : .retry
     }
@@ -1788,7 +1788,7 @@ extension TwitchChatService {
                 "TwitchChatService: Could not persist \(resolution.rawValue) outcome "
                     + "for redemption \(intake.redemptionID); intake remains for a "
                     + "startup refund: \(error.localizedDescription)",
-                category: "Twitch")
+                category: .twitchRedeem)
             beginRedemptionStorageFailureContainment(
                 broadcasterID: intake.broadcasterID,
                 rewardID: intake.rewardID,
@@ -1848,7 +1848,7 @@ extension TwitchChatService {
         guard let resolution = item.resolution else {
             Log.error(
                 "TwitchChatService: Invalid persisted redemption resolution \(item.resolutionRawValue)",
-                category: "Twitch")
+                category: .twitchRedeem)
             return
         }
 
@@ -1862,7 +1862,7 @@ extension TwitchChatService {
                 Log.warn(
                     "TwitchChatService: Keeping redemption \(item.redemptionID) "
                         + "pending until its broadcaster credentials are available",
-                    category: "Twitch")
+                    category: .twitchRedeem)
                 transientAttempt += 1
                 guard await sleepBeforeRedemptionRetry(
                     attempt: transientAttempt,
@@ -1903,7 +1903,7 @@ extension TwitchChatService {
                                 "TwitchChatService: Keeping redemption "
                                     + "\(item.redemptionID) because the managed reward "
                                     + "owner changed before the 404 terminal",
-                                category: "Twitch")
+                                category: .twitchRedeem)
                             return
                         }
                         acknowledgeRedemptionResolution(item)
@@ -1958,7 +1958,7 @@ extension TwitchChatService {
                         Log.error(
                             "TwitchChatService: Keeping unresolved redemption "
                                 + "\(item.redemptionID) after HTTP \(status)",
-                            category: "Twitch")
+                            category: .twitchRedeem)
                         return
                     }
                     transientAttempt += 1
@@ -1976,21 +1976,21 @@ extension TwitchChatService {
                     Log.error(
                         "TwitchChatService: Keeping unresolved redemption "
                             + "\(item.redemptionID) after a malformed response",
-                        category: "Twitch")
+                        category: .twitchRedeem)
                     return
                 case .ownershipUnverified:
                     Log.error(
                         "TwitchChatService: Keeping unresolved redemption "
                             + "\(item.redemptionID) because managed reward ownership "
                             + "is no longer verified",
-                        category: "Twitch")
+                        category: .twitchRedeem)
                     return
                 }
             } catch {
                 Log.error(
                     "TwitchChatService: Keeping unresolved redemption "
                         + "\(item.redemptionID): \(error.localizedDescription)",
-                    category: "Twitch")
+                    category: .twitchRedeem)
                 return
             }
         }
@@ -2008,7 +2008,7 @@ extension TwitchChatService {
                 "TwitchChatService: Resolved redemption \(item.redemptionID) but "
                     + "could not acknowledge its outbox item: "
                     + error.localizedDescription,
-                category: "Twitch")
+                category: .twitchRedeem)
             beginRedemptionStorageFailureContainment(
                 broadcasterID: item.broadcasterID,
                 rewardID: item.rewardID,

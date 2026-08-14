@@ -306,7 +306,7 @@ struct DebugServiceControlsCard: View {
 
                 Button {
                     DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.updateSkippedVersion)
-                    Log.info("Cleared updateSkippedVersion (dev)", category: "Update")
+                    Log.info("Cleared updateSkippedVersion (dev)", category: .update)
                 } label: {
                     Label("Clear Skipped Version", systemImage: "trash")
                         .frame(maxWidth: .infinity)
@@ -378,7 +378,7 @@ struct DebugServiceControlsCard: View {
             )
             _ = queue.add(item)
         }
-        Log.info("Injected \(queueCount) fake requests (dev)", category: "SongRequest")
+        Log.info("Injected \(queueCount) fake requests (dev)", category: .songRequest)
     }
 
     // MARK: - Helpers

@@ -549,7 +549,7 @@ private struct WebSocketTokenEditorRow: View {
             Log.error(
                 "WebSocketSettings: Failed to save " + role.rawValue + " token: "
                     + String(describing: error),
-                category: "WebSocket"
+                category: .websocket
             )
             tokenError = "Couldn't save token. Try again."
         }
@@ -566,7 +566,7 @@ private struct WebSocketTokenEditorRow: View {
             Log.error(
                 "WebSocketSettings: Failed to rotate " + role.rawValue + " token: "
                     + String(describing: error),
-                category: "WebSocket"
+                category: .websocket
             )
             tokenError = "Couldn't save the new token. Your current token is still active."
         }

@@ -83,7 +83,7 @@ enum CrashReporter {
         }
         crashReporterPreviousActions = savedActions
 
-        Log.info("CrashReporter: installed (uncaught-exception + signal handlers)", category: "App")
+        Log.info("CrashReporter: installed (uncaught-exception + signal handlers)", category: .app)
     }
 
     // MARK: Breadcrumb lifecycle
@@ -178,7 +178,7 @@ private nonisolated func crashReporterExceptionHandler(_ exception: NSException)
     let reason = Log.redact(exception.reason ?? "")
     let frames = exception.callStackSymbols.prefix(20).joined(separator: "\n")
     CrashReporter.writeMarker("EXCEPTION \(name)\n\(reason)\n\(frames)\n")
-    Log.error("CrashReporter: uncaught NSException \(name): \(reason)", category: "App")
+    Log.error("CrashReporter: uncaught NSException \(name): \(reason)", category: .app)
     Log.flush() // belt-and-suspenders; Log.error already flushes
     crashReporterPreviousExceptionHandler?(exception) // chain, do not swallow
 }

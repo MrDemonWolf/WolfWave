@@ -222,7 +222,7 @@ struct DebugInspectorsCard: View {
                     } catch {
                         Log.error(
                             "Debug inspector: Keychain delete failed - \(error.localizedDescription)",
-                            category: "Keychain")
+                            category: .keychain)
                     }
                 } label: {
                     Image(systemName: "trash")

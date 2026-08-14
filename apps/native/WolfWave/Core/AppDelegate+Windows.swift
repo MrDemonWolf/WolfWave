@@ -248,7 +248,7 @@ extension AppDelegate {
                         await self?.validateTwitchTokenOnBoot()
                     }
 
-                    Log.info("AppDelegate: Onboarding dismissed, transitioning to normal app state", category: "App")
+                    Log.info("AppDelegate: Onboarding dismissed, transitioning to normal app state", category: .app)
                 }
             })
         }
@@ -268,7 +268,9 @@ extension AppDelegate: NSWindowDelegate {
 
         if window === onboardingWindow {
             if OnboardingViewModel.hasCompletedOnboarding == false {
-                Log.info("AppDelegate: Onboarding window closed before completion, will show again on next launch", category: "App")
+                Log.info(
+                    "AppDelegate: Onboarding window closed before completion, will show again on next launch",
+                    category: .app)
             }
             Task { @MainActor [weak self] in
                 self?.onboardingWindow = nil

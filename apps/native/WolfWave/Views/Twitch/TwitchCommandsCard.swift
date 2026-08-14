@@ -123,7 +123,7 @@ struct TwitchCommandsCard: View {
                     aliases: $songCommandAliases,
                     aliasAccessibilityIdentifier: "songCommandAliases",
                     onChange: { enabled in
-                        Log.debug("TwitchCommandsCard: !song \(enabled ? "enabled" : "disabled")", category: "Twitch")
+                        Log.debug("TwitchCommandsCard: !song \(enabled ? "enabled" : "disabled")", category: .twitch)
                     }
                 )
 
@@ -138,7 +138,7 @@ struct TwitchCommandsCard: View {
                     aliasPlaceholder: "e.g. ll, lp",
                     aliasAccessibilityIdentifier: "lastSongCommandAliases",
                     onChange: { enabled in
-                        Log.debug("TwitchCommandsCard: !last \(enabled ? "enabled" : "disabled")", category: "Twitch")
+                        Log.debug("TwitchCommandsCard: !last \(enabled ? "enabled" : "disabled")", category: .twitch)
                     }
                 )
 
@@ -164,7 +164,9 @@ struct TwitchCommandsCard: View {
                     aliasAccessibilityIdentifier: "wolfwaveCommandAliases",
                     isLast: true,
                     onChange: { enabled in
-                        Log.debug("TwitchCommandsCard: !wolfwave \(enabled ? "enabled" : "disabled")", category: "Twitch")
+                        Log.debug(
+                            "TwitchCommandsCard: !wolfwave \(enabled ? "enabled" : "disabled")",
+                            category: .twitch)
                     },
                     extra: { wolfwaveReply }
                 )

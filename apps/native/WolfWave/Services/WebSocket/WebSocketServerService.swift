@@ -246,12 +246,12 @@ actor WebSocketServerService {
             widgetHTTPPort = resolvedPort
             widgetHTTP = WidgetHTTPService(port: resolvedPort, overlayToken: overlayToken)
             widgetHTTP?.start()
-            Log.info("WebSocketServerService: Widget HTTP server started", category: "WebSocket")
+            Log.info("WebSocketServerService: Widget HTTP server started", category: .websocket)
         } else {
             widgetHTTP?.stop()
             widgetHTTP = nil
             widgetHTTPPort = nil
-            Log.info("WebSocketServerService: Widget HTTP server stopped", category: "WebSocket")
+            Log.info("WebSocketServerService: Widget HTTP server stopped", category: .websocket)
         }
     }
 
@@ -273,7 +273,7 @@ actor WebSocketServerService {
         widgetHTTP?.start()
         Log.info(
             "WebSocketServerService: Widget HTTP port changed to \(newPort), listener restarted",
-            category: "WebSocket"
+            category: .websocket
         )
     }
 
@@ -313,7 +313,7 @@ actor WebSocketServerService {
         if needsRestart {
             Log.info(
                 "WebSocketServerService: Port changed to \(newPort) while listener active, restarting",
-                category: "WebSocket"
+                category: .websocket
             )
             stopServer()
             startServer()
@@ -381,7 +381,7 @@ actor WebSocketServerService {
         guard currentTrack == track, currentArtist == artist else {
             Log.debug(
                 "WebSocketServerService: Ignoring stale artwork result for \(track) — \(artist)",
-                category: "WebSocket"
+                category: .websocket
             )
             return false
         }
@@ -555,7 +555,7 @@ actor WebSocketServerService {
             }
             Log.info(
                 "WebSocketServerService: Rejecting unauthenticated client (offered \(subprotocols.count) subprotocol(s))",
-                category: "WebSocket"
+                category: .websocket
             )
             return NWProtocolWebSocket.Response(
                 status: .reject,
@@ -568,13 +568,13 @@ actor WebSocketServerService {
 
         do {
             guard let nwPort = NWEndpoint.Port(rawValue: port) else {
-                Log.error("WebSocketServerService: Invalid port \(port)", category: "WebSocket")
+                Log.error("WebSocketServerService: Invalid port \(port)", category: .websocket)
                 transition(to: .error)
                 return
             }
             listener = try NWListener(using: parameters, on: nwPort)
         } catch {
-            Log.error("WebSocketServerService: Failed to create listener: \(error)", category: "WebSocket")
+            Log.error("WebSocketServerService: Failed to create listener: \(error)", category: .websocket)
             transition(to: .error)
             scheduleRetry()
             return
@@ -616,10 +616,10 @@ actor WebSocketServerService {
         guard generation == listenerGeneration else { return }
         switch newState {
         case .ready:
-            Log.info("WebSocketServerService: Listening on port \(port)", category: "WebSocket")
+            Log.info("WebSocketServerService: Listening on port \(port)", category: .websocket)
             transition(to: .listening)
         case .failed(let error):
-            Log.error("WebSocketServerService: Listener failed: \(error)", category: "WebSocket")
+            Log.error("WebSocketServerService: Listener failed: \(error)", category: .websocket)
             listenerGeneration &+= 1
             listener?.stateUpdateHandler = nil
             listener?.newConnectionHandler = nil
@@ -666,14 +666,16 @@ actor WebSocketServerService {
         cancelOwnedConnections()
 
         transition(to: .stopped)
-        Log.info("WebSocketServerService: Server stopped", category: "WebSocket")
+        Log.info("WebSocketServerService: Server stopped", category: .websocket)
     }
 
     /// Retries starting the server after a delay if still enabled.
     private func scheduleRetry() {
         guard isEnabled else { return }
 
-        Log.info("WebSocketServerService: Retrying in \(AppConstants.WebSocketServer.retryDelay)s", category: "WebSocket")
+        Log.info(
+            "WebSocketServerService: Retrying in \(AppConstants.WebSocketServer.retryDelay)s",
+            category: .websocket)
         retryTask?.cancel()
         retryTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(AppConstants.WebSocketServer.retryDelay))
@@ -759,7 +761,7 @@ actor WebSocketServerService {
             ) else {
                 Log.warn(
                     "WebSocketServerService: Cancelling client with unvalidated selected subprotocol",
-                    category: "WebSocket"
+                    category: .websocket
                 )
                 removeConnection(connection)
                 connection.cancel()
@@ -769,7 +771,7 @@ actor WebSocketServerService {
             guard Self.allowsConnection(role: role, isLoopback: isLoopback) else {
                 Log.warn(
                     "WebSocketServerService: Refusing non-loopback control connection",
-                    category: "WebSocket"
+                    category: .websocket
                 )
                 removeConnection(connection)
                 connection.cancel()
@@ -786,7 +788,7 @@ actor WebSocketServerService {
             connections.append(connection)
             let count = connections.count
             writeConnectionCountSnapshot(count)
-            Log.info("WebSocketServerService: Client connected (\(count) total)", category: "WebSocket")
+            Log.info("WebSocketServerService: Client connected (\(count) total)", category: .websocket)
             notifyStateChange()
             sendWelcome(to: connection)
             sendWidgetConfig(to: connection)
@@ -801,7 +803,7 @@ actor WebSocketServerService {
             )
             reconcileProgressTimer()
         case .failed(let error):
-            Log.debug("WebSocketServerService: Client failed: \(error)", category: "WebSocket")
+            Log.debug("WebSocketServerService: Client failed: \(error)", category: .websocket)
             // Clear actor ownership and the callback before cancelling so an
             // abruptly-dropped peer cannot leave a connection/handler cycle.
             removeConnection(connection)
@@ -824,7 +826,7 @@ actor WebSocketServerService {
         guard count != previousActiveCount else { return }
         writeConnectionCountSnapshot(count)
 
-        Log.debug("WebSocketServerService: Client disconnected (\(count) remaining)", category: "WebSocket")
+        Log.debug("WebSocketServerService: Client disconnected (\(count) remaining)", category: .websocket)
         notifyStateChange()
         reconcileProgressTimer()
     }
@@ -998,7 +1000,7 @@ actor WebSocketServerService {
         guard let message = nowPlayingPayload(elapsed: estimatedElapsed()) else {
             Log.debug(
                 "WebSocketServerService: No playback state to replay on connect",
-                category: "WebSocket"
+                category: .websocket
             )
             Self.sendJSON(
                 [
@@ -1011,7 +1013,7 @@ actor WebSocketServerService {
         }
         Log.debug(
             "WebSocketServerService: Replaying last-known state to new client (track=\(currentTrack ?? ""))",
-            category: "WebSocket"
+            category: .websocket
         )
         Self.sendJSON(message, to: connection)
     }
@@ -1164,7 +1166,7 @@ actor WebSocketServerService {
             contentContext: context,
             isComplete: true,
             completion: .contentProcessed { error in
-                if let error { Log.debug("WebSocketServerService: Send failed: \(error)", category: "WebSocket") }
+                if let error { Log.debug("WebSocketServerService: Send failed: \(error)", category: .websocket) }
             }
         )
     }

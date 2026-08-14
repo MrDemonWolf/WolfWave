@@ -131,7 +131,7 @@ struct DebugSettingsView: View {
         )
         let markdown = DebugDiagnostics.markdown(snapshot)
         Pasteboard.copy(markdown)
-        Log.info("Copied diagnostics snapshot to pasteboard", category: "DevTools")
+        Log.info("Copied diagnostics snapshot to pasteboard", category: .devTools)
     }
 }
 

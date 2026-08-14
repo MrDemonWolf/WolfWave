@@ -111,7 +111,7 @@ enum BugReportURL {
             install: Bundle.main.isHomebrewInstall ? .homebrew : .dmg
         )
         guard let url else {
-            Log.error("BugReportURL: Failed to build bug report URL", category: "App")
+            Log.error("BugReportURL: Failed to build bug report URL", category: .app)
             return
         }
         ExternalLink.open(url.absoluteString)

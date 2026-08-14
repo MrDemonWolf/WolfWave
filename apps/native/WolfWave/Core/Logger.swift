@@ -9,12 +9,18 @@
 import Foundation
 import os
 
-/// Typed log category. Use the enum form to avoid typos that silently route
-/// a log line to a sibling category. String overloads on `Log` remain for
-/// incremental migration.
+/// Typed log category, and the only way to tag a log line.
+///
+/// This is the sole entry point on purpose. When `Log` also accepted a free-form
+/// `String`, the enum went completely unused (0 call sites) and the exact typo it
+/// existed to prevent shipped anyway: `"Reset"` was written at three sites and was
+/// not a case, so those lines filtered as their own phantom category forever.
+///
+/// The raw value is what appears in the log file's category column and in
+/// Console.app's Category field. Keep raw values at 12 characters or fewer so the
+/// column stays aligned (see `Log.categoryWidth`).
 enum LogCategory: String, CaseIterable {
     case app = "App"
-    case twitch = "Twitch"
     case discord = "Discord"
     case music = "Music"
     case keychain = "Keychain"
@@ -29,6 +35,30 @@ enum LogCategory: String, CaseIterable {
     case artwork = "Artwork"
     case whatsNew = "WhatsNew"
     case history = "History"
+    case reset = "Reset"
+
+    // MARK: Twitch
+    //
+    // Twitch alone was 236 of 458 categorized call sites (51%), so filtering by
+    // "Twitch" selected half the log and bought almost nothing. Split along the
+    // existing `TwitchChatService+*` file seams, which makes the mapping
+    // mechanical rather than a judgement call per line.
+
+    /// Anything Twitch that is not one of the four areas below: view models,
+    /// service wiring, settings surfaces.
+    case twitch = "Twitch"
+
+    /// Device-code flow, token refresh, token validation.
+    case twitchAuth = "TwitchAuth"
+
+    /// Chat send/receive and bot-command routing.
+    case twitchChat = "TwitchChat"
+
+    /// EventSub subscription lifecycle and the WebSocket connection under it.
+    case twitchEvents = "TwitchEvents"
+
+    /// Channel-point redemptions, bit cheers, and the resolution outbox.
+    case twitchRedeem = "TwitchRedeem"
 }
 
 /// Severity classification used by every log line.
@@ -96,9 +126,9 @@ enum LogLevel: String, CaseIterable {
 /// ## Usage
 ///
 /// ```swift
-/// Log.info("Connected", category: "Twitch")
-/// Log.error("Reconnect failed", category: "Twitch", fields: ["attempt": 3, "code": 4003])
-/// Log.debug("Payload dump", category: "Dev")  // Only in development
+/// Log.info("Connected", category: .twitchChat)
+/// Log.error("Reconnect failed", category: .twitchEvents, fields: ["attempt": 3, "code": 4003])
+/// Log.debug("Payload dump", category: .dev)  // Only in development
 /// ```
 enum Log {
 
@@ -404,6 +434,10 @@ enum Log {
     }
 
     // MARK: - Public API
+    //
+    // `LogCategory` is the only accepted category type. There is deliberately no
+    // `String` overload: when one existed, every call site used it, the enum sat
+    // at 0 uses, and a `"Reset"` typo shipped to three sites unnoticed.
 
     /// Writes a log line at the given level. Prefer the convenience entry
     /// points (`debug`, `info`, `warn`, `error`) over calling `log` directly.
@@ -422,7 +456,7 @@ enum Log {
     nonisolated static func log(
         _ message: String,
         level: LogLevel = .info,
-        category: String = "App",
+        category: LogCategory = .app,
         fields: Fields = [:],
         file: StaticString = #fileID,
         line: UInt = #line
@@ -434,6 +468,7 @@ enum Log {
         if level == .debug && !isDebugLoggingEnabled { return }
         guard rank(level) >= minRank else { return }
 
+        let name = category.rawValue
         let redactedMessage = redactSensitiveInfo(message)
         let location = sourceLocation(file: file, line: line)
         let tail = renderFields(fields)
@@ -442,7 +477,7 @@ enum Log {
             formatFileLine(
                 redactedMessage,
                 level: level,
-                category: category,
+                category: name,
                 location: location,
                 renderedFields: tail
             )
@@ -451,7 +486,7 @@ enum Log {
         // OSLog → Xcode console + Console.app + Instruments.
         // Source location appended so it's clickable in Xcode 16+.
         // Messages are marked .public since PII has already been redacted above.
-        let logger = osLogger(for: category)
+        let logger = osLogger(for: name)
         let osMessage = "\(redactedMessage)\(tail)  (\(location))"
         switch level {
         case .debug: logger.debug("\(osMessage, privacy: .public)")
@@ -468,7 +503,7 @@ enum Log {
     /// skip the work entirely.
     nonisolated static func debug(
         _ message: @autoclosure () -> String,
-        category: String = "App",
+        category: LogCategory = .app,
         fields: Fields = [:],
         file: StaticString = #fileID,
         line: UInt = #line
@@ -480,7 +515,7 @@ enum Log {
     /// Convenience entry point for `.info` logs.
     nonisolated static func info(
         _ message: String,
-        category: String = "App",
+        category: LogCategory = .app,
         fields: Fields = [:],
         file: StaticString = #fileID,
         line: UInt = #line
@@ -491,7 +526,7 @@ enum Log {
     /// Convenience entry point for `.warn` logs.
     nonisolated static func warn(
         _ message: String,
-        category: String = "App",
+        category: LogCategory = .app,
         fields: Fields = [:],
         file: StaticString = #fileID,
         line: UInt = #line
@@ -503,70 +538,12 @@ enum Log {
     /// entry survives a crash that follows the call site.
     nonisolated static func error(
         _ message: String,
-        category: String = "App",
+        category: LogCategory = .app,
         fields: Fields = [:],
         file: StaticString = #fileID,
         line: UInt = #line
     ) {
         log(message, level: .error, category: category, fields: fields, file: file, line: line)
-        scheduleFlush()
-    }
-
-    // MARK: - Typed-category overloads
-    //
-    // Forward to the string-keyed implementations. Prefer these at new call
-    // sites so the category name is enum-checked rather than free-form string.
-
-    nonisolated static func log(
-        _ message: String,
-        level: LogLevel = .info,
-        category: LogCategory,
-        fields: Fields = [:],
-        file: StaticString = #fileID,
-        line: UInt = #line
-    ) {
-        log(message, level: level, category: category.rawValue, fields: fields, file: file, line: line)
-    }
-
-    nonisolated static func debug(
-        _ message: @autoclosure () -> String,
-        category: LogCategory,
-        fields: Fields = [:],
-        file: StaticString = #fileID,
-        line: UInt = #line
-    ) {
-        guard isDebugLoggingEnabled else { return }
-        log(message(), level: .debug, category: category.rawValue, fields: fields, file: file, line: line)
-    }
-
-    nonisolated static func info(
-        _ message: String,
-        category: LogCategory,
-        fields: Fields = [:],
-        file: StaticString = #fileID,
-        line: UInt = #line
-    ) {
-        log(message, level: .info, category: category.rawValue, fields: fields, file: file, line: line)
-    }
-
-    nonisolated static func warn(
-        _ message: String,
-        category: LogCategory,
-        fields: Fields = [:],
-        file: StaticString = #fileID,
-        line: UInt = #line
-    ) {
-        log(message, level: .warn, category: category.rawValue, fields: fields, file: file, line: line)
-    }
-
-    nonisolated static func error(
-        _ message: String,
-        category: LogCategory,
-        fields: Fields = [:],
-        file: StaticString = #fileID,
-        line: UInt = #line
-    ) {
-        log(message, level: .error, category: category.rawValue, fields: fields, file: file, line: line)
         scheduleFlush()
     }
 

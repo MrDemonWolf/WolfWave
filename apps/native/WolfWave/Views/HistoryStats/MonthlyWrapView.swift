@@ -203,7 +203,7 @@ struct MonthlyWrapView: View {
 
         guard let image = renderer.nsImage,
               let png = image.pngData() else {
-            Log.warn("MonthlyWrapView: Failed to render wrap image", category: AppConstants.History.logCategory)
+            Log.warn("MonthlyWrapView: Failed to render wrap image", category: .history)
             return nil
         }
         return png
@@ -234,9 +234,9 @@ struct MonthlyWrapView: View {
         do {
             try png.write(to: url)
             withAnimation(reduceMotion ? nil : .default) { didExport = true }
-            Log.info("MonthlyWrapView: Exported monthly wrap image", category: AppConstants.History.logCategory)
+            Log.info("MonthlyWrapView: Exported monthly wrap image", category: .history)
         } catch {
-            Log.error("MonthlyWrapView: Export failed: \(error.localizedDescription)", category: AppConstants.History.logCategory)
+            Log.error("MonthlyWrapView: Export failed: \(error.localizedDescription)", category: .history)
         }
     }
 
@@ -250,7 +250,7 @@ struct MonthlyWrapView: View {
         do {
             try png.write(to: url)
         } catch {
-            Log.error("MonthlyWrapView: Share render failed: \(error.localizedDescription)", category: AppConstants.History.logCategory)
+            Log.error("MonthlyWrapView: Share render failed: \(error.localizedDescription)", category: .history)
             return nil
         }
         return [url]

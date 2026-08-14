@@ -404,7 +404,9 @@ final class AppleMusicController: AppleMusicControlling {
                     return .found(song)
                 }
             } catch {
-                Log.debug("AppleMusicController: Failed to resolve by ID, falling back to URL search: \(error)", category: "SongRequest")
+                Log.debug(
+                    "AppleMusicController: Failed to resolve by ID, falling back to URL search: \(error)",
+                    category: .songRequest)
             }
         }
 
@@ -449,14 +451,18 @@ final class AppleMusicController: AppleMusicControlling {
             libraryService.resetCachedPlaylistID()
             throw PlaybackError.notPlayable(title: song.title)
         }
-        Log.debug("AppleMusicController: Now playing \"\(song.title)\" by \(song.artistName) from \(AppConstants.Music.requestsPlaylistName)", category: "SongRequest")
+        Log.debug(
+            "AppleMusicController: Now playing \"\(song.title)\" by \(song.artistName) from \(AppConstants.Music.requestsPlaylistName)",
+            category: .songRequest)
     }
 
     /// Ensures Music is running and the requested song belongs to the requests
     /// playlist. Shared by ordinary playback and target-bound vote replacement.
     private func prepareForPlayback(song: Song) async throws {
         guard isMusicAppRunning else {
-            Log.debug("AppleMusicController: Music.app not running, buffering \"\(song.title)\"", category: "SongRequest")
+            Log.debug(
+                "AppleMusicController: Music.app not running, buffering \"\(song.title)\"",
+                category: .songRequest)
             throw PlaybackError.musicAppNotRunning
         }
 
@@ -474,7 +480,9 @@ final class AppleMusicController: AppleMusicControlling {
                 if Task.isCancelled || (error as? URLError)?.code == .cancelled {
                     throw CancellationError()
                 }
-                Log.debug("AppleMusicController: Library add failed for \"\(song.title)\": \(error)", category: "SongRequest")
+                Log.debug(
+                    "AppleMusicController: Library add failed for \"\(song.title)\": \(error)",
+                    category: .songRequest)
                 throw PlaybackError.notPlayable(title: song.title)
             }
         }
@@ -549,7 +557,9 @@ final class AppleMusicController: AppleMusicControlling {
     /// The internal `SongRequestQueue` tracks sequence; `SongRequestService` calls
     /// `playNow` for each song when it's ready to play.
     func enqueue(song: Song) async throws {
-        Log.debug("AppleMusicController: Queued internally: \"\(song.title)\" by \(song.artistName)", category: "SongRequest")
+        Log.debug(
+            "AppleMusicController: Queued internally: \"\(song.title)\" by \(song.artistName)",
+            category: .songRequest)
     }
 
     /// Skip the current song in Music.app via AppleScript.
@@ -673,11 +683,11 @@ final class AppleMusicController: AppleMusicControlling {
         )
         switch result {
         case .success:
-            Log.debug("AppleMusicController: Music.app stopped", category: "SongRequest")
+            Log.debug("AppleMusicController: Music.app stopped", category: .songRequest)
         case .failure(let failure):
             Log.warn(
                 "AppleMusicController: Failed to stop Music.app: \(failure.message)",
-                category: "SongRequest"
+                category: .songRequest
             )
         }
     }
@@ -686,7 +696,7 @@ final class AppleMusicController: AppleMusicControlling {
     ///
     /// The internal queue in `SongRequestQueue` is the source of truth for ordering.
     func rebuildPlayerQueue(from songs: [Song]) async throws {
-        Log.debug("AppleMusicController: Internal queue rebuilt with \(songs.count) songs", category: "SongRequest")
+        Log.debug("AppleMusicController: Internal queue rebuilt with \(songs.count) songs", category: .songRequest)
     }
 
     /// Play a named Apple Music playlist in Music.app as a fallback when the request queue is empty.
@@ -700,7 +710,7 @@ final class AppleMusicController: AppleMusicControlling {
         """, seconds: ScriptTimeout.command)
         let result = await runAppleScriptPreservingFocus(script, targetPID: pid)
         try requireCommandSuccess(result, command: "play fallback playlist")
-        Log.debug("AppleMusicController: Fallback playlist '\(name)' started", category: "SongRequest")
+        Log.debug("AppleMusicController: Fallback playlist '\(name)' started", category: .songRequest)
     }
 
     /// Reveals (selects and scrolls to) the `WolfWave Requests` playlist in
@@ -721,13 +731,15 @@ final class AppleMusicController: AppleMusicControlling {
     func revealRequestsPlaylist() async {
         await ensureMusicRunningForReveal()
         guard let pid = MusicProcess.pid else {
-            Log.warn("AppleMusicController: Could not launch Music.app to reveal requests playlist", category: "SongRequest")
+            Log.warn(
+                "AppleMusicController: Could not launch Music.app to reveal requests playlist",
+                category: .songRequest)
             return
         }
         // Raising Music is a courtesy; macOS cooperative activation may decline it.
         // Reveal still runs either way, so the playlist is selected when the user switches over.
         if NSRunningApplication(processIdentifier: pid)?.activate() != true {
-            Log.debug("AppleMusicController: Music did not come forward for reveal", category: "SongRequest")
+            Log.debug("AppleMusicController: Music did not come forward for reveal", category: .songRequest)
         }
         let result = runAppleScript(
             revealScript(playlistName: AppConstants.Music.requestsPlaylistName),
@@ -736,7 +748,7 @@ final class AppleMusicController: AppleMusicControlling {
         if case .failure(let failure) = result {
             Log.warn(
                 "AppleMusicController: Could not reveal requests playlist: \(failure.message)",
-                category: "SongRequest"
+                category: .songRequest
             )
         }
     }
@@ -957,7 +969,7 @@ final class AppleMusicController: AppleMusicControlling {
             let failure = Self.scriptFailure(from: error)
             Log.warn(
                 "AppleMusicController: AppleScript error \(failure.number.map(String.init) ?? "unknown"): \(failure.message)",
-                category: "SongRequest"
+                category: .songRequest
             )
             return .failure(failure)
         }
@@ -1011,7 +1023,7 @@ final class AppleMusicController: AppleMusicControlling {
         } catch {
             Log.warn(
                 "AppleMusicController: Could not launch Music.app: \(error.localizedDescription)",
-                category: "SongRequest"
+                category: .songRequest
             )
         }
     }

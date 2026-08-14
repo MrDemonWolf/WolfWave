@@ -80,7 +80,7 @@ nonisolated enum WebSocketAuthToken {
                 Log.error(
                     "WebSocketAuthToken: Could not settle session "
                         + role.rawValue + " token: " + error.localizedDescription,
-                    category: "WebSocket"
+                    category: .websocket
                 )
                 return session.token
             }
@@ -102,7 +102,7 @@ nonisolated enum WebSocketAuthToken {
                 "WebSocketAuthToken: Keychain read failed for "
                     + role.rawValue + "; using a process-only token: "
                     + error.localizedDescription,
-                category: "WebSocket"
+                category: .websocket
             )
             return fresh
         }
@@ -115,7 +115,7 @@ nonisolated enum WebSocketAuthToken {
             Log.error(
                 "WebSocketAuthToken: Failed to persist new " + role.rawValue
                     + " token: " + error.localizedDescription,
-                category: "WebSocket"
+                category: .websocket
             )
             sessionTokens.withLock { state in
                 state[role] = SessionCredential(

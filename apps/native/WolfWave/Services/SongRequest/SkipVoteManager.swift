@@ -290,7 +290,7 @@ actor SkipVoteManager {
         guard pollActive, activePollID == pollID else {
             Log.debug(
                 "SkipVoteManager: Ignoring poll.end for non-active poll \(pollID)",
-                category: "SongRequest"
+                category: .songRequest
             )
             return
         }
@@ -301,7 +301,7 @@ actor SkipVoteManager {
         guard appliesToCurrentTrack, let target else {
             Log.info(
                 "SkipVoteManager: Poll \(pollID) targeted an earlier track; result ignored",
-                category: "SongRequest"
+                category: .songRequest
             )
             return
         }
@@ -309,7 +309,7 @@ actor SkipVoteManager {
         guard isEnabled else {
             Log.info(
                 "SkipVoteManager: Poll \(pollID) drained after vote-skip was disabled",
-                category: "SongRequest"
+                category: .songRequest
             )
             return
         }
@@ -319,7 +319,7 @@ actor SkipVoteManager {
             guard await performSkip?(target) == true else {
                 Log.info(
                     "SkipVoteManager: Poll \(pollID) target became stale before mutation",
-                    category: "SongRequest"
+                    category: .songRequest
                 )
                 return
             }
@@ -352,7 +352,7 @@ actor SkipVoteManager {
         postState()
         Log.debug(
             "SkipVoteManager: track changed, chat-tally vote session cleared",
-            category: "SongRequest"
+            category: .songRequest
         )
     }
 
@@ -668,7 +668,7 @@ actor SkipVoteManager {
         pollTimeoutTask = nil
         Log.warn(
             "SkipVoteManager: Twitch poll result never arrived; clearing stuck poll state",
-            category: "SongRequest"
+            category: .songRequest
         )
     }
 

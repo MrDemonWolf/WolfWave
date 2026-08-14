@@ -56,6 +56,42 @@ Levels are bare uppercase words, not emoji. An emoji level is multi-codepoint
 2026-08-14T10:48:09.446-05:00  WARN   Music         AppleMusicSource.swift:661          Unknown player state, trusting track raw="kPSX"
 ```
 
+## Categories
+
+`LogCategory` is the **only** accepted category type. There is deliberately no
+`String` overload on `Log`, so a category typo is a compile error rather than a
+phantom category nobody ever filters on. (When a `String` overload existed, every
+call site used it, the enum sat at zero uses, and a `"Reset"` typo shipped to
+three sites unnoticed.)
+
+The raw value is what lands in the log's category column and in Console.app's
+Category field. Keep raw values at 12 characters or fewer or the column stops
+aligning; `LoggerTests` enforces that, plus uniqueness and no embedded spaces.
+
+Twitch is split rather than being one bucket. It was 236 of 458 categorized call
+sites, so filtering `Twitch` selected half the log and told you almost nothing.
+The split follows the existing `TwitchChatService+*` file seams, which keeps the
+mapping mechanical:
+
+| Category | Covers |
+|---|---|
+| `TwitchAuth` | Device-code flow, token refresh and validation |
+| `TwitchChat` | Chat send/receive, bot-command routing |
+| `TwitchEvents` | EventSub subscription lifecycle and its WebSocket |
+| `TwitchRedeem` | Channel points, bit cheers, the resolution outbox |
+| `Twitch` | Everything else: view models, wiring, settings |
+
+The rest: `App`, `Discord`, `Music`, `Keychain`, `Network`, `WebSocket`,
+`Update`, `SongRequest`, `DevTools`, `Dev`, `Diagnostics`, `Onboarding`,
+`Artwork`, `WhatsNew`, `History`, `Reset`.
+
+Filter one subsystem in Console.app with subsystem `com.mrdemonwolf.wolfwave`
+and the Category column, or in a file:
+
+```bash
+grep -E '^\S+  \w+ +TwitchEvents' wolfwave.log
+```
+
 ## Structured fields
 
 Call sites may attach ordered key/value pairs:

@@ -112,7 +112,7 @@ private struct WidgetPreviewWebView: NSViewRepresentable {
         if let url = Bundle.main.url(forResource: "widget", withExtension: "html") {
             webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
         } else {
-            Log.error("WidgetAppearancePreview: widget.html not found in bundle", category: "WebSocket")
+            Log.error("WidgetAppearancePreview: widget.html not found in bundle", category: .websocket)
         }
         return webView
     }

@@ -90,7 +90,7 @@ struct AdvancedSettingsView: View {
     /// suffix is `reason` (e.g. "for export", "to reveal", "to copy").
     private func requireLogFile(orWarn reason: String) -> URL? {
         guard let logURL = Log.exportLogFile() else {
-            Log.warn("No log file available \(reason)", category: "App")
+            Log.warn("No log file available \(reason)", category: .app)
             return nil
         }
         return logURL
@@ -119,10 +119,10 @@ struct AdvancedSettingsView: View {
                     try FileManager.default.removeItem(at: destination)
                 }
                 try FileManager.default.copyItem(at: logURL, to: destination)
-                Log.info("Logs exported to \(destination.lastPathComponent)", category: "App")
+                Log.info("Logs exported to \(destination.lastPathComponent)", category: .app)
                 refreshLogStats()
             } catch {
-                Log.error("Failed to export logs: \(error.localizedDescription)", category: "App")
+                Log.error("Failed to export logs: \(error.localizedDescription)", category: .app)
             }
         }
 
@@ -164,16 +164,16 @@ struct AdvancedSettingsView: View {
                 try? await Task.sleep(for: .seconds(2))
                 withAnimation(reduceMotion ? nil : .default) { showingCopyFeedback = false }
             }
-            Log.info("Logs copied to clipboard", category: "App")
+            Log.info("Logs copied to clipboard", category: .app)
         } catch {
-            Log.error("Failed to copy logs: \(error.localizedDescription)", category: "App")
+            Log.error("Failed to copy logs: \(error.localizedDescription)", category: .app)
         }
     }
 
     /// Clears the current log file (truncates in place).
     private func clearLogs() {
         Log.clearLogFile()
-        Log.info("Logs cleared by user", category: "App")
+        Log.info("Logs cleared by user", category: .app)
         refreshLogStats()
     }
 
@@ -202,7 +202,7 @@ struct AdvancedSettingsView: View {
     /// Clears the persisted artwork links cache (memory + disk).
     private func clearArtworkCache() async {
         await ArtworkService.shared.clearCache()
-        Log.info("Artwork cache cleared by user", category: "App")
+        Log.info("Artwork cache cleared by user", category: .app)
         refreshArtworkStats()
     }
 
@@ -289,7 +289,7 @@ struct AdvancedSettingsView: View {
                 Button("Cancel", role: .cancel) {}
                 Button("Reset") {
                     DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
-                    Log.info("Onboarding reset by user", category: "Onboarding")
+                    Log.info("Onboarding reset by user", category: .onboarding)
                     AppDelegate.shared?.showOnboarding()
                 }
             } message: {
@@ -537,7 +537,7 @@ struct AdvancedSettingsView: View {
         do {
             data = try service.makeBackupData()
         } catch {
-            Log.error("Failed to build settings backup: \(error.localizedDescription)", category: "App")
+            Log.error("Failed to build settings backup: \(error.localizedDescription)", category: .app)
             exportErrorMessage = "Couldn't save your backup. \(error.localizedDescription)"
             showingExportError = true
             return
@@ -552,9 +552,9 @@ struct AdvancedSettingsView: View {
             guard response == .OK, let url = panel.url else { return }
             do {
                 try data.write(to: url, options: .atomic)
-                Log.info("Settings exported to \(url.lastPathComponent)", category: "App")
+                Log.info("Settings exported to \(url.lastPathComponent)", category: .app)
             } catch {
-                Log.error("Failed to write settings backup: \(error.localizedDescription)", category: "App")
+                Log.error("Failed to write settings backup: \(error.localizedDescription)", category: .app)
                 exportErrorMessage = "Couldn't save your backup. \(error.localizedDescription)"
                 showingExportError = true
             }
@@ -616,7 +616,7 @@ struct AdvancedSettingsView: View {
             showingImportSuccess = true
             Log.info(
                 "Settings imported (\(summary.restoredCount) restored, twitch=\(summary.reconnectedTwitch))",
-                category: "App"
+                category: .app
             )
         }
     }

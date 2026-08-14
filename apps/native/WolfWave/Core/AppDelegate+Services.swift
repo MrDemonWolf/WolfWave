@@ -260,7 +260,7 @@ extension AppDelegate {
         } catch {
             Log.error(
                 "AppDelegate: service \(name) failed to start: \(error.localizedDescription)",
-                category: "App"
+                category: .app
             )
         }
     }
@@ -280,7 +280,10 @@ extension AppDelegate {
         }
 
         if TwitchChatService.resolveClientID() == nil {
-            Log.error("AppDelegate: No Twitch Client ID found. Copy Config.xcconfig.example to Config.xcconfig and set your Client ID.", category: "Twitch")
+            Log.error(
+                "AppDelegate: No Twitch Client ID found. "
+                    + "Copy Config.xcconfig.example to Config.xcconfig and set your Client ID.",
+                category: .twitch)
         }
 
         // Async providers. The actor hops to MainActor inside each closure
@@ -303,9 +306,12 @@ extension AppDelegate {
         discordService = service
 
         if DiscordRPCService.resolveClientID() != nil {
-            Log.debug("AppDelegate: Resolved Discord Client ID from Info.plist", category: "Discord")
+            Log.debug("AppDelegate: Resolved Discord Client ID from Info.plist", category: .discord)
         } else {
-            Log.info("AppDelegate: No Discord Client ID found. Set DISCORD_CLIENT_ID in Config.xcconfig to enable Discord Status.", category: "Discord")
+            Log.info(
+                "AppDelegate: No Discord Client ID found. "
+                    + "Set DISCORD_CLIENT_ID in Config.xcconfig to enable Discord Status.",
+                category: .discord)
         }
 
         discordStateConsumer = Task { @MainActor [weak self] in
@@ -361,17 +367,17 @@ extension AppDelegate {
                 controlToken = try WebSocketAuthToken.rotate(.control)
                 Log.warn(
                     "AppDelegate: Replaced a control token that matched the overlay token",
-                    category: "WebSocket"
+                    category: .websocket
                 )
             } catch {
-                Log.error("AppDelegate: Could not separate WebSocket credentials", category: "WebSocket")
+                Log.error("AppDelegate: Could not separate WebSocket credentials", category: .websocket)
             }
         }
         Log.info(
             "AppDelegate: WebSocket server initialized on port " + String(port)
                 + " (overlay=" + WebSocketAuthToken.redact(overlayToken)
                 + ", control=" + WebSocketAuthToken.redact(controlToken) + ")",
-            category: "WebSocket"
+            category: .websocket
         )
         let server = WebSocketServerService(
             port: port,
@@ -391,7 +397,9 @@ extension AppDelegate {
         let stateChanges = server.stateChanges
         Task.detached { [weak self] in
             for await (newState, clientCount) in stateChanges {
-                Log.debug("AppDelegate: WebSocket state changed to \(newState.rawValue) (\(clientCount) clients)", category: "WebSocket")
+                Log.debug(
+                    "AppDelegate: WebSocket state changed to \(newState.rawValue) (\(clientCount) clients)",
+                    category: .websocket)
                 MetricsService.shared.recordWebSocketClients(clientCount)
                 // Push a fresh queue/health snapshot so a newly connected Stream
                 // Deck key shows correct state immediately instead of waiting for
@@ -411,7 +419,7 @@ extension AppDelegate {
     /// Creates the Sparkle updater and starts automatic update checking.
     func setupSparkleUpdater() {
         sparkleUpdater = SparkleUpdaterService()
-        Log.info("AppDelegate: Sparkle updater initialized", category: "Update")
+        Log.info("AppDelegate: Sparkle updater initialized", category: .update)
     }
 
     /// Records the app launch and applies the on-device diagnostics opt-in.
@@ -473,7 +481,7 @@ extension AppDelegate {
 
         setupSkipVoteManager()
 
-        Log.info("AppDelegate: Song request service initialized", category: "SongRequest")
+        Log.info("AppDelegate: Song request service initialized", category: .songRequest)
     }
 
     /// Creates the chat vote-to-skip manager and wires its skip + chat callbacks.
@@ -548,7 +556,7 @@ extension AppDelegate {
         historyService?.start()
         Log.info(
             "AppDelegate: Listening history service initialized (enabled: \(enabled))",
-            category: AppConstants.History.logCategory
+            category: .history
         )
     }
 }
@@ -591,7 +599,7 @@ extension AppDelegate {
             : AppConstants.WebSocketServer.progressBroadcastInterval
         Task { [weak self] in await self?.websocketServer?.updateProgressInterval(wsInterval) }
 
-        Log.debug("AppDelegate: Power state changed: reduced=\(reduced)", category: "App")
+        Log.debug("AppDelegate: Power state changed: reduced=\(reduced)", category: .app)
     }
 }
 
@@ -925,7 +933,7 @@ extension AppDelegate {
         guard let update = notification.updateState, update.isUpdateAvailable else { return }
         let version = update.latestVersion
 
-        Log.info("AppDelegate: Update available notification received: v\(version)", category: "Update")
+        Log.info("AppDelegate: Update available notification received: v\(version)", category: .update)
     }
 }
 
@@ -1052,7 +1060,7 @@ extension AppDelegate {
                         if !adopted {
                             Log.debug(
                                 "AppDelegate: Rotated Twitch credential had no matching active service state",
-                                category: "Twitch"
+                                category: .twitch
                             )
                         }
                     }
@@ -1093,7 +1101,7 @@ extension AppDelegate {
                     guard Self.currentTwitchValidationCredential() == credential else { return }
                     Log.warn(
                         "AppDelegate: Twitch token validation temporarily unavailable; keeping credentials",
-                        category: "Twitch")
+                        category: .twitch)
                 }
             )
 
@@ -1133,7 +1141,7 @@ extension AppDelegate {
     ) async {
         guard let service = twitchService else { return }
         guard let clientID = TwitchChatService.resolveClientID(), !clientID.isEmpty else {
-            Log.debug("AppDelegate: Skipping Twitch auto-reconnect: no Client ID", category: "Twitch")
+            Log.debug("AppDelegate: Skipping Twitch auto-reconnect: no Client ID", category: .twitch)
             return
         }
         guard let snapshot = TwitchCredentialStore.shared.connectionSnapshot(
@@ -1142,11 +1150,11 @@ extension AppDelegate {
               snapshot.revision == credential.revision,
               let channel = snapshot.channelID,
               !channel.isEmpty else {
-            Log.debug("AppDelegate: Skipping Twitch auto-reconnect: no stored channel name", category: "Twitch")
+            Log.debug("AppDelegate: Skipping Twitch auto-reconnect: no stored channel name", category: .twitch)
             return
         }
 
-        Log.info("AppDelegate: Auto-reconnecting Twitch to channel \(channel)", category: "Twitch")
+        Log.info("AppDelegate: Auto-reconnecting Twitch to channel \(channel)", category: .twitch)
         guard !Task.isCancelled,
               TwitchCredentialStore.shared.connectionSnapshot() == snapshot else { return }
         await service.setShouldSendConnectionMessageOnSubscribe(false)
@@ -1162,7 +1170,7 @@ extension AppDelegate {
         } catch {
             Log.error(
                 "AppDelegate: Twitch auto-reconnect failed - \(error.localizedDescription)",
-                category: "Twitch"
+                category: .twitch
             )
         }
     }
@@ -1342,7 +1350,7 @@ extension AppDelegate: PlaybackSourceDelegate {
 
     /// Clears track state and notifies services when playback stops.
     func playbackSource(didUpdateStatus status: String) {
-        Log.info("AppDelegate: Playback status = \(status)", category: "Music")
+        Log.info("AppDelegate: Playback status = \(status)", category: .music)
 
         // Debounce ScriptingBridge read errors. A single flaky read mid-track
         // (documented macOS 26 behavior) must not flush a partial play to
@@ -1354,7 +1362,7 @@ extension AppDelegate: PlaybackSourceDelegate {
             if consecutiveScriptErrorCount < scriptErrorStopThreshold {
                 Log.debug(
                     "AppDelegate: transient script error (\(consecutiveScriptErrorCount)/\(scriptErrorStopThreshold)), keeping playback snapshot",
-                    category: "Music"
+                    category: .music
                 )
                 return
             }
