@@ -17,8 +17,17 @@ enum DebugDiagnostics {
 
     // MARK: - Snapshot
 
-    /// Snapshot of app + service state at the moment "Copy Diagnostics" is clicked.
+    /// Snapshot of app state at the moment "Copy Diagnostics" is clicked.
+    ///
+    /// Preferences and connections are deliberately separate. They used to be
+    /// one "Service State" table fed from `@AppStorage` toggles plus a
+    /// Keychain-token presence check, which meant a pasted issue could report
+    /// "Discord | Yes" for someone whose RPC socket never connected, and
+    /// "Twitch | Yes" purely because a stale token sat in the Keychain. A
+    /// diagnostics blob that quietly reports intent as if it were fact sends
+    /// debugging down the wrong path, which is the opposite of its job.
     struct Snapshot: Equatable {
+        // Environment
         let appVersion: String
         let build: String
         let osVersion: String
@@ -26,10 +35,16 @@ enum DebugDiagnostics {
         let installMethod: String
         let logSizeBytes: Int64
         let logLineCount: Int
-        let twitchConnected: Bool
-        let discordConnected: Bool
-        let widgetEnabled: Bool
+
+        /// What the user asked for (`@AppStorage` toggles).
         let musicTrackingEnabled: Bool
+        let discordPresenceEnabled: Bool
+        let widgetHTTPEnabled: Bool
+
+        /// What is actually true right now (live service state).
+        let twitchConnected: Bool
+        let discordConnection: String
+        let twitchTokenStored: Bool
     }
 
     // MARK: - Formatting
@@ -49,14 +64,25 @@ enum DebugDiagnostics {
         | Log file size | \(size) |
         | Log line count | \(snapshot.logLineCount) |
 
-        ## Service State
+        ## Connections
+
+        Live state, not settings.
 
         | Service | State |
         |---|---|
-        | Twitch | \(yesNo(snapshot.twitchConnected)) |
-        | Discord | \(yesNo(snapshot.discordConnected)) |
-        | Widget HTTP | \(yesNo(snapshot.widgetEnabled)) |
+        | Twitch chat | \(snapshot.twitchConnected ? "connected" : "not connected") |
+        | Discord RPC | \(snapshot.discordConnection) |
+        | Twitch token in Keychain | \(yesNo(snapshot.twitchTokenStored)) |
+
+        ## Preferences
+
+        What the user turned on, which is not the same as whether it works.
+
+        | Setting | Enabled |
+        |---|---|
         | Music tracking | \(yesNo(snapshot.musicTrackingEnabled)) |
+        | Discord presence | \(yesNo(snapshot.discordPresenceEnabled)) |
+        | Widget HTTP server | \(yesNo(snapshot.widgetHTTPEnabled)) |
         """
     }
 

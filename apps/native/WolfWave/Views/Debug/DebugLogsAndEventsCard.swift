@@ -39,7 +39,9 @@ struct DebugLogsAndEventsCard: View {
         }
         .cardStyle()
         .task(id: refreshTick) {
-            logStatsLoaded = false
+            // Deliberately does NOT reset `logStatsLoaded` here. Doing so swapped
+            // the stats for a LoadingRow on every manual refresh and flickered.
+            // DebugInspectorsCard keeps its last values for the same reason.
             let stats = await Task.detached(priority: .userInitiated) {
                 (url: Log.exportLogFile(), size: Log.logFileSize(), lines: Log.logLineCount())
             }.value

@@ -340,7 +340,10 @@ struct SettingsView: View {
             AboutSettingsView()
         #if DEBUG
         case .debug:
-            DebugSettingsView()
+            // Unreachable: `detailPane` intercepts `.debug` so the pane can own
+            // its own scroll for SettingsNavRail. Present only for switch
+            // exhaustiveness, matching .general / .songRequests / .historyStats.
+            EmptyView()
         #endif
         }
     }

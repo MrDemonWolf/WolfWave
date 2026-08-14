@@ -102,7 +102,12 @@ private struct MotionGallerySection: View {
     @State private var elapsed: TimeInterval = 0
     // Neutral placeholder image (not real album art) so the AsyncImage phased
     // load is exercisable without shipping a third-party music artwork URL.
-    @State private var artURL: URL? = URL(string: "https://picsum.photos/seed/wolfwave/512")
+    /// Remote image for the phased-load demo. `let`, never mutated.
+    ///
+    /// Offline this silently falls back to the branded placeholder, which makes
+    /// the phased-load demo indistinguishable from the fallback demo. That is a
+    /// known limit of using a network image here, not a bug in AlbumArtView.
+    private let artURL: URL? = URL(string: "https://picsum.photos/seed/wolfwave/512")
     @State private var cacheBuster: Int = 0
     @State private var isExpanded: Bool = false
 

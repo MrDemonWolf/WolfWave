@@ -35,10 +35,7 @@ struct DebugSettingsView: View {
     var body: some View {
         SettingsNavRail(
             selection: $selected,
-            groups: [
-                SettingsRailGroup(title: "State & Diagnostics", sections: [.inspectors, .metrics, .logs]),
-                SettingsRailGroup(title: "Active Controls", sections: [.previews, .controls]),
-            ],
+            groups: DebugSection.railGroups,
             accessibilityIDPrefix: "debugNav"
         ) {
             header
@@ -46,6 +43,7 @@ struct DebugSettingsView: View {
             groupLabel("State & Diagnostics")
             sectionBlock(.inspectors) { DebugInspectorsCard() }
             sectionBlock(.metrics) { DebugMetricsCard() }
+            sectionBlock(.logViewer) { DebugLogViewerCard() }
             sectionBlock(.logs) { DebugLogsAndEventsCard() }
 
             groupLabel("Active Controls")
@@ -115,23 +113,51 @@ struct DebugSettingsView: View {
 
     // MARK: - Copy Diagnostics
 
+    /// Builds the diagnostics blob and puts it on the pasteboard.
+    ///
+    /// The slow reads run off the main actor. `Log.logLineCount()` streams the
+    /// whole log under `fileQueue.sync` and `KeychainService.loadTwitchToken()`
+    /// is a synchronous `SecItemCopyMatching`; doing both on `@MainActor` beach-
+    /// balled the pane on a large log, which is the exact stall
+    /// `DebugLogsAndEventsCard` already documents moving off-main to avoid.
     private func copyDiagnostics() {
-        let snapshot = DebugDiagnostics.Snapshot(
-            appVersion: AppConstants.AppInfo.shortVersion,
-            build: AppConstants.AppInfo.buildNumber,
-            osVersion: ProcessInfo.processInfo.operatingSystemVersionString,
-            arch: BugReportURL.currentArch(),
-            installMethod: Bundle.main.isHomebrewInstall ? "Homebrew" : "DMG",
-            logSizeBytes: Log.logFileSize(),
-            logLineCount: Log.logLineCount(),
-            twitchConnected: KeychainService.loadTwitchToken() != nil,
-            discordConnected: discordPresenceEnabled,
-            widgetEnabled: widgetHTTPEnabled,
-            musicTrackingEnabled: musicTrackingEnabled
+        // Live connection state, read on the main actor where the services live.
+        let twitchConnected = AppDelegate.shared?.twitchService?.currentlyConnected == true
+        let discordConnection = (AppDelegate.shared?.discordService?.stateSnapshot
+            ?? .disconnected).rawValue
+        let preferences = (
+            music: musicTrackingEnabled,
+            discord: discordPresenceEnabled,
+            widget: widgetHTTPEnabled
         )
-        let markdown = DebugDiagnostics.markdown(snapshot)
-        Pasteboard.copy(markdown)
-        Log.info("Copied diagnostics snapshot to pasteboard", category: .devTools)
+
+        Task {
+            let heavy = await Task.detached(priority: .userInitiated) {
+                (
+                    size: Log.logFileSize(),
+                    lines: Log.logLineCount(),
+                    tokenStored: KeychainService.loadTwitchToken() != nil
+                )
+            }.value
+
+            let snapshot = DebugDiagnostics.Snapshot(
+                appVersion: AppConstants.AppInfo.shortVersion,
+                build: AppConstants.AppInfo.buildNumber,
+                osVersion: ProcessInfo.processInfo.operatingSystemVersionString,
+                arch: BugReportURL.currentArch(),
+                installMethod: Bundle.main.isHomebrewInstall ? "Homebrew" : "DMG",
+                logSizeBytes: heavy.size,
+                logLineCount: heavy.lines,
+                musicTrackingEnabled: preferences.music,
+                discordPresenceEnabled: preferences.discord,
+                widgetHTTPEnabled: preferences.widget,
+                twitchConnected: twitchConnected,
+                discordConnection: discordConnection,
+                twitchTokenStored: heavy.tokenStored
+            )
+            Pasteboard.copy(DebugDiagnostics.markdown(snapshot))
+            Log.info("Copied diagnostics snapshot to pasteboard", category: .devTools)
+        }
     }
 }
 
@@ -140,9 +166,24 @@ struct DebugSettingsView: View {
 /// The Debug tab's jump-nav sections, in display order. `title` labels both the
 /// rail row and the section heading; the enum case doubles as the
 /// `ScrollViewReader` anchor attached via `.railSection(_:)`.
-private enum DebugSection: String, SettingsRailSection {
+enum DebugSection: String, SettingsRailSection, CaseIterable {
+
+    /// Rail layout. Hand-ordered because the grouping is editorial, but
+    /// `DebugSectionCoverageTests` asserts every case appears exactly once, so
+    /// adding a case without placing it here fails the suite instead of
+    /// silently dropping the section out of the rail.
+    static let railGroups: [SettingsRailGroup<DebugSection>] = [
+        SettingsRailGroup(
+            title: "State & Diagnostics",
+            sections: [.inspectors, .metrics, .logViewer, .logs]),
+        SettingsRailGroup(
+            title: "Active Controls",
+            sections: [.previews, .controls])
+    ]
+
     case inspectors
     case metrics
+    case logViewer
     case logs
     case previews
     case controls
@@ -151,6 +192,7 @@ private enum DebugSection: String, SettingsRailSection {
         switch self {
         case .inspectors: return "State Inspectors"
         case .metrics: return "Performance"
+        case .logViewer: return "Log Viewer"
         case .logs: return "Logs & Events"
         case .previews: return "UI Previews"
         case .controls: return "Service Controls"
@@ -161,6 +203,7 @@ private enum DebugSection: String, SettingsRailSection {
         switch self {
         case .inspectors: return "magnifyingglass"
         case .metrics: return "speedometer"
+        case .logViewer: return "text.viewfinder"
         case .logs: return "doc.text"
         case .previews: return "rectangle.on.rectangle"
         case .controls: return "slider.horizontal.3"
