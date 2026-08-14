@@ -513,14 +513,52 @@ nonisolated enum KeychainService {
 
     // MARK: - Backend Injection
 
+    /// Mutable holder so a scoped backend can be swapped in place without
+    /// leaving the task tree that owns it.
+    nonisolated final class BackendBox: @unchecked Sendable {
+        private let lock = NSLock()
+        private var stored: KeychainBackend
+
+        init(_ backend: KeychainBackend) { stored = backend }
+
+        var backend: KeychainBackend {
+            get { lock.withLock { stored } }
+            set { lock.withLock { stored = newValue } }
+        }
+    }
+
+    /// Task-scoped backend override. Always nil in the app; a test suite binds
+    /// one so its backend is visible only inside its own task tree.
+    ///
+    /// The process-wide variable alone is not enough for a parallel test bundle.
+    /// Swift Testing runs suites concurrently, so a suite that installed an
+    /// inspectable backend was observable by every other suite, including
+    /// mid-transaction: a concurrent grant read could complete its legacy-field
+    /// probes against a backend that appeared underneath it.
+    @TaskLocal static var backendBox: BackendBox?
+
+    /// Process-wide fallback used by the app and by XCTest suites, which have no
+    /// task scope to bind.
+    nonisolated(unsafe) private static var processBackend: KeychainBackend = makeDefaultBackend(
+        isRunningTests: WolfWaveApp.isRunningTests
+    )
+
     /// Raw storage backing every credential operation.
     ///
     /// Test hosts default to process-local storage so no test can touch the
     /// user's real Keychain before a suite installs its own backend. Normal app
-    /// launches use the Security framework. Mutated only from serialized tests.
-    nonisolated(unsafe) static var backend: KeychainBackend = makeDefaultBackend(
-        isRunningTests: WolfWaveApp.isRunningTests
-    )
+    /// launches use the Security framework. Reads and writes resolve to the
+    /// task-scoped box when one is bound, otherwise to the process-wide value.
+    static var backend: KeychainBackend {
+        get { backendBox?.backend ?? processBackend }
+        set {
+            if let box = backendBox {
+                box.backend = newValue
+            } else {
+                processBackend = newValue
+            }
+        }
+    }
 
     /// Kept internal so the test suite can pin the security-sensitive branch.
     static func makeDefaultBackend(isRunningTests: Bool) -> KeychainBackend {

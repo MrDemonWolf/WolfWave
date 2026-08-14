@@ -13,13 +13,94 @@ import Testing
 
 @testable import WolfWave
 
-/// Serializes tests that temporarily replace the process-wide Keychain backend.
+/// Serializes tests that touch the process-wide Twitch credential state:
+/// `KeychainService.backend` **and** `Preferences.twitchReauthNeeded`.
+///
+/// Holding this is required to *read* that state, not only to swap it. Swift
+/// Testing runs separate suites in parallel (`.serialized` only orders tests
+/// within one suite), so an unguarded suite that reaches the Keychain through a
+/// service still lands on whichever backend another suite currently has
+/// installed. That is exactly how `TwitchViewModel.clearCredentials()` came to
+/// delete the accounts `KeychainServiceTests` had just seeded into its own
+/// backend, and how its `reauthNeeded` writes flipped the shared default
+/// mid-assertion.
+///
 /// ponytail: one test semaphore; use task-local backends if parallelism matters.
 nonisolated enum KeychainBackendTestIsolation {
     private static let semaphore = DispatchSemaphore(value: 1)
 
     static func acquire() { semaphore.wait() }
     static func release() { semaphore.signal() }
+
+    /// Acquisition for `@MainActor` suites. A blocking `acquire()` on the main
+    /// thread deadlocks whenever the current holder is a `@MainActor` test
+    /// suspended mid-`await`: the holder needs the main actor to resume and the
+    /// waiter is sitting on it. Awaiting instead keeps the main actor free.
+    static func acquireAsync() async { await acquireOffCooperativePool() }
+
+    /// Runs `body` with exclusive ownership of the shared credential state, on a
+    /// private in-memory backend, restoring the previous backend and reauth flag
+    /// on exit. Balanced by construction, unlike a hand-written acquire/release
+    /// pair.
+    ///
+    /// Inherits the caller's isolation so `@MainActor` suites can pass a plain
+    /// closure, and waits off the cooperative pool so a blocked acquisition
+    /// never starves the executor running the lock holder.
+    static func withIsolatedCredentialState<T>(
+        isolation: isolated (any Actor)? = #isolation,
+        _ body: () async throws -> T
+    ) async rethrows -> T {
+        await acquireOffCooperativePool()
+        let previousBackend = KeychainService.backend
+        let previousReauthNeeded = Preferences.twitchReauthNeeded
+        KeychainService.backend = InMemoryKeychainBackend()
+        Preferences.setTwitchReauthNeeded(false)
+        defer {
+            Preferences.setTwitchReauthNeeded(previousReauthNeeded)
+            KeychainService.backend = previousBackend
+            release()
+        }
+        return try await body()
+    }
+
+    private static func acquireOffCooperativePool() async {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                semaphore.wait()
+                continuation.resume()
+            }
+        }
+    }
+}
+
+/// Binds a task-scoped `KeychainService` backend around every test in the suite
+/// it is applied to, so no concurrently running suite can observe or mutate it.
+///
+/// The semaphore above only excludes suites that cooperate with it. An ordinary
+/// suite that reads Twitch credentials through a service does not, and a grant
+/// read that is already inside `twitchCredentialLock` when the backend is
+/// swapped finishes its legacy-field probes against the new backend. That is
+/// unfixable by locking alone without locking every reader, so the backend stops
+/// being shared instead.
+struct IsolatedKeychainBackendTrait: SuiteTrait, TestTrait, TestScoping {
+    var isRecursive: Bool { true }
+
+    func provideScope(
+        for test: Test,
+        testCase: Test.Case?,
+        performing function: @concurrent @Sendable () async throws -> Void
+    ) async throws {
+        try await KeychainService.$backendBox.withValue(
+            .init(InMemoryKeychainBackend())
+        ) {
+            try await function()
+        }
+    }
+}
+
+extension Trait where Self == IsolatedKeychainBackendTrait {
+    /// Applies ``IsolatedKeychainBackendTrait`` to a suite or test.
+    static var isolatedKeychainBackend: Self { Self() }
 }
 
 /// Creates a fresh, unique temp directory and ensures it exists. Returns the URL.

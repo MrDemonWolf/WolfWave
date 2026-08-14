@@ -244,87 +244,95 @@ struct TwitchViewModelTests {
     }
     
     @Test("Temporary token validation failure preserves credentials and reauth state")
-    func testTemporaryValidationFailurePreservesSession() {
-        let viewModel = TwitchViewModel()
-        viewModel.oauthToken = "stored-token"
-        viewModel.botUsername = "stored-bot"
-        viewModel.credentialsSaved = true
-        viewModel.reauthNeeded = false
+    func testTemporaryValidationFailurePreservesSession() async {
+        await KeychainBackendTestIsolation.withIsolatedCredentialState {
+            let viewModel = TwitchViewModel()
+            viewModel.oauthToken = "stored-token"
+            viewModel.botUsername = "stored-bot"
+            viewModel.credentialsSaved = true
+            viewModel.reauthNeeded = false
 
-        viewModel.applyTokenValidationResult(.temporarilyUnavailable)
+            viewModel.applyTokenValidationResult(.temporarilyUnavailable)
 
-        #expect(viewModel.oauthToken == "stored-token")
-        #expect(viewModel.botUsername == "stored-bot")
-        #expect(viewModel.credentialsSaved)
-        #expect(!viewModel.reauthNeeded)
+            #expect(viewModel.oauthToken == "stored-token")
+            #expect(viewModel.botUsername == "stored-bot")
+            #expect(viewModel.credentialsSaved)
+            #expect(!viewModel.reauthNeeded)
+        }
     }
 
     @Test("Only definitive token invalidation sets reauth")
-    func testDefinitiveValidationFailureSetsReauth() {
-        let viewModel = TwitchViewModel()
-        viewModel.credentialsSaved = true
+    func testDefinitiveValidationFailureSetsReauth() async {
+        await KeychainBackendTestIsolation.withIsolatedCredentialState {
+            let viewModel = TwitchViewModel()
+            viewModel.credentialsSaved = true
 
-        viewModel.applyTokenValidationResult(.valid)
-        #expect(!viewModel.reauthNeeded)
+            viewModel.applyTokenValidationResult(.valid)
+            #expect(!viewModel.reauthNeeded)
 
-        viewModel.applyTokenValidationResult(.invalid)
-        #expect(viewModel.reauthNeeded)
-        #expect(viewModel.credentialsSaved)
+            viewModel.applyTokenValidationResult(.invalid)
+            #expect(viewModel.reauthNeeded)
+            #expect(viewModel.credentialsSaved)
+        }
     }
 
     // MARK: - Clear Credentials Tests
     
     @Test("Clear credentials resets all state")
     func testClearCredentials() async throws {
-        let viewModel = TwitchViewModel()
-        
-        // Set some state
-        viewModel.botUsername = "testbot"
-        viewModel.oauthToken = "test_token"
-        viewModel.channelID = "testchannel"
-        viewModel.credentialsSaved = true
-        viewModel.reauthNeeded = true
-        viewModel.statusMessage = "Test status"
-        viewModel.authState = .inProgress
-        viewModel.channelValidationState = .valid
-        
-        // Clear credentials
-        await viewModel.clearCredentials()
-        
-        // Verify all state is reset
-        #expect(viewModel.botUsername == "")
-        #expect(viewModel.oauthToken == "")
-        #expect(viewModel.channelID == "")
-        #expect(viewModel.credentialsSaved == false)
-        #expect(viewModel.reauthNeeded == false)
-        #expect(viewModel.statusMessage == "")
-        #expect(viewModel.authState == .idle)
-        #expect(viewModel.channelValidationState == .idle)
+        await KeychainBackendTestIsolation.withIsolatedCredentialState {
+            let viewModel = TwitchViewModel()
+
+            // Set some state
+            viewModel.botUsername = "testbot"
+            viewModel.oauthToken = "test_token"
+            viewModel.channelID = "testchannel"
+            viewModel.credentialsSaved = true
+            viewModel.reauthNeeded = true
+            viewModel.statusMessage = "Test status"
+            viewModel.authState = .inProgress
+            viewModel.channelValidationState = .valid
+
+            // Clear credentials
+            await viewModel.clearCredentials()
+
+            // Verify all state is reset
+            #expect(viewModel.botUsername == "")
+            #expect(viewModel.oauthToken == "")
+            #expect(viewModel.channelID == "")
+            #expect(viewModel.credentialsSaved == false)
+            #expect(viewModel.reauthNeeded == false)
+            #expect(viewModel.statusMessage == "")
+            #expect(viewModel.authState == .idle)
+            #expect(viewModel.channelValidationState == .idle)
+        }
     }
-    
+
     @Test("clearAuthOnly preserves channel ID")
     func testClearAuthOnlyPreservesChannelID() async {
-        let viewModel = TwitchViewModel()
+        await KeychainBackendTestIsolation.withIsolatedCredentialState {
+            let viewModel = TwitchViewModel()
 
-        viewModel.botUsername = "testbot"
-        viewModel.oauthToken = "token123"
-        viewModel.channelID = "mrdemonwolf"
-        viewModel.credentialsSaved = true
-        viewModel.reauthNeeded = true
-        viewModel.statusMessage = "Test status"
-        viewModel.authState = .inProgress
-        viewModel.channelValidationState = .valid
+            viewModel.botUsername = "testbot"
+            viewModel.oauthToken = "token123"
+            viewModel.channelID = "mrdemonwolf"
+            viewModel.credentialsSaved = true
+            viewModel.reauthNeeded = true
+            viewModel.statusMessage = "Test status"
+            viewModel.authState = .inProgress
+            viewModel.channelValidationState = .valid
 
-        await viewModel.clearAuthOnly()
+            await viewModel.clearAuthOnly()
 
-        #expect(viewModel.channelID == "mrdemonwolf")
-        #expect(viewModel.botUsername == "")
-        #expect(viewModel.oauthToken == "")
-        #expect(viewModel.credentialsSaved == false)
-        #expect(viewModel.reauthNeeded == false)
-        #expect(viewModel.statusMessage == "")
-        #expect(viewModel.authState == .idle)
-        #expect(viewModel.channelValidationState == .idle)
+            #expect(viewModel.channelID == "mrdemonwolf")
+            #expect(viewModel.botUsername == "")
+            #expect(viewModel.oauthToken == "")
+            #expect(viewModel.credentialsSaved == false)
+            #expect(viewModel.reauthNeeded == false)
+            #expect(viewModel.statusMessage == "")
+            #expect(viewModel.authState == .idle)
+            #expect(viewModel.channelValidationState == .idle)
+        }
     }
 
     // MARK: - Cancel OAuth Tests
