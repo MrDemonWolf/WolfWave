@@ -124,7 +124,9 @@ struct WolfWaveApp: App {
                 Button("Report a Bug\u{2026}") { appDelegate.reportBug() }
                 Button("Join Discord Community") { appDelegate.openCommunityDiscord() }
                 Button("View on GitHub") { appDelegate.openGitHub() }
-                Button("Sponsor \(appDelegate.appName)") { appDelegate.openSponsorPage() }
+                if FeatureFlags.sponsorLinksEnabled {
+                    Button("Sponsor \(appDelegate.appName)") { appDelegate.openSponsorPage() }
+                }
             }
         }
     }
