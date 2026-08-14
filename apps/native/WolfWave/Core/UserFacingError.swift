@@ -203,7 +203,7 @@ nonisolated enum ErrorAction: Equatable, Sendable, Identifiable {
         case .reconnectTwitch: return "Reconnect with Twitch"
         case .signInAsBroadcaster: return "Sign In as Broadcaster"
         case .retry: return "Try Again"
-        case .retryAfter(let seconds): return "Try Again in \(seconds)s"
+        case .retryAfter(let seconds): return seconds > 0 ? "Try Again in \(seconds)s" : "Try Again"
         case .openAutomationSettings: return "Open System Settings"
         case .openLoginItems: return "Open Login Items"
         case .openNotificationSettings: return "Open System Settings"
@@ -215,10 +215,22 @@ nonisolated enum ErrorAction: Equatable, Sendable, Identifiable {
         }
     }
 
+    /// Seconds the caller must wait before this action becomes usable, or `nil`
+    /// when the action has no waiting period.
+    ///
+    /// Twitch can answer `Retry-After: 0`, and a countdown that has finished
+    /// resolves to zero, so zero is a real value meaning "available now".
+    var waitSeconds: Int? {
+        if case .retryAfter(let seconds) = self { return max(0, seconds) }
+        return nil
+    }
+
     /// Whether the action is currently offered but not yet usable, e.g. a
     /// rate-limit countdown that has not elapsed.
+    ///
+    /// A zero-second wait is *not* waiting. Treating it as waiting would leave
+    /// a permanently disabled button that never becomes usable.
     var isWaiting: Bool {
-        if case .retryAfter = self { return true }
-        return false
+        (waitSeconds ?? 0) > 0
     }
 }

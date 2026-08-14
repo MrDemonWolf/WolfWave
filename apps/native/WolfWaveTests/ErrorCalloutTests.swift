@@ -96,6 +96,61 @@ final class ErrorCalloutTests: XCTestCase {
         callout.onAction(.reconnectTwitch)
     }
 
+    // MARK: - Retry Countdown
+
+    /// A live rate limit renders the countdown and stays disabled.
+    func testPendingWaitKeepsTheCountdownLabel() {
+        let resolved = ErrorCallout.resolvedPrimary(.retryAfter(seconds: 30), remainingWait: 30)
+        XCTAssertEqual(resolved, .retryAfter(seconds: 30))
+        XCTAssertTrue(resolved?.isWaiting == true)
+        XCTAssertEqual(resolved?.label, "Try Again in 30s")
+    }
+
+    func testCountdownTicksDownWithRemainingWait() {
+        let resolved = ErrorCallout.resolvedPrimary(.retryAfter(seconds: 30), remainingWait: 7)
+        XCTAssertEqual(resolved, .retryAfter(seconds: 7))
+        XCTAssertEqual(resolved?.label, "Try Again in 7s")
+    }
+
+    /// The whole point of the countdown: when it expires the button becomes a
+    /// plain, enabled retry. Before this, `isWaiting` was true for every
+    /// `retryAfter`, so the button was disabled forever.
+    func testExpiredWaitBecomesAnEnabledRetry() {
+        let resolved = ErrorCallout.resolvedPrimary(.retryAfter(seconds: 30), remainingWait: 0)
+        XCTAssertEqual(resolved, .retry)
+        XCTAssertFalse(resolved?.isWaiting == true)
+        XCTAssertEqual(resolved?.label, "Try Again")
+    }
+
+    /// A `Retry-After: 0` from Twitch is usable on arrival, before any tick.
+    func testZeroDelayIsUsableWithoutWaitingForATick() {
+        let resolved = ErrorCallout.resolvedPrimary(.retryAfter(seconds: 0), remainingWait: nil)
+        XCTAssertEqual(resolved, .retry)
+        XCTAssertFalse(resolved?.isWaiting == true)
+    }
+
+    func testNonWaitingActionsPassThroughUntouched() {
+        XCTAssertEqual(
+            ErrorCallout.resolvedPrimary(.reconnectTwitch, remainingWait: 12),
+            .reconnectTwitch
+        )
+        XCTAssertNil(ErrorCallout.resolvedPrimary(nil, remainingWait: nil))
+    }
+
+    func testRateLimitedCalloutRenders() {
+        let error = UserFacingError(
+            id: "twitch.rateLimited",
+            title: "Your sign-in is fine, we're being rate limited",
+            fix: "Try again shortly.",
+            severity: .warning,
+            actions: [.retryAfter(seconds: 30)]
+        )
+        let host = NSHostingView(rootView: ErrorCallout(error: error))
+        host.setFrameSize(NSSize(width: 480, height: 0))
+        host.layoutSubtreeIfNeeded()
+        XCTAssertGreaterThan(host.fittingSize.height, 0)
+    }
+
     // MARK: - Severity Mapping
 
     /// The model stays free of SwiftUI, so this mapping is the only place the

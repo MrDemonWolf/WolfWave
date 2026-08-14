@@ -22,13 +22,22 @@ nonisolated struct HelixUsersResponse: Decodable {
 }
 
 /// `GET https://id.twitch.tv/oauth2/validate` response. Used by `validateToken`.
+///
+/// `login` and `userID` are parsed so the app can tell a streamer they are
+/// signed in as the wrong account. Without them, "you're signed in as your bot
+/// account, not your broadcaster account" is unsayable outside the channel
+/// points path, which models it as `RedemptionStatus.botAccount`.
 nonisolated struct TwitchValidateResponse: Decodable {
     let clientID: String?
     let scopes: [String]?
+    let login: String?
+    let userID: String?
 
     private enum CodingKeys: String, CodingKey {
         case clientID = "client_id"
         case scopes
+        case login
+        case userID = "user_id"
     }
 }
 
@@ -171,6 +180,12 @@ actor TwitchChatService {
         case missingClientID
         case networkError(String)
         case authenticationFailed
+        /// Twitch answered successfully and no such channel exists. Distinct
+        /// from a failed lookup: the request worked, the answer was "nobody".
+        case channelNotFound
+        /// Twitch accepted the credentials but refused or could not serve the
+        /// request (403, 429, 5xx). The token is fine; something else is wrong.
+        case notPermitted(status: Int)
 
         var errorDescription: String? {
             switch self {
@@ -182,6 +197,10 @@ actor TwitchChatService {
                 return "Network error: \(msg)"
             case .authenticationFailed:
                 return "Failed to authenticate with Twitch"
+            case .channelNotFound:
+                return "No Twitch channel by that name"
+            case .notPermitted(let status):
+                return "Twitch refused the request (HTTP \(status))"
             }
         }
     }
@@ -222,10 +241,18 @@ actor TwitchChatService {
     }
 
     /// Result of checking whether a Twitch channel exists.
-    enum ChannelValidationResult: Sendable {
+    ///
+    /// `GET /helix/users` requires no scope, so the split here is meaningful:
+    /// a 401 is the only outcome that implicates the token. ``notPermitted``
+    /// carries everything else Twitch refused (403, 429, 5xx), which means the
+    /// sign-in was accepted and the lookup failed for another reason. Telling
+    /// the user to reconnect in that case wastes their time.
+    enum ChannelValidationResult: Sendable, Equatable {
         case exists
         case notFound
         case authenticationFailed
+        /// Twitch accepted the token but refused or could not answer the lookup.
+        case notPermitted(status: Int)
         case error(String)
     }
 
@@ -235,9 +262,19 @@ actor TwitchChatService {
     /// failures, rate limits, server errors, and malformed success payloads are
     /// deliberately ``temporarilyUnavailable`` so an outage cannot erase or
     /// revoke otherwise usable credentials.
+    ///
+    /// ``missingScopes(_:)`` is separate from ``invalid`` on purpose. A token
+    /// that Twitch still honors but that lacks an optional scope is *live*:
+    /// chat keeps working, and only the feature needing that scope is affected.
+    /// Collapsing it into ``invalid`` told the user their session had expired,
+    /// fired the re-auth notification, and — because the re-auth flag also
+    /// stops the hourly validator — left the still-good token unchecked from
+    /// then on.
     enum TokenValidationResult: Sendable, Equatable {
         case valid
         case invalid
+        /// Token is accepted by Twitch but is missing these scopes.
+        case missingScopes([String])
         case temporarilyUnavailable
     }
 

@@ -125,12 +125,31 @@ final class UserFacingErrorTests: XCTestCase {
         XCTAssertEqual(action.label, "Try Again in 30s")
         XCTAssertEqual(action.id, "retryAfter.30")
         XCTAssertTrue(action.isWaiting)
+        XCTAssertEqual(action.waitSeconds, 30)
     }
 
-    func testOnlyRetryAfterIsWaiting() {
+    /// Twitch can answer `Retry-After: 0`, and a finished countdown resolves to
+    /// zero. Treating that as waiting would leave a disabled button that never
+    /// becomes usable.
+    func testZeroSecondWaitIsAvailableImmediately() {
+        let action = ErrorAction.retryAfter(seconds: 0)
+        XCTAssertFalse(action.isWaiting)
+        XCTAssertEqual(action.waitSeconds, 0)
+        XCTAssertEqual(action.label, "Try Again", "A zero wait should not read as \"in 0s\"")
+    }
+
+    func testNegativeWaitIsClampedAndAvailable() {
+        let action = ErrorAction.retryAfter(seconds: -5)
+        XCTAssertFalse(action.isWaiting)
+        XCTAssertEqual(action.waitSeconds, 0)
+    }
+
+    func testOnlyRetryAfterHasAWaitPeriod() {
         XCTAssertFalse(ErrorAction.retry.isWaiting)
         XCTAssertFalse(ErrorAction.reconnectTwitch.isWaiting)
         XCTAssertFalse(ErrorAction.reportBug.isWaiting)
+        XCTAssertNil(ErrorAction.retry.waitSeconds)
+        XCTAssertNil(ErrorAction.reconnectTwitch.waitSeconds)
     }
 
     func testActionIDsAreUniqueAcrossCases() {

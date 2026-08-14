@@ -34,6 +34,13 @@ struct ErrorCallout: View {
     /// Invoked with the intent the user chose. The caller owns the behavior.
     let onAction: (ErrorAction) -> Void
 
+    // MARK: - State
+
+    /// Seconds left on a `retryAfter` primary action, or `nil` when the primary
+    /// action has no waiting period. Drives the live countdown so the button
+    /// re-enables on its own instead of staying disabled forever.
+    @State private var remainingWait: Int?
+
     // MARK: - Init
 
     init(error: UserFacingError, onAction: @escaping (ErrorAction) -> Void = { _ in }) {
@@ -55,6 +62,21 @@ struct ErrorCallout: View {
 
     private var tint: Color { style.tint }
 
+    /// Resolves the primary action against the live countdown.
+    ///
+    /// Pure and static so the expiry behavior is testable without waiting on a
+    /// real clock. A wait that has reached zero collapses to a plain `.retry`,
+    /// which is enabled and reads "Try Again" rather than "Try Again in 0s".
+    static func resolvedPrimary(_ action: ErrorAction?, remainingWait: Int?) -> ErrorAction? {
+        guard let action, let declared = action.waitSeconds else { return action }
+        let left = remainingWait ?? declared
+        return left > 0 ? .retryAfter(seconds: left) : .retry
+    }
+
+    private var primaryAction: ErrorAction? {
+        Self.resolvedPrimary(error.primaryAction, remainingWait: remainingWait)
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -72,13 +94,34 @@ struct ErrorCallout: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel(error.accessibilityLabel)
         .accessibilityIdentifier(error.accessibilityIdentifier)
+        // Restarts whenever the error changes, so a new rate limit gets a fresh
+        // countdown and a non-waiting error clears the old one.
+        .task(id: error.id) { await runCountdown() }
+    }
+
+    /// Ticks the `retryAfter` countdown down to zero, one second at a time.
+    /// Cancellation from `.task(id:)` ends it; nothing here outlives the view.
+    private func runCountdown() async {
+        guard let declared = error.primaryAction?.waitSeconds, declared > 0 else {
+            remainingWait = nil
+            return
+        }
+        remainingWait = declared
+        while let current = remainingWait, current > 0 {
+            do {
+                try await Task.sleep(for: .seconds(1))
+            } catch {
+                return
+            }
+            remainingWait = current - 1
+        }
     }
 
     /// Primary action reads as the filled button; the rest stay bordered, which
     /// is the macOS convention for "one obvious next step, other ways out".
     private var actionRow: some View {
         HStack(spacing: DSSpace.s2) {
-            if let primary = error.primaryAction {
+            if let primary = primaryAction {
                 Button(primary.label) { onAction(primary) }
                     .buttonStyle(.borderedProminent)
                     .tint(tint)
