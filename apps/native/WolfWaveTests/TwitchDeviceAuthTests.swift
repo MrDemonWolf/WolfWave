@@ -15,19 +15,6 @@ import Foundation
 @Suite("Twitch Device Auth Tests")
 struct TwitchDeviceAuthTests {
 
-    // MARK: - Initialization Tests
-
-    @Test("TwitchDeviceAuth initializes with correct values")
-    func testInitialization() async throws {
-        let clientID = "test_client_id"
-        let scopes = ["user:read:chat", "user:write:chat"]
-
-        let auth = TwitchDeviceAuth(clientID: clientID, scopes: scopes)
-
-        // Verify initialization doesn't crash
-        #expect(auth != nil)
-    }
-
     // MARK: - Device Code Response Tests
 
     @Test("TwitchDeviceCodeResponse structure stores values correctly")
@@ -106,18 +93,6 @@ struct TwitchDeviceAuthTests {
         }
     }
 
-    @Test("Request device code with valid client ID structure")
-    func testRequestDeviceCodeValidStructure() async throws {
-        // Construction-only check. The networked request/response paths are
-        // driven by MockURLProtocol in TwitchDeviceAuthNetworkTests.
-        let clientID = "test_client_123"
-        let scopes = ["user:read:chat", "user:write:chat"]
-
-        let auth = TwitchDeviceAuth(clientID: clientID, scopes: scopes)
-
-        #expect(auth != nil)
-    }
-
     // MARK: - Poll For Token Tests
 
     @Test("Poll for token validates device code")
@@ -177,39 +152,4 @@ struct TwitchDeviceAuthTests {
         }
     }
 
-    // MARK: - Scope Tests
-
-    @Test("Empty scopes are allowed")
-    func testEmptyScopes() async throws {
-        let auth = TwitchDeviceAuth(clientID: "test_client", scopes: [])
-
-        #expect(auth != nil)
-    }
-
-    @Test("Multiple scopes are supported")
-    func testMultipleScopes() async throws {
-        let scopes = [
-            "user:read:chat",
-            "user:write:chat",
-            "moderator:manage:chat",
-            "channel:read:subscriptions"
-        ]
-
-        let auth = TwitchDeviceAuth(clientID: "test_client", scopes: scopes)
-
-        #expect(auth != nil)
-    }
-
-    // MARK: - URL Encoding Tests
-
-    @Test("Special characters in scopes are handled")
-    func testScopeEncoding() async throws {
-        let scopes = ["user:read:chat", "user:write:chat"]
-
-        let auth = TwitchDeviceAuth(clientID: "test_client", scopes: scopes)
-
-        #expect(auth != nil)
-
-        // Verify initialization handles colons in scope names
-    }
 }

@@ -25,19 +25,19 @@ final class DiagnosticsServiceTests: XCTestCase {
     private var defaults: UserDefaults!
     private var service: DiagnosticsService!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         suiteName = "DiagnosticsServiceTests-\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suiteName)
         service = DiagnosticsService(defaults: defaults)
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         defaults.removePersistentDomain(forName: suiteName)
         service = nil
         defaults = nil
         suiteName = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     func testDiagnosticsAreDisabledByDefault() {

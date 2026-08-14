@@ -13,16 +13,16 @@ import XCTest
 final class OnboardingViewModelEdgeCaseTests: WolfWaveTestCase {
     var viewModel: OnboardingViewModel?
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         resetAllSettings()
         viewModel = OnboardingViewModel()
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         resetAllSettings()
         viewModel = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Completion State Tests
