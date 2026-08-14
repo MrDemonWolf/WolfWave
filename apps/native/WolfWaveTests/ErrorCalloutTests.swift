@@ -137,6 +137,68 @@ final class ErrorCalloutTests: XCTestCase {
         XCTAssertNil(ErrorCallout.resolvedPrimary(nil, remainingWait: nil))
     }
 
+    // MARK: - Expiry Instant
+
+    /// The countdown is derived from a fixed instant, not counted down tick by
+    /// tick, so a busy main actor cannot make it drift and a view that
+    /// disappears and returns cannot restart it at the full delay.
+    func testRemainingSecondsDerivesFromTheDeadline() {
+        let start = ContinuousClock.now
+        XCTAssertEqual(
+            ErrorCallout.remainingSeconds(now: start, deadline: start.advanced(by: .seconds(30))),
+            30
+        )
+        XCTAssertEqual(
+            ErrorCallout.remainingSeconds(
+                now: start.advanced(by: .seconds(25)),
+                deadline: start.advanced(by: .seconds(30))
+            ),
+            5
+        )
+    }
+
+    /// A partially elapsed second still reads as one, so the label never shows
+    /// "0s" while the action is genuinely still disabled.
+    func testPartialSecondRoundsUp() {
+        let start = ContinuousClock.now
+        XCTAssertEqual(
+            ErrorCallout.remainingSeconds(
+                now: start.advanced(by: .milliseconds(500)),
+                deadline: start.advanced(by: .seconds(3))
+            ),
+            3
+        )
+    }
+
+    func testPassedDeadlineClampsToZero() {
+        let start = ContinuousClock.now
+        XCTAssertEqual(
+            ErrorCallout.remainingSeconds(now: start, deadline: start),
+            0
+        )
+        XCTAssertEqual(
+            ErrorCallout.remainingSeconds(
+                now: start.advanced(by: .seconds(90)),
+                deadline: start.advanced(by: .seconds(30))
+            ),
+            0,
+            "An overshot deadline must not go negative"
+        )
+    }
+
+    /// End to end through the resolver: a deadline in the past yields an
+    /// enabled retry.
+    func testExpiredDeadlineResolvesToEnabledRetry() {
+        let start = ContinuousClock.now
+        let left = ErrorCallout.remainingSeconds(
+            now: start.advanced(by: .seconds(31)),
+            deadline: start.advanced(by: .seconds(30))
+        )
+        let resolved = ErrorCallout.resolvedPrimary(.retryAfter(seconds: 30), remainingWait: left)
+        XCTAssertEqual(resolved, .retry)
+        XCTAssertFalse(resolved?.isWaiting == true)
+    }
+
     func testRateLimitedCalloutRenders() {
         let error = UserFacingError(
             id: "twitch.rateLimited",

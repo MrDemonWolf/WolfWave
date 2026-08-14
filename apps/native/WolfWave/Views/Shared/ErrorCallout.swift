@@ -99,21 +99,45 @@ struct ErrorCallout: View {
         .task(id: error.id) { await runCountdown() }
     }
 
-    /// Ticks the `retryAfter` countdown down to zero, one second at a time.
-    /// Cancellation from `.task(id:)` ends it; nothing here outlives the view.
+    /// Whole seconds left until `deadline`, rounded up so a partially elapsed
+    /// second still reads as one.
+    ///
+    /// Derived from an instant rather than counted down tick by tick: a
+    /// decrementing counter drifts under a busy main actor, and would restart
+    /// at the full delay every time the view reappeared. Uses `ContinuousClock`
+    /// so a system clock change cannot move the expiry.
+    static func remainingSeconds(
+        now: ContinuousClock.Instant,
+        deadline: ContinuousClock.Instant
+    ) -> Int {
+        let left = now.duration(to: deadline)
+        guard left > .zero else { return 0 }
+        let parts = left.components
+        return Int(parts.seconds) + (parts.attoseconds > 0 ? 1 : 0)
+    }
+
+    /// Holds the countdown against a fixed expiry instant, re-rendering about
+    /// four times a second so the label stays honest without a per-second
+    /// rounding stutter. Cancellation from `.task(id:)` ends it; nothing here
+    /// outlives the view.
     private func runCountdown() async {
         guard let declared = error.primaryAction?.waitSeconds, declared > 0 else {
             remainingWait = nil
             return
         }
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(declared))
         remainingWait = declared
-        while let current = remainingWait, current > 0 {
+
+        while true {
+            let left = Self.remainingSeconds(now: clock.now, deadline: deadline)
+            remainingWait = left
+            guard left > 0 else { return }
             do {
-                try await Task.sleep(for: .seconds(1))
+                try await Task.sleep(for: .milliseconds(250))
             } catch {
                 return
             }
-            remainingWait = current - 1
         }
     }
 
