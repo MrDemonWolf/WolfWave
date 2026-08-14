@@ -15,10 +15,14 @@ concurrency:
 
 jobs:
   update-sponsors:
+    # Forks have no SPONSORKIT_TOKEN, so the cron would just fail daily.
+    if: github.repository == 'MrDemonWolf/wolfwave'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      # Keeps the checkout token in the git config on purpose: the last step
+      # pushes the regenerated SVG straight back to main.
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
