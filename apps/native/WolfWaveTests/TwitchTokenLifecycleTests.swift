@@ -835,11 +835,16 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         XCTAssertEqual(committed.accessToken, "NEW_ACCESS")
         XCTAssertEqual(committed.channelID, "old_channel")
         XCTAssertEqual(Preferences.pendingImportedTwitchChannelName, "pending_channel")
+        // A 503 means Twitch accepted the token and could not answer, so the
+        // copy now says the sign-in is fine instead of "verification failed",
+        // which read as though the credentials were suspect. The safety
+        // property is unchanged and asserted above: the pending channel is not
+        // promoted on an outage.
         XCTAssertEqual(
             viewModel.channelValidationState,
-            .error("Channel verification failed")
+            .error(TwitchViewModel.notPermittedMessage(status: 503))
         )
-        XCTAssertTrue(viewModel.statusMessage.contains("verification failed"))
+        XCTAssertTrue(viewModel.statusMessage.contains("Twitch wouldn't answer"))
     }
 
     func testOAuthDoesNotPromoteChannelChangedDuringValidation() async throws {

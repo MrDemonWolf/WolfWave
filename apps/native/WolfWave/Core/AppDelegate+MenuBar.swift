@@ -766,6 +766,18 @@ extension AppDelegate: NSMenuDelegate {
         github.image = NSImage(systemSymbolName: "star", accessibilityDescription: nil)
         submenu.addItem(github)
 
+        // Opt-out lives in the About pane. The menu is rebuilt on every open
+        // (NSMenuDelegate), so flipping the toggle takes effect immediately.
+        if FeatureFlags.sponsorLinksEnabled {
+            let sponsor = NSMenuItem(
+                title: "Sponsor \(appName)",
+                action: #selector(openSponsorPage),
+                keyEquivalent: ""
+            )
+            sponsor.image = NSImage(systemSymbolName: "heart", accessibilityDescription: nil)
+            submenu.addItem(sponsor)
+        }
+
         return submenu
     }
 

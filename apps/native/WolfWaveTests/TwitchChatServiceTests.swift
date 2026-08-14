@@ -1249,14 +1249,20 @@ struct TwitchChatServiceTests {
         #expect(result == .temporarilyUnavailable)
     }
 
-    @Test("Confirmed missing required scopes invalidates the local grant")
-    func testTokenValidationMissingScopeIsInvalid() async throws {
+    /// Twitch answered 200, so the token is live. Reporting a scope gap as
+    /// `.invalid` told the user their session had expired, and the re-auth flag
+    /// that followed also stopped the hourly validator, leaving a working token
+    /// unchecked from then on. Only Twitch rejecting the token may invalidate a
+    /// local grant.
+    @Test("Missing required scopes reports the gap without invalidating the grant")
+    func testTokenValidationMissingScopeReportsScopes() async throws {
         let body = try JSONSerialization.data(withJSONObject: ["scopes": []])
         let result = await validateToken(
             status: 200,
             body: body,
             requiredScopes: ["user:read:chat"])
-        #expect(result == .invalid)
+        #expect(result == .missingScopes(["user:read:chat"]))
+        #expect(result != .invalid)
     }
 
     @Test("Token validation enforces the configured Twitch client ID")

@@ -186,7 +186,12 @@ extension TwitchChatService {
                 Log.warn(
                     "TwitchChatService: Token missing required scopes: \(missing.joined(separator: ", "))",
                     category: "Twitch")
-                return .invalid
+                // Not `.invalid`: Twitch just accepted this token. Reporting a
+                // scope gap as an expired session tells the user to reconnect
+                // for a session that still works, and the re-auth flag that
+                // follows also stops the hourly validator, so the live token
+                // would never be re-checked.
+                return .missingScopes(missing)
             }
             return .valid
         } catch {
@@ -269,6 +274,12 @@ extension TwitchChatService {
     }
 
     /// Validates whether a Twitch channel name exists by resolving it to a user ID.
+    ///
+    /// `GET /helix/users` needs no scope, so 401 is the only outcome that
+    /// implicates the token. A 403, 429, or 5xx means Twitch accepted the
+    /// sign-in and refused the lookup for its own reasons, which the caller
+    /// surfaces as "your sign-in is fine" rather than prompting a reconnect
+    /// that cannot help.
     func validateChannelExists(_ channelName: String, token: String, clientID: String) async -> ChannelValidationResult {
         do {
             let userID = try await resolveUsername(channelName, token: token, clientID: clientID)
@@ -277,8 +288,10 @@ extension TwitchChatService {
             switch error {
             case .authenticationFailed:
                 return .authenticationFailed
-            case .networkError(let msg) where msg == "Unable to resolve username":
+            case .channelNotFound:
                 return .notFound
+            case .notPermitted(let status):
+                return .notPermitted(status: status)
             default:
                 return .error(error.localizedDescription)
             }
@@ -310,8 +323,11 @@ extension TwitchChatService {
         do {
             let (data, http) = try await helixHTTPClient.send(request)
             guard (200..<300).contains(http.statusCode) else {
+                // 401 is the only status that implicates the token here: this
+                // endpoint requires no scope. Everything else keeps its status
+                // so the caller can say what actually happened.
                 if http.statusCode == 401 { throw ConnectionError.authenticationFailed }
-                throw ConnectionError.networkError("HTTP \(http.statusCode)")
+                throw ConnectionError.notPermitted(status: http.statusCode)
             }
 
             let parsed: HelixUsersResponse
@@ -322,8 +338,10 @@ extension TwitchChatService {
                     "Failed to decode username response: \(error.localizedDescription)")
             }
 
+            // Twitch answers an unknown login with 200 and an empty data array.
+            // That is a real answer, not a failed lookup.
             guard let first = parsed.data.first, !first.id.isEmpty else {
-                throw ConnectionError.networkError("Unable to resolve username")
+                throw ConnectionError.channelNotFound
             }
             return first.id
         } catch let error as ConnectionError {

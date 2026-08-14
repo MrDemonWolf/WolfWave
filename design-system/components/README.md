@@ -31,6 +31,8 @@ in `MonthlyWrapView.swift`). They are grouped by the directory they belong to.
 | SharePickerButton | [share-picker-button.md](share-picker-button.md) |
 | DSIconButton | [ds-icon-button.md](ds-icon-button.md) |
 | CalloutBanner | [callout-banner.md](callout-banner.md) |
+| ErrorCallout | [error-callout.md](error-callout.md) |
+| FieldValidationRow | [field-validation-row.md](field-validation-row.md) |
 | TwitchConnectionNotice | [twitch-connection-notice.md](twitch-connection-notice.md) |
 | HintRow | [hint-row.md](hint-row.md) |
 | LoadingRow | [loading-row.md](loading-row.md) |

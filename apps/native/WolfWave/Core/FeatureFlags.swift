@@ -46,6 +46,16 @@ nonisolated enum FeatureFlags {
         Preferences.bool(AppConstants.UserDefaults.widgetHTTPEnabled, default: false)
     }
 
+    /// Whether to show sponsorship links (menu bar, app menu, About pane).
+    /// Defaults to `true`; the About pane keeps the toggle so it can be turned
+    /// back on after opting out.
+    static var sponsorLinksEnabled: Bool {
+        Preferences.bool(
+            AppConstants.UserDefaults.sponsorLinksEnabled,
+            default: AppConstants.UserDefaults.Defaults.sponsorLinksEnabled
+        )
+    }
+
     // MARK: Tracking & history
 
     /// Music tracking. Defaults to `true` on first launch; once `trackingEnabled`
