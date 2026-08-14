@@ -15,17 +15,17 @@ final class SettingsBackupServiceTests: XCTestCase {
 
     private var previousBackend: KeychainBackend!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         KeychainBackendTestIsolation.acquire()
         previousBackend = KeychainService.backend
         KeychainService.backend = InMemoryKeychainBackend()
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         KeychainService.backend = previousBackend
         KeychainBackendTestIsolation.release()
-        super.tearDown()
+        try await super.tearDown()
     }
 
     func testApplyBroadcastsCompleteResolvedOverlayConfiguration() async {

@@ -24,19 +24,19 @@ final class CrashReporterTests: WolfWaveTestCase {
 
     private var tempDir: URL!
 
-    override func setUpWithError() throws {
-        try super.setUpWithError()
+    override func setUp() async throws {
+        try await super.setUp()
         tempDir = makeTempDir()
         CrashReporter.markerDirectoryOverride = tempDir
         CrashReporter.clearMarker()
     }
 
-    override func tearDownWithError() throws {
+    override func tearDown() async throws {
         CrashReporter.clearMarker()
         CrashReporter.markerDirectoryOverride = nil
         cleanupTrackedTempDirs()
         tempDir = nil
-        try super.tearDownWithError()
+        try await super.tearDown()
     }
 
     func testNoCrashByDefault() {

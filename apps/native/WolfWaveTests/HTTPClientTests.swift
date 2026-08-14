@@ -20,16 +20,16 @@ final class HTTPClientTests: XCTestCase {
     private var client: HTTPClient!
     private let handlerStore = MockURLProtocol.HandlerStore()
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         handlerStore.handler = nil
         client = HTTPClient(session: MockURLProtocol.makeSession(handlerStore: handlerStore))
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         handlerStore.handler = nil
         client = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     private struct Payload: Decodable, Equatable {

@@ -93,16 +93,16 @@ final class SongRequestPresetTests: XCTestCase {
 
     private var defaults: UserDefaults!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         defaults = UserDefaults(suiteName: "SongRequestPresetTests")
         defaults.removePersistentDomain(forName: "SongRequestPresetTests")
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         defaults.removePersistentDomain(forName: "SongRequestPresetTests")
         defaults = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     func testApplyOpenPresetWritesExpectedKeys() {
@@ -190,16 +190,16 @@ final class SongRequestLimitsTests: XCTestCase {
 
     private var defaults: UserDefaults!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         defaults = UserDefaults(suiteName: "SongRequestLimitsTests")
         defaults.removePersistentDomain(forName: "SongRequestLimitsTests")
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         defaults.removePersistentDomain(forName: "SongRequestLimitsTests")
         defaults = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     private func setLimits(everyone: Int, sub: Int, vip: Int, mod: Int) {

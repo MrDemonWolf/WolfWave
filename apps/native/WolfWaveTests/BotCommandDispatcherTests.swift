@@ -13,14 +13,14 @@ import XCTest
 final class BotCommandDispatcherTests: XCTestCase {
     var dispatcher: BotCommandDispatcher!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         dispatcher = BotCommandDispatcher()
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         dispatcher = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Default Command Tests

@@ -28,8 +28,8 @@ final class TwitchTokenRefreshTests: XCTestCase {
     private var backend: InMemoryKeychainBackend!
     private let handlerStore = MockURLProtocol.HandlerStore()
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         handlerStore.handler = nil
         Self.resetRedemptionDefaults()
         KeychainBackendTestIsolation.acquire()
@@ -38,12 +38,12 @@ final class TwitchTokenRefreshTests: XCTestCase {
         KeychainService.backend = backend
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         Self.resetRedemptionDefaults()
         handlerStore.handler = nil
         KeychainService.backend = previousBackend
         KeychainBackendTestIsolation.release()
-        super.tearDown()
+        try await super.tearDown()
     }
 
     nonisolated private static func resetRedemptionDefaults() {
@@ -707,7 +707,7 @@ final class TwitchTokenRefreshTests: XCTestCase {
             "OLD_ACCESS")
 
         releasePause.signal()
-        await clearing.value
+        _ = await clearing.value
 
         XCTAssertNil(KeychainService.loadTwitchToken())
         let request = try XCTUnwrap(captured.value)
@@ -932,7 +932,7 @@ final class TwitchTokenRefreshTests: XCTestCase {
 
         await service.supersedeChannelOwnershipForTesting()
         releasePause.signal()
-        await clearing.value
+        _ = await clearing.value
 
         let state = await service.managedRedemptionIdentityForTesting()
         XCTAssertEqual(state.broadcasterID, "broadcaster")

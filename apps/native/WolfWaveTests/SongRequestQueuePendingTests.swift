@@ -16,16 +16,16 @@ import XCTest
 final class SongRequestQueuePendingTests: WolfWaveTestCase {
     var queue: SongRequestQueue!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         queue = SongRequestQueue()
         resetAllSettings()
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         queue = nil
         resetAllSettings()
-        super.tearDown()
+        try await super.tearDown()
     }
 
     func testAddPendingHoldsWithoutTouchingQueue() {

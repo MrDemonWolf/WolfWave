@@ -13,14 +13,14 @@ import XCTest
 final class CooldownManagerTests: XCTestCase {
     var manager: CooldownManager!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         manager = CooldownManager()
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         manager = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - No Cooldown Tests

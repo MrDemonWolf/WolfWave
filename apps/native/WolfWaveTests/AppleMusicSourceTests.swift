@@ -14,15 +14,15 @@ import XCTest
 final class AppleMusicSourceTests: XCTestCase {
     var monitor: AppleMusicSource!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         monitor = AppleMusicSource()
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         monitor.stopTracking()
         monitor = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Initialization Tests

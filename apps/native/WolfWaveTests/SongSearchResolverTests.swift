@@ -25,16 +25,16 @@ final class SongSearchResolverTests: XCTestCase {
     private var controller: MockAppleMusicController!
     private let handlerStore = MockURLProtocol.HandlerStore()
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         handlerStore.handler = nil
         controller = MockAppleMusicController()
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         handlerStore.handler = nil
         controller = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     private func makeResolver() -> SongSearchResolver {

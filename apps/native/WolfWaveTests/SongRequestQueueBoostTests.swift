@@ -15,31 +15,31 @@ final class SongRequestQueueBoostTests: WolfWaveTestCase {
 
     var queue: SongRequestQueue!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         // Generous limits so multi-item-by-same-user tests aren't blocked.
         DefaultsStore.store.set(50, forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
         DefaultsStore.store.set(10, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
         queue = SongRequestQueue()
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         queue = nil
         resetAllSettings()
-        super.tearDown()
+        try await super.tearDown()
     }
 
     func testBoostReturnsNilWhenUserHasNothingQueued() {
-        queue.add(makeTestRequestItem(title: "Other", artist: "X", requesterUsername: "other"))
+        _ = queue.add(makeTestRequestItem(title: "Other", artist: "X", requesterUsername: "other"))
         XCTAssertNil(queue.boost(username: "viewer"))
         // Queue unchanged.
         XCTAssertEqual(queue.items.first?.title, "Other")
     }
 
     func testBoostMovesUsersItemToFront() {
-        queue.add(makeTestRequestItem(title: "A", artist: "X", requesterUsername: "first"))
-        queue.add(makeTestRequestItem(title: "B", artist: "X", requesterUsername: "second"))
-        queue.add(makeTestRequestItem(title: "C", artist: "X", requesterUsername: "viewer"))
+        _ = queue.add(makeTestRequestItem(title: "A", artist: "X", requesterUsername: "first"))
+        _ = queue.add(makeTestRequestItem(title: "B", artist: "X", requesterUsername: "second"))
+        _ = queue.add(makeTestRequestItem(title: "C", artist: "X", requesterUsername: "viewer"))
 
         let boosted = queue.boost(username: "viewer")
 
@@ -48,9 +48,9 @@ final class SongRequestQueueBoostTests: WolfWaveTestCase {
     }
 
     func testBoostPicksEarliestItemForUserWithMultiple() {
-        queue.add(makeTestRequestItem(title: "Other", artist: "X", requesterUsername: "other"))
-        queue.add(makeTestRequestItem(title: "A", artist: "X", requesterUsername: "viewer"))
-        queue.add(makeTestRequestItem(title: "B", artist: "X", requesterUsername: "viewer"))
+        _ = queue.add(makeTestRequestItem(title: "Other", artist: "X", requesterUsername: "other"))
+        _ = queue.add(makeTestRequestItem(title: "A", artist: "X", requesterUsername: "viewer"))
+        _ = queue.add(makeTestRequestItem(title: "B", artist: "X", requesterUsername: "viewer"))
 
         let boosted = queue.boost(username: "viewer")
 
@@ -59,8 +59,8 @@ final class SongRequestQueueBoostTests: WolfWaveTestCase {
     }
 
     func testBoostIsCaseInsensitive() {
-        queue.add(makeTestRequestItem(title: "First", artist: "X", requesterUsername: "OtherUser"))
-        queue.add(makeTestRequestItem(title: "Mine", artist: "X", requesterUsername: "Viewer"))
+        _ = queue.add(makeTestRequestItem(title: "First", artist: "X", requesterUsername: "OtherUser"))
+        _ = queue.add(makeTestRequestItem(title: "Mine", artist: "X", requesterUsername: "Viewer"))
 
         let boosted = queue.boost(username: "viewer")
 

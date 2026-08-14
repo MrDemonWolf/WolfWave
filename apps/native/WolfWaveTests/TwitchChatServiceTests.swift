@@ -2000,7 +2000,6 @@ struct TwitchChatServiceTests {
 
     @Test("Leaving cancels and clears the pending message retry lifecycle")
     func testLeaveClearsPendingMessageRetry() async {
-        let service = TwitchChatService()
         handlerStore.handler = { request in
             (MockURLProtocol.httpResponse(for: request, status: 503), Data())
         }
