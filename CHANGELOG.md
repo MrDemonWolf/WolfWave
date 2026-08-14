@@ -2,9 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.1.0] - Unreleased
-
-> The next release. These changes ship on the [Nightly channel](https://mrdemonwolf.github.io/wolfwave/docs/nightly) off `main` until 2.1.0 is tagged for stable, when this heading gets its date.
+## [2.1.0] - 2026-08-14
 
 ### Security
 
