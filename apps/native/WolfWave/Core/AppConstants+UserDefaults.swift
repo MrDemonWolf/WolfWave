@@ -426,6 +426,14 @@ extension AppConstants {
         /// Overrides `NSApplication.appearance` app-wide; "system" follows the OS setting.
         static let appearancePreference = "appearancePreference"
 
+        /// Whether sponsorship links are shown (Bool, default: true).
+        ///
+        /// Covers the menu bar item, the app menu command, and the About pane's
+        /// Sponsor action. The About pane keeps the toggle itself so turning it
+        /// back on is always possible. Nothing about this changes what the app
+        /// does, only whether it asks.
+        static let sponsorLinksEnabled = "sponsorLinksEnabled"
+
         #if DEBUG
         static let debugTreatAllChattersAsViewers = "debugTreatAllChattersAsViewers"
         static let debugViewerUsernames = "debugViewerUsernames"
@@ -559,6 +567,7 @@ extension AppConstants {
             statsCommandParts,
             historyRetentionDays,
             streamerModeEnabled,
+            sponsorLinksEnabled,
             appearancePreference,
         ] + debugKeys
 
@@ -673,6 +682,7 @@ extension AppConstants {
                 AppConstants.Appearance.dark,
             ]),
             portableBool(streamerModeEnabled),
+            portableBool(sponsorLinksEnabled),
             portableBool(shareDiagnosticsEnabled),
             portableBool(updateCheckEnabled),
             portableString(updateChannel, allowedValues: ["stable", "nightly"]),
@@ -855,6 +865,7 @@ extension AppConstants {
         /// lockstep. Only keys whose two copies already agreed are listed here.
         enum Defaults {
             static let updateCheckEnabled = true
+            static let sponsorLinksEnabled = true
             static let voteSkipMinVotes = 3
             static let voteSkipWindowSeconds = 60
             static let voteSkipSessionCooldown: Double = 30

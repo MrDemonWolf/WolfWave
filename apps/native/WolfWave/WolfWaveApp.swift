@@ -18,6 +18,14 @@ import SwiftUI
 struct WolfWaveApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
+    /// Observed, not read once. `FeatureFlags.sponsorLinksEnabled` is a plain
+    /// `UserDefaults` read, so SwiftUI has no dependency on it and the Help
+    /// menu would keep its stale Sponsor item until the app relaunched. The
+    /// menu bar's copy is fine either way because `NSMenuDelegate` rebuilds
+    /// that menu on every open.
+    @AppStorage(AppConstants.UserDefaults.sponsorLinksEnabled)
+    private var sponsorLinksEnabled = AppConstants.UserDefaults.Defaults.sponsorLinksEnabled
+
     /// Identifier for the Settings `Window` scene. Shared with
     /// `SettingsSceneBridge`, which opens it via `@Environment(\.openWindow)`.
     static let settingsWindowID = "wolfwave-settings"
@@ -124,7 +132,9 @@ struct WolfWaveApp: App {
                 Button("Report a Bug\u{2026}") { appDelegate.reportBug() }
                 Button("Join Discord Community") { appDelegate.openCommunityDiscord() }
                 Button("View on GitHub") { appDelegate.openGitHub() }
-                Button("Sponsor \(appDelegate.appName)") { appDelegate.openSponsorPage() }
+                if sponsorLinksEnabled {
+                    Button("Sponsor \(appDelegate.appName)") { appDelegate.openSponsorPage() }
+                }
             }
         }
     }

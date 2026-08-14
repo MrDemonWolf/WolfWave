@@ -54,6 +54,9 @@ nonisolated enum TwitchBootTokenValidationRunner {
     enum Outcome: Sendable, Equatable {
         case valid(String)
         case invalid(String)
+        /// Twitch honors the token; it just lacks these scopes. The session is
+        /// live, so this must never expire credentials or stop the schedule.
+        case missingScopes(String, [String])
         case temporarilyUnavailable
         case superseded
         case cancelled
@@ -89,6 +92,13 @@ nonisolated enum TwitchBootTokenValidationRunner {
                 if Task.isCancelled { return .cancelled }
                 return isCurrent(credential)
                     ? .valid(credential.token)
+                    : .superseded
+            case .missingScopes(let scopes):
+                // Refreshing cannot add a scope, and the token still works for
+                // everything else. Report and stop, without touching the
+                // credential.
+                return isCurrent(credential)
+                    ? .missingScopes(credential.token, scopes)
                     : .superseded
             case .invalid:
                 guard !didAttemptRefresh else {
@@ -168,6 +178,7 @@ nonisolated enum TwitchBootTokenValidationRunner {
             Credential?
         ) async -> Void = { _, _, _ in },
         onInvalid: @escaping @MainActor @Sendable (Credential) async -> Void = { _ in },
+        onMissingScopes: @escaping @MainActor @Sendable (Credential, [String]) async -> Void = { _, _ in },
         onTemporarilyUnavailable: @escaping @MainActor @Sendable (Credential) async -> Void = { _ in }
     ) async {
         var validatedRevision: UInt64?
@@ -206,6 +217,15 @@ nonisolated enum TwitchBootTokenValidationRunner {
                 guard credentials() == resolved else { continue }
                 await onInvalid(resolved)
                 return
+            case .missingScopes(let token, let scopes):
+                let resolved = Credential(token: token, revision: credential.revision)
+                guard credentials() == resolved else { continue }
+                await onMissingScopes(resolved, scopes)
+                guard !Task.isCancelled, credentials() == resolved else { continue }
+                // Deliberately falls through to the cadence sleep rather than
+                // returning: the token is live, so it keeps being re-checked
+                // on the hourly schedule like any other working credential.
+                validatedRevision = resolved.revision
             case .temporarilyUnavailable:
                 guard credentials() == credential else { continue }
                 await onTemporarilyUnavailable(credential)
@@ -1048,6 +1068,21 @@ extension AppDelegate {
                     self.setReauthNeeded(true)
                     self.showTwitchAuthNotification()
                     self.openSettingsToTwitch()
+                },
+                onMissingScopes: { [weak self] credential, scopes in
+                    guard let self,
+                          !Task.isCancelled,
+                          self.twitchBootValidationGeneration == generation,
+                          Self.currentTwitchValidationCredential() == credential else { return }
+                    // Explicitly NOT setReauthNeeded: the session is live, chat
+                    // keeps working, and that flag would also stop the hourly
+                    // validator. Only the feature needing the scope is affected,
+                    // and it surfaces its own banner where it is configured.
+                    Log.warn(
+                        "AppDelegate: Twitch token is valid but missing scopes: "
+                            + scopes.joined(separator: ", "),
+                        category: "Twitch"
+                    )
                 },
                 onTemporarilyUnavailable: { credential in
                     guard Self.currentTwitchValidationCredential() == credential else { return }

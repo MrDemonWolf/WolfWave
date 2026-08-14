@@ -903,6 +903,12 @@ final class TwitchViewModel {
                     self.statusMessage = "❌ Authentication failed. Try signing in again."
                     self.isConnecting = false
                     return
+                case .notPermitted(let status):
+                    // Twitch accepted the sign-in and refused the lookup, so
+                    // reconnecting would not help. Say which it was.
+                    self.channelValidationState = .error(Self.notPermittedMessage(status: status))
+                    self.isConnecting = false
+                    return
                 case .error(let message):
                     self.channelValidationState = .error(message)
                     self.statusMessage = "❌ Validation error: \(message)"
@@ -1025,6 +1031,12 @@ final class TwitchViewModel {
             case .invalid:
                 self.statusMessage = "❌ Token is invalid or expired"
                 self.testAuthResult = .failure
+            case .missingScopes(let scopes):
+                // The token works. Reporting this as a failure would be a lie,
+                // and would push the user to reconnect a live session.
+                self.statusMessage =
+                    "⚠️ Token is valid, but missing: \(scopes.joined(separator: ", "))"
+                self.testAuthResult = .success
             case .temporarilyUnavailable:
                 self.statusMessage = "⚠️ Could not verify token. Try again shortly"
                 self.testAuthResult = .failure
@@ -1115,6 +1127,23 @@ final class TwitchViewModel {
     }
 
     // MARK: - Private Methods
+
+    /// Copy for a channel lookup Twitch accepted the credentials for but
+    /// refused to answer.
+    ///
+    /// `GET /helix/users` needs no scope, so reaching this at all means the
+    /// sign-in is good. Each message leads with that, because the instinct
+    /// otherwise is to reconnect, which cannot help.
+    nonisolated static func notPermittedMessage(status: Int) -> String {
+        switch status {
+        case 429:
+            return "Your sign-in is fine. Twitch is rate limiting us, so try again in a moment."
+        case 500...599:
+            return "Your sign-in is fine. Twitch is having trouble right now."
+        default:
+            return "Your sign-in is fine, but Twitch refused the lookup (HTTP \(status))."
+        }
+    }
 
     /// Cancels any join that belongs to the old account before an OAuth/manual
     /// replacement starts. The returned actor is then awaited for transport
@@ -1283,6 +1312,12 @@ final class TwitchViewModel {
                         channelValidationState = .error("Authentication failed")
                         channelPromotionWarning =
                             "⚠️ Signed in, but the channel could not be verified. Try Join again."
+                    case .notPermitted(let status):
+                        preserveVisibleChannelDraft = !channelCandidateWasPending
+                        channelValidationState = .error(Self.notPermittedMessage(status: status))
+                        channelPromotionWarning =
+                            "⚠️ Signed in fine, but Twitch wouldn't answer the channel lookup. "
+                            + "Try Join again."
                     case .error:
                         preserveVisibleChannelDraft = !channelCandidateWasPending
                         channelValidationState = .error("Channel verification failed")

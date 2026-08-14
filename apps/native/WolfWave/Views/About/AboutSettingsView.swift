@@ -23,6 +23,13 @@ struct AboutSettingsView: View {
 
     @State private var versionCopied = false
 
+    // MARK: - Settings
+
+    /// Opt-out for every sponsorship link in the app. The toggle itself stays
+    /// visible so it can be turned back on.
+    @AppStorage(AppConstants.UserDefaults.sponsorLinksEnabled)
+    private var sponsorLinksEnabled = AppConstants.UserDefaults.Defaults.sponsorLinksEnabled
+
     // MARK: - Bundle Info (shared with the menu bar's standard About panel)
 
     private var appName: String { AboutCopy.appName }
@@ -109,12 +116,15 @@ struct AboutSettingsView: View {
             VStack(alignment: .leading, spacing: DSSpace.s1) {
                 Text("Quick actions")
                     .font(.system(size: DSFont.Size.base, weight: .semibold))
-                Text("Release notes, website, feedback, and sponsorship.")
+                Text(sponsorLinksEnabled
+                     ? "Release notes, website, feedback, and sponsorship."
+                     : "Release notes, website, and feedback.")
                     .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.secondary)
             }
 
             actionGrid
+            sponsorToggle
         }
         .cardStyle()
     }
@@ -130,10 +140,25 @@ struct AboutSettingsView: View {
             GridRow {
                 ActionGridButton(title: "Send Feedback", systemImage: "envelope", action: sendFeedback,
                                  accessibilityIdentifier: "about-settings.action.Send Feedback")
-                ActionGridButton(title: "Sponsor on GitHub", systemImage: "heart.fill", action: openSponsor,
-                                 accessibilityIdentifier: "about-settings.action.Sponsor on GitHub")
+                if sponsorLinksEnabled {
+                    ActionGridButton(title: "Sponsor on GitHub", systemImage: "heart.fill", action: openSponsor,
+                                     accessibilityIdentifier: "about-settings.action.Sponsor on GitHub")
+                }
             }
         }
+    }
+
+    /// Owns the opt-out for every sponsorship link in the app. Lives here, next
+    /// to the button it hides, so turning it back on is findable.
+    private var sponsorToggle: some View {
+        ToggleSettingRow(
+            title: "Show sponsor links",
+            subtitle: "Adds a Sponsor item here, in the menu bar, and in the Help menu. WolfWave is free either way.",
+            isOn: $sponsorLinksEnabled,
+            accessibilityLabel: "Show sponsor links",
+            accessibilityIdentifier: "about-settings.sponsorLinksToggle",
+            accessibilityHint: "Hides every sponsorship link in the app. This toggle stays here."
+        )
     }
 
     // MARK: - Links & Legal Card
