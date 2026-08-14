@@ -18,7 +18,7 @@ import Foundation
 /// restored after each test so other suites see unchanged behavior.
 ///
 /// Note: `.serialized` keeps tests sequential, matching the shared-backend model.
-@Suite("Keychain Service Tests", .serialized)
+@Suite("Keychain Service Tests", .serialized, .isolatedKeychainBackend)
 final class KeychainServiceTests {
 
     private let previousBackend: KeychainBackend
@@ -39,6 +39,32 @@ final class KeychainServiceTests {
         #expect(WolfWaveApp.isRunningTests)
         #expect(previousBackend is InMemoryKeychainBackend)
         #expect(KeychainService.makeDefaultBackend(isRunningTests: true) is InMemoryKeychainBackend)
+    }
+
+    // MARK: - Suite Isolation
+
+    /// Pins `.isolatedKeychainBackend`. A trait that silently stopped binding
+    /// would leave every test below passing while the suite went back to sharing
+    /// one process-wide backend with the suites running beside it.
+    @Test("Suite runs against a task-scoped backend")
+    func testSuiteBindsTaskScopedBackend() {
+        #expect(KeychainService.backendBox != nil)
+    }
+
+    /// The property the whole suite depends on: a backend installed in here is
+    /// unreachable from a task outside the scope, so a parallel suite can
+    /// neither observe nor mutate it.
+    @Test("Backends installed in the suite stay invisible to outside tasks")
+    func testInstalledBackendIsInvisibleOutsideTheSuite() async {
+        let originalBackend = KeychainService.backend
+        let marker = InspectableKeychainBackend()
+        KeychainService.backend = marker
+        defer { KeychainService.backend = originalBackend }
+
+        let outside = await Task.detached { KeychainService.backend }.value
+
+        #expect(KeychainService.backend as AnyObject === marker)
+        #expect(outside as AnyObject !== marker)
     }
 
     // MARK: - Token Save/Load/Delete Tests
@@ -973,6 +999,11 @@ final class KeychainServiceTests {
         let readResults = ThreadSafeBox<[String?]>(
             Array(repeating: nil, count: iterations))
 
+        // These blocks run on GCD threads, outside this test's task tree, so the
+        // suite's task-scoped backend does not reach them on its own. Rebinding
+        // it keeps the stress on real threads rather than the cooperative pool.
+        let box = KeychainService.backendBox
+
         // Seed with a known value first
         try KeychainService.saveToken("seed_token")
 
@@ -981,13 +1012,17 @@ final class KeychainServiceTests {
             group.enter()
             queue.async {
                 let token = "concurrent_token_\(i)"
-                try? KeychainService.saveToken(token)
+                KeychainService.$backendBox.withValue(box) {
+                    try? KeychainService.saveToken(token)
+                }
                 group.leave()
             }
 
             group.enter()
             queue.async {
-                let loaded = KeychainService.loadToken()
+                let loaded = KeychainService.$backendBox.withValue(box) {
+                    KeychainService.loadToken()
+                }
                 readResults.mutate { $0[i] = loaded }
                 group.leave()
             }

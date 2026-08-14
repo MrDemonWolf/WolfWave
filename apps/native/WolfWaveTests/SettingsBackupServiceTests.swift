@@ -17,7 +17,7 @@ final class SettingsBackupServiceTests: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
-        KeychainBackendTestIsolation.acquire()
+        await KeychainBackendTestIsolation.acquireAsync()
         previousBackend = KeychainService.backend
         KeychainService.backend = InMemoryKeychainBackend()
     }
