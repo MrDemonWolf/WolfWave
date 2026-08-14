@@ -25,7 +25,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         try await super.setUp()
         handlerStore.handler = nil
         Self.resetRedemptionDefaults()
-        KeychainBackendTestIsolation.acquire()
+        await KeychainBackendTestIsolation.acquireAsync()
         previousBackend = KeychainService.backend
         backend = InMemoryKeychainBackend()
         KeychainService.backend = backend

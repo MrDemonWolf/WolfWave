@@ -1776,30 +1776,33 @@ struct TwitchChatServiceTests {
 
     @Test("Missing polls scope requests reauthorization without subscribing")
     func testLivePollEnableMissingScopeSignalsReauthorization() async {
-        let defaults = DefaultsStore.store
-        defer {
-            defaults.removeObject(forKey: AppConstants.UserDefaults.voteSkipEnabled)
-            defaults.removeObject(forKey: AppConstants.UserDefaults.voteSkipUsePolls)
-            Preferences.setTwitchReauthNeeded(false)
+        // `twitchReauthNeeded` is a process-global default that parallel suites
+        // also write, so the assertion below only holds under the shared
+        // credential-state lock.
+        await KeychainBackendTestIsolation.withIsolatedCredentialState {
+            let defaults = DefaultsStore.store
+            defer {
+                defaults.removeObject(forKey: AppConstants.UserDefaults.voteSkipEnabled)
+                defaults.removeObject(forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+            }
+            defaults.set(true, forKey: AppConstants.UserDefaults.voteSkipEnabled)
+            defaults.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
+            let subscriptionCount = ThreadSafeBox(0)
+            let service = TwitchChatService()
+            await service.configurePollRefreshTestState(
+                sessionID: "session-missing-scope",
+                scopeValidation: { .missing },
+                subscription: { _ in
+                    subscriptionCount.mutate { $0 += 1 }
+                    return true
+                })
+
+            await service.refreshPollSubscriptionIfNeeded(enabled: true)
+
+            #expect(Preferences.twitchReauthNeeded)
+            #expect(subscriptionCount.value == 0)
+            #expect(await service.pollSubscriptionSessionForTesting() == nil)
         }
-        defaults.set(true, forKey: AppConstants.UserDefaults.voteSkipEnabled)
-        defaults.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
-        Preferences.setTwitchReauthNeeded(false)
-        let subscriptionCount = ThreadSafeBox(0)
-        let service = TwitchChatService()
-        await service.configurePollRefreshTestState(
-            sessionID: "session-missing-scope",
-            scopeValidation: { .missing },
-            subscription: { _ in
-                subscriptionCount.mutate { $0 += 1 }
-                return true
-            })
-
-        await service.refreshPollSubscriptionIfNeeded(enabled: true)
-
-        #expect(Preferences.twitchReauthNeeded)
-        #expect(subscriptionCount.value == 0)
-        #expect(await service.pollSubscriptionSessionForTesting() == nil)
     }
 
     @Test("Poll-end parser preserves ID and rejects missing identity")
