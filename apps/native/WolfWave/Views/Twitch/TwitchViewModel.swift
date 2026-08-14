@@ -61,8 +61,21 @@ final class TwitchViewModel {
     var isConnecting = false
     /// Whether the stored token has expired and the user must sign in again.
     var reauthNeeded = false
-    /// User-facing status text shown below the auth card.
-    var statusMessage = ""
+    /// Neutral, in-flight progress text ("Verifying channel…", "Connecting to
+    /// Twitch…"). Never carries a failure: those are ``connectionError``.
+    ///
+    /// Replaces the old `statusMessage`, which was documented as "shown below
+    /// the auth card" and was read by no view at all. Roughly forty carefully
+    /// written failure messages went into it and were never seen. Anything
+    /// stored here now renders in `TwitchSettingsView`.
+    var progressMessage = ""
+
+    /// The current failure, if any, rendered as an ``ErrorCallout``.
+    ///
+    /// Modelled rather than stringly-typed so the banner can offer the fix that
+    /// matches the cause, instead of one generic sentence for four different
+    /// problems.
+    var connectionError: UserFacingError?
     /// Current state of the channel name lookup against the Twitch API.
     var channelValidationState: ChannelValidationState = .idle
     /// Current state of the lightweight token validation check.
@@ -362,7 +375,7 @@ final class TwitchViewModel {
             restoreTokenValidationScheduleForStoredCredential()
         }
         authState = .idle
-        statusMessage = ""
+        progressMessage = ""
     }
 
     /// Captures the current UI flow generation before scheduling async teardown.
@@ -423,8 +436,8 @@ final class TwitchViewModel {
                     + error.localizedDescription,
                 category: "Twitch"
             )
-            if statusMessage.isEmpty {
-                statusMessage = "⚠️ Could not access saved Twitch credentials. Try again."
+            if connectionError == nil {
+                connectionError = Failure.keychainUnreadable()
             }
         }
 
@@ -473,32 +486,23 @@ final class TwitchViewModel {
         self.channelConnected = isConnected
         self.isConnecting = false
         if isConnected {
-            // Connection succeeded
-            if !self.channelID.isEmpty {
-                self.statusMessage = "✅ Connected to #\(self.channelID)"
-            } else {
-                self.statusMessage = "✅ Connected"
-            }
+            // Connected state is conveyed by the status chip, not prose.
+            self.progressMessage = ""
+            self.connectionError = nil
         } else {
-            // Connection failed or disconnected
+            self.progressMessage = ""
             if let error = errorMessage {
-                // Check if it's a timeout error
-                if error.contains("timed out") || error.contains("timeout") {
-                    self.statusMessage =
-                        "❌ Connection timed out. Check your network connection or firewall settings."
-                } else {
-                    self.statusMessage = "❌ Connection failed: \(error)"
-                }
+                self.connectionError = error.contains("timed out") || error.contains("timeout")
+                    ? Failure.connectionTimedOut()
+                    : Failure.connectionFailed(error)
                 Log.error(
                     "TwitchViewModel: Connection error - \(error)", category: "Twitch")
             } else if self.reauthNeeded {
-                // Disconnected due to reauth needed
-                self.statusMessage = "⚠️ Reauth needed"
+                self.connectionError = Failure.signInExpired()
                 Log.warn("TwitchViewModel: UI updated - Reauth needed", category: "Twitch")
-            } else if !self.statusMessage.contains("❌") && !self.statusMessage.isEmpty {
-                // Only update if there's no error message already shown
-                self.statusMessage = "Disconnected"
             }
+            // A plain disconnect is not a failure, so it clears nothing and
+            // shows nothing. The chip already reads "Disconnected".
         }
     }
 
@@ -542,7 +546,7 @@ final class TwitchViewModel {
     /// UI State Updates:
     /// - authState cycles: idle -> requestingCode -> waitingForAuth -> inProgress, then
     ///   back to idle on success or to error(_) on failure
-    /// - statusMessage updated at each step with user-facing text
+    /// - progressMessage carries in-flight progress; failures set connectionError
     /// - All UI updates dispatched to @MainActor
     ///
     /// Error Handling:
@@ -559,7 +563,7 @@ final class TwitchViewModel {
         guard !isAccountTeardownInProgress else { return }
 
         guard let oauthClient = makeOAuthClient() else {
-            statusMessage = "⚠️ Missing Twitch Client ID. Set TWITCH_CLIENT_ID in Config.xcconfig."
+            connectionError = Failure.missingClientID()
             authState = .error("Missing Client ID")
             return
         }
@@ -580,7 +584,7 @@ final class TwitchViewModel {
         cancelTokenValidationSchedule()
 
         authState = .requestingCode
-        statusMessage = "Requesting authorization code from Twitch..."
+        progressMessage = "Requesting authorization code from Twitch..."
 
         // One structured task owns both the device-code request and polling.
         oAuthTask = Task { @MainActor [weak self] in
@@ -623,7 +627,7 @@ final class TwitchViewModel {
                         verificationURI: response.verificationURIComplete
                             ?? response.verificationURI)
                 )
-                self.statusMessage = "✅ Code ready! Go to Twitch and enter the code above."
+                self.progressMessage = "Code ready. Enter it on Twitch to finish."
 
                 // TwitchDeviceAuth owns the one monotonic expiry deadline from
                 // the server response. Keep no competing UI timer here.
@@ -636,7 +640,7 @@ final class TwitchViewModel {
                         guard let self,
                               self.oauthGeneration == generation,
                               !Task.isCancelled else { return }
-                        self.statusMessage = status
+                        self.progressMessage = status
                     }
                 }
 
@@ -649,7 +653,7 @@ final class TwitchViewModel {
                 )
             } catch is CancellationError {
                 guard self.oauthGeneration == generation else { return }
-                self.statusMessage = "Authorization cancelled"
+                self.progressMessage = "Authorization cancelled"
                 self.authState = .idle
             } catch let error as TwitchDeviceAuthError {
                 guard !Task.isCancelled, self.oauthGeneration == generation else { return }
@@ -724,7 +728,7 @@ final class TwitchViewModel {
         Preferences.clearPendingImportedTwitchChannelName()
         credentialsSaved = false
         setReauthFlag(false)
-        statusMessage = ""
+        progressMessage = ""
         authState = .idle
         channelValidationState = .idle
         isConnecting = false
@@ -772,7 +776,7 @@ final class TwitchViewModel {
         oauthToken = ""
         credentialsSaved = false
         setReauthFlag(false)
-        statusMessage = ""
+        progressMessage = ""
         authState = .idle
         channelValidationState = .idle
         isConnecting = false
@@ -801,7 +805,7 @@ final class TwitchViewModel {
     /// 5. Updates UI state on success/failure
     ///
     /// UI Updates:
-    /// - Success: Shows "✅ Connected to #channel", sets channelConnected=true
+    /// - Success: clears any error, sets channelConnected=true
     /// - Failure: Shows error message with reason, keeps channelConnected=false
     /// - All updates dispatched to @MainActor
     ///
@@ -816,7 +820,7 @@ final class TwitchViewModel {
     func joinChannel() {
         guard !isAccountTeardownInProgress else { return }
         guard !authState.isInProgress else {
-            statusMessage = "Finish or cancel Twitch sign-in before joining a channel."
+            progressMessage = "Finish or cancel Twitch sign-in before joining a channel."
             return
         }
         joinTask?.cancel()
@@ -828,32 +832,32 @@ final class TwitchViewModel {
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
         guard !channelDraft.isEmpty else {
-            statusMessage = "❌ Please enter a channel name"
+            connectionError = Failure.channelNameInvalid("Enter the channel WolfWave should join.")
             isConnecting = false
             return
         }
 
         guard channelDraft.count <= 25 else {
-            statusMessage = "❌ Channel name too long"
+            connectionError = Failure.channelNameInvalid("Twitch names are 25 characters or fewer.")
             isConnecting = false
             return
         }
 
         guard let channel = TwitchChatService.normalizedChannelName(channelDraft) else {
-            statusMessage = "❌ Use only letters, numbers, or underscores"
+            connectionError = Failure.channelNameInvalid("Use only letters, numbers, or underscores.")
             channelValidationState = .invalid
             isConnecting = false
             return
         }
 
         guard let clientID = twitchClientIDProvider(), !clientID.isEmpty else {
-            statusMessage = "❌ Client ID not configured"
+            connectionError = Failure.missingClientID()
             isConnecting = false
             return
         }
 
         guard let credential = TwitchCredentialStore.shared.connectionSnapshot() else {
-            statusMessage = "❌ No OAuth token found. Please sign in first."
+            connectionError = Failure.noCredentials()
             Log.error("TwitchViewModel: No OAuth token found", category: "Twitch")
             isConnecting = false
             return
@@ -869,8 +873,7 @@ final class TwitchViewModel {
             do {
                 // Access the service property which will fetch from AppDelegate if needed
                 guard let service = self.twitchService else {
-                    self.statusMessage =
-                        "❌ Twitch service not initialized. Try restarting the app."
+                    self.connectionError = Failure.serviceUnavailable()
                     self.isConnecting = false
                     Log.error(
                         "TwitchViewModel: twitchService property returned nil", category: "Twitch")
@@ -879,7 +882,7 @@ final class TwitchViewModel {
 
                 // Validate channel exists before attempting connection
                 self.channelValidationState = .validating
-                self.statusMessage = "Verifying channel..."
+                self.progressMessage = "Verifying channel..."
 
                 let validationResult = await service.validateChannelExists(
                     channel, token: credential.accessToken, clientID: clientID)
@@ -895,12 +898,12 @@ final class TwitchViewModel {
                     break
                 case .notFound:
                     self.channelValidationState = .invalid
-                    self.statusMessage = "❌ Channel \"\(channel)\" not found on Twitch"
+                    self.connectionError = Failure.channelNotFound(channel)
                     self.isConnecting = false
                     return
                 case .authenticationFailed:
                     self.channelValidationState = .error("Authentication failed")
-                    self.statusMessage = "❌ Authentication failed. Try signing in again."
+                    self.connectionError = Failure.signInExpired()
                     self.isConnecting = false
                     return
                 case .notPermitted(let status):
@@ -911,7 +914,7 @@ final class TwitchViewModel {
                     return
                 case .error(let message):
                     self.channelValidationState = .error(message)
-                    self.statusMessage = "❌ Validation error: \(message)"
+                    self.connectionError = Failure.connectionFailed(message)
                     self.isConnecting = false
                     return
                 }
@@ -922,8 +925,7 @@ final class TwitchViewModel {
                 guard await self.leaveServiceForAccountTransition(service) else {
                     guard self.joinGeneration == generation else { return }
                     self.channelValidationState = .error("Could not safely disconnect")
-                    self.statusMessage =
-                        "⚠️ Could not safely disconnect Twitch. Please try Join again."
+                    self.connectionError = Failure.disconnectFailed()
                     self.isConnecting = false
                     return
                 }
@@ -946,7 +948,7 @@ final class TwitchViewModel {
                     "TwitchViewModel: Twitch service found, starting connection to channel: \(channel)",
                     category: "Twitch")
 
-                self.statusMessage = "Connecting to Twitch..."
+                self.progressMessage = "Connecting to Twitch..."
 
                 await service.setShouldSendConnectionMessageOnSubscribe(true)
                 guard !Task.isCancelled,
@@ -966,7 +968,7 @@ final class TwitchViewModel {
                 // Don't set channelConnected here - it will be set by the notification
                 // from the service when the EventSub session is actually established
                 guard self.joinGeneration == generation else { return }
-                self.statusMessage = "Waiting for connection..."
+                self.progressMessage = "Waiting for connection..."
             } catch is CancellationError {
                 if self.joinGeneration == generation {
                     self.isConnecting = false
@@ -974,12 +976,12 @@ final class TwitchViewModel {
                 return
             } catch let error as TwitchChatService.ConnectionError {
                 guard self.joinGeneration == generation else { return }
-                self.statusMessage = "❌ Connection failed: \(error)"
+                self.connectionError = Failure.connectionFailed(error.localizedDescription)
                 self.channelConnected = false
                 self.isConnecting = false
             } catch {
                 guard self.joinGeneration == generation else { return }
-                self.statusMessage = "❌ Error: \(error.localizedDescription)"
+                self.connectionError = Failure.connectionFailed(error.localizedDescription)
                 self.channelConnected = false
                 self.isConnecting = false
             }
@@ -996,27 +998,27 @@ final class TwitchViewModel {
             guard let storedToken = try KeychainService
                 .loadTwitchCredentialGrantChecked().accessToken,
                   !storedToken.isEmpty else {
-                statusMessage = "❌ No OAuth token found"
+                connectionError = Failure.noCredentials()
                 testAuthResult = .failure
                 scheduleTestAuthReset()
                 return
             }
             token = storedToken
         } catch {
-            statusMessage = "⚠️ Could not access saved Twitch credentials. Try again."
+            connectionError = Failure.keychainUnreadable()
             testAuthResult = .failure
             scheduleTestAuthReset()
             return
         }
 
         guard let service = twitchService else {
-            statusMessage = "❌ Twitch service not available"
+            connectionError = Failure.serviceUnavailable()
             testAuthResult = .failure
             scheduleTestAuthReset()
             return
         }
 
-        statusMessage = "Testing token…"
+        progressMessage = "Testing token…"
         testAuthResult = .testing
 
         // Cancel any in-flight test-auth task to prevent stale resets
@@ -1026,19 +1028,18 @@ final class TwitchViewModel {
             guard !Task.isCancelled else { return }
             switch result {
             case .valid:
-                self.statusMessage = "✅ Token is valid. Scopes OK"
+                self.progressMessage = "Token is valid."
                 self.testAuthResult = .success
             case .invalid:
-                self.statusMessage = "❌ Token is invalid or expired"
+                self.connectionError = Failure.signInExpired()
                 self.testAuthResult = .failure
             case .missingScopes(let scopes):
                 // The token works. Reporting this as a failure would be a lie,
                 // and would push the user to reconnect a live session.
-                self.statusMessage =
-                    "⚠️ Token is valid, but missing: \(scopes.joined(separator: ", "))"
+                self.connectionError = Failure.missingScopes(scopes)
                 self.testAuthResult = .success
             case .temporarilyUnavailable:
-                self.statusMessage = "⚠️ Could not verify token. Try again shortly"
+                self.connectionError = Failure.connectionFailed("Twitch could not be reached to check the token.")
                 self.testAuthResult = .failure
             }
             self.scheduleTestAuthReset()
@@ -1051,7 +1052,7 @@ final class TwitchViewModel {
     ///
     /// No-ops when there's nothing to check (no saved credentials) or when reauth
     /// is already flagged. Unlike `testConnection()`, this never touches
-    /// `testAuthResult` or `statusMessage` so it stays invisible until something
+    /// `testAuthResult` or `connectionError` so it stays invisible until something
     /// actually changes.
     func refreshAuthStatus() async {
         guard credentialsSaved, !reauthNeeded else { return }
@@ -1120,13 +1121,198 @@ final class TwitchViewModel {
             if await service.leaveChannel() {
                 self.channelConnected = false
             } else {
-                self.statusMessage =
-                    "⚠️ Could not safely disconnect Twitch. Please try again."
+                self.connectionError = Failure.disconnectFailed()
             }
         }
     }
 
     // MARK: - Private Methods
+
+    // MARK: - Error Construction
+
+    /// Builds the errors this view model can surface.
+    ///
+    /// Grouped in one place so the copy stays consistent and each failure keeps
+    /// the action that actually fixes it. Reconnect is offered only where a new
+    /// sign-in genuinely helps.
+    enum Failure {
+        static func keychainUnreadable() -> UserFacingError {
+            UserFacingError(
+                id: "twitch.keychainUnreadable",
+                title: "Couldn't read your saved Twitch sign-in",
+                cause: "macOS blocked WolfWave from reading the Keychain.",
+                fix: "Try again. If it keeps happening, sign in once more.",
+                severity: .error,
+                actions: [.retry, .reportBug]
+            )
+        }
+
+        static func keychainWriteFailed() -> UserFacingError {
+            UserFacingError(
+                id: "twitch.keychainWriteFailed",
+                title: "Couldn't save your Twitch sign-in",
+                cause: "macOS blocked WolfWave from writing to the Keychain.",
+                fix: "You'll be asked to sign in again next launch.",
+                severity: .error,
+                actions: [.reconnectTwitch, .reportBug]
+            )
+        }
+
+        /// Signing out could not remove the stored grant, so the account is
+        /// still signed in. Says so plainly rather than implying it worked.
+        static func credentialClearFailed() -> UserFacingError {
+            UserFacingError(
+                id: "twitch.credentialClearFailed",
+                title: "Couldn't sign out of Twitch",
+                cause: "macOS wouldn't let WolfWave remove the saved sign-in, "
+                    + "so you are still signed in.",
+                fix: "Try again. If it keeps failing, restart your Mac.",
+                severity: .error,
+                actions: [.retry, .reportBug]
+            )
+        }
+
+        /// The token works; a feature-specific permission is absent. Reconnect
+        /// is the right fix here, and the only place it is offered for a token
+        /// Twitch still honors.
+        static func missingScopes(_ scopes: [String]) -> UserFacingError {
+            UserFacingError(
+                id: "twitch.missingScopes",
+                title: "Signed in, but missing a permission",
+                cause: "WolfWave wasn't granted: \(scopes.joined(separator: ", ")).",
+                fix: "Reconnect to grant it. Everything else keeps working.",
+                severity: .warning,
+                actions: [.reconnectTwitch]
+            )
+        }
+
+        static func missingClientID() -> UserFacingError {
+            UserFacingError(
+                id: "twitch.missingClientID",
+                title: "WolfWave isn't set up for Twitch",
+                cause: "This build has no Twitch Client ID.",
+                fix: "Reinstall from the website, or set TWITCH_CLIENT_ID in Config.xcconfig.",
+                severity: .error,
+                actions: [.openDocs(anchor: "twitch-client-id")]
+            )
+        }
+
+        static func signInExpired() -> UserFacingError {
+            UserFacingError(
+                id: "twitch.signInExpired",
+                title: "Twitch sign-in expired",
+                cause: "Chat commands stopped working.",
+                fix: "Reconnect and WolfWave picks up where it left off.",
+                severity: .warning,
+                actions: [.reconnectTwitch]
+            )
+        }
+
+        static func noCredentials() -> UserFacingError {
+            UserFacingError(
+                id: "twitch.noCredentials",
+                title: "Not signed in to Twitch",
+                fix: "Connect with Twitch to get started.",
+                severity: .info,
+                actions: [.reconnectTwitch]
+            )
+        }
+
+        static func channelNameInvalid(_ reason: String) -> UserFacingError {
+            UserFacingError(
+                id: "twitch.channelNameInvalid",
+                title: "That channel name won't work",
+                cause: reason,
+                severity: .error
+            )
+        }
+
+        static func channelNotFound(_ channel: String) -> UserFacingError {
+            UserFacingError(
+                id: "twitch.channelNotFound",
+                title: "No Twitch channel by that name",
+                cause: "Nothing on Twitch matches \(StreamerMode.mask(channel, style: .channel, isOn: StreamerMode.isEnabled)).",
+                fix: "Check the spelling, then choose Join.",
+                severity: .error
+            )
+        }
+
+        /// Twitch accepted the sign-in and refused the lookup, so a reconnect
+        /// is deliberately not offered.
+        static func lookupRefused(status: Int) -> UserFacingError {
+            UserFacingError(
+                id: "twitch.lookupRefused",
+                title: status == 429
+                    ? "Your sign-in is fine, we're being rate limited"
+                    : "Your sign-in is fine, Twitch isn't",
+                cause: TwitchViewModel.notPermittedMessage(status: status),
+                severity: .warning,
+                actions: [.retry]
+            )
+        }
+
+        static func connectionFailed(_ detail: String) -> UserFacingError {
+            UserFacingError(
+                id: "twitch.connectionFailed",
+                title: "Couldn't connect to Twitch chat",
+                cause: detail,
+                fix: "Try again in a moment.",
+                severity: .error,
+                actions: [.retry]
+            )
+        }
+
+        static func connectionTimedOut() -> UserFacingError {
+            UserFacingError(
+                id: "twitch.connectionTimedOut",
+                title: "Twitch didn't respond",
+                cause: "The connection timed out. A firewall or VPN can cause this.",
+                severity: .warning,
+                actions: [.retry]
+            )
+        }
+
+        static func disconnectFailed() -> UserFacingError {
+            UserFacingError(
+                id: "twitch.disconnectFailed",
+                title: "Couldn't switch channels cleanly",
+                cause: "WolfWave couldn't leave the old channel.",
+                fix: "Choose Join again.",
+                severity: .warning,
+                actions: [.retry]
+            )
+        }
+
+        static func botIdentityUnresolved() -> UserFacingError {
+            UserFacingError(
+                id: "twitch.botIdentityUnresolved",
+                title: "Couldn't confirm which account is posting",
+                fix: "Reconnect with Twitch.",
+                severity: .warning,
+                actions: [.reconnectTwitch]
+            )
+        }
+
+        static func serviceUnavailable() -> UserFacingError {
+            UserFacingError(
+                id: "twitch.serviceUnavailable",
+                title: "WolfWave couldn't start its Twitch connection",
+                fix: "Restart WolfWave.",
+                severity: .error,
+                actions: [.reportBug]
+            )
+        }
+
+        static func oauth(_ message: String) -> UserFacingError {
+            UserFacingError(
+                id: "twitch.oauthFailed",
+                title: "Twitch sign-in didn't finish",
+                cause: message,
+                severity: .warning,
+                actions: [.retry]
+            )
+        }
+    }
 
     /// Copy for a channel lookup Twitch accepted the credentials for but
     /// refused to answer.
@@ -1169,13 +1355,13 @@ final class TwitchViewModel {
 
     private func showAccountTeardownRetry() {
         let message = "Could not safely disconnect Twitch. Please try again."
-        statusMessage = "⚠️ \(message)"
+        connectionError = Failure.disconnectFailed()
         authState = .error(message)
     }
 
     private func showCredentialDeletionRetry(_ error: Error) {
         let message = "Could not clear saved Twitch credentials. Please try again."
-        statusMessage = "⚠️ \(message)"
+        connectionError = Failure.credentialClearFailed()
         authState = .error(message)
         Log.error(
             "TwitchViewModel: Keychain credential deletion failed - \(error.localizedDescription)",
@@ -1246,7 +1432,7 @@ final class TwitchViewModel {
         guard !Task.isCancelled, oauthGeneration == generation else { return false }
         guard let refreshToken = grant.refreshToken, !refreshToken.isEmpty else {
             let message = "OAuth response did not include a refresh token."
-            statusMessage = "⚠️ \(message) Please try signing in again."
+            connectionError = Failure.oauth("Twitch didn't return a refresh token.")
             authState = .error(message)
             restoreTokenValidationScheduleForStoredCredential()
             return true
@@ -1254,7 +1440,7 @@ final class TwitchViewModel {
         let initialChannelDraftGeneration = channelDraftGeneration
         cancelTokenValidationSchedule()
         authState = .inProgress
-        statusMessage = "✅ Authorization successful! Saving credentials..."
+        progressMessage = "Saving credentials\u{2026}"
         let pendingImportedChannel = Preferences.pendingImportedTwitchChannelName
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
@@ -1266,18 +1452,16 @@ final class TwitchViewModel {
             ? pendingImportedChannel
             : (visibleChannel.isEmpty ? nil : visibleChannel)
         var configuredChannel: String?
-        var channelPromotionWarning: String?
         var preserveVisibleChannelDraft = false
 
         if let channelCandidate {
             if TwitchChatService.normalizedChannelName(channelCandidate) == nil {
                 preserveVisibleChannelDraft = !channelCandidateWasPending
                 channelValidationState = .invalid
-                channelPromotionWarning =
-                    "⚠️ Signed in, but the channel name is invalid. Update it and choose Join."
+                connectionError = Failure.channelNameInvalid("Update it and choose Join.")
             } else {
                 channelValidationState = .validating
-                statusMessage = "Verifying channel..."
+                progressMessage = "Verifying channel..."
                 let validationResult = await twitchService?.validateChannelExists(
                     channelCandidate,
                     token: grant.accessToken,
@@ -1304,25 +1488,20 @@ final class TwitchViewModel {
                     case .notFound:
                         preserveVisibleChannelDraft = !channelCandidateWasPending
                         channelValidationState = .invalid
-                        channelPromotionWarning =
-                            "⚠️ Signed in, but channel \"\(channelCandidate)\" was not found. "
-                            + "Update it and choose Join."
+                        connectionError = Failure.channelNotFound(channelCandidate)
                     case .authenticationFailed:
                         preserveVisibleChannelDraft = !channelCandidateWasPending
                         channelValidationState = .error("Authentication failed")
-                        channelPromotionWarning =
-                            "⚠️ Signed in, but the channel could not be verified. Try Join again."
+                        connectionError = Failure.signInExpired()
                     case .notPermitted(let status):
                         preserveVisibleChannelDraft = !channelCandidateWasPending
                         channelValidationState = .error(Self.notPermittedMessage(status: status))
-                        channelPromotionWarning =
-                            "⚠️ Signed in fine, but Twitch wouldn't answer the channel lookup. "
-                            + "Try Join again."
+                        connectionError = Failure.lookupRefused(status: status)
                     case .error:
                         preserveVisibleChannelDraft = !channelCandidateWasPending
                         channelValidationState = .error("Channel verification failed")
-                        channelPromotionWarning =
-                            "⚠️ Signed in, but channel verification failed. Try Join again."
+                        connectionError = Failure.connectionFailed(
+                            "The channel couldn't be verified.")
                     }
                 } else {
                     preserveVisibleChannelDraft = !channelCandidateWasPending
@@ -1357,7 +1536,7 @@ final class TwitchViewModel {
                 "TwitchViewModel: Failed to save OAuth token: \(error.localizedDescription)",
                 category: "Twitch"
             )
-            statusMessage = "⚠️ Keychain save failed: \(error.localizedDescription)"
+            connectionError = Failure.keychainWriteFailed()
             authState = .error(error.localizedDescription)
             restoreTokenValidationScheduleForStoredCredential()
             return true
@@ -1385,9 +1564,10 @@ final class TwitchViewModel {
             }
             setReauthFlag(false)
             credentialsSaved = true
-            statusMessage = channelDraftGeneration == initialChannelDraftGeneration
-                ? channelPromotionWarning ?? "✅ Bot identity resolved: \(username)"
-                : "✅ Bot identity resolved: \(username)"
+            // Sign-in finished. Any problem found while promoting the channel
+            // already set `connectionError`, which the pane renders; success
+            // needs no prose because the status chip flips to connected.
+            progressMessage = ""
             authState = .idle
             await twitchService?.replayPendingRedemptionResolutions()
         } catch is CancellationError {
@@ -1395,7 +1575,7 @@ final class TwitchViewModel {
             oauthToken = ""
             botUsername = ""
             credentialsSaved = false
-            statusMessage = ""
+            progressMessage = ""
             authState = .idle
             return true
         } catch {
@@ -1404,14 +1584,19 @@ final class TwitchViewModel {
                 "TwitchViewModel: Failed to resolve bot identity: \(error.localizedDescription)",
                 category: "Twitch"
             )
-            statusMessage = "⚠️ Could not resolve bot identity: \(error.localizedDescription)"
+            connectionError = Failure.botIdentityUnresolved()
             authState = .error(error.localizedDescription)
         }
         return true
     }
 
-    /// Maps a `TwitchDeviceAuthError` into a user-facing `statusMessage` and
-    /// transitions the auth state machine to `.error` for UI display.
+    /// Maps a `TwitchDeviceAuthError` onto the error model and transitions the
+    /// auth state machine to `.error` for UI display.
+    ///
+    /// The two "still working on it" cases are progress, not failure: the
+    /// device-code flow polls, and Twitch asking us to wait or slow down is the
+    /// protocol behaving normally. Rendering those as errors made a healthy
+    /// sign-in look broken.
     ///
     /// - Parameter error: Failure produced by the device-code OAuth flow.
     private func handleOAuthError(
@@ -1419,22 +1604,36 @@ final class TwitchViewModel {
         generation: UInt64
     ) async {
         guard !Task.isCancelled, oauthGeneration == generation else { return }
+
+        switch error {
+        case .authorizationPending:
+            progressMessage = "Waiting for you to authorize on Twitch\u{2026}"
+            return
+        case .slowDown:
+            progressMessage = "Waiting for Twitch\u{2026}"
+            return
+        default:
+            break
+        }
+
         let message: String
+        let failure: UserFacingError
         switch error {
         case .accessDenied:
-            message = "❌ Authorization denied by user"
+            message = "You declined the authorization on Twitch."
+            failure = Failure.oauth(message)
         case .expiredToken:
-            message = "❌ Authorization code expired"
-        case .authorizationPending:
-            message = "⏳ Still waiting for authorization..."
-        case .slowDown:
-            message = "⏸️ Polling too quickly, slowing down..."
+            message = "That sign-in code expired. Codes last only a few minutes."
+            failure = Failure.oauth(message)
         case .invalidClient:
-            message = "❌ Invalid Twitch Client ID"
+            message = "This build's Twitch Client ID was rejected."
+            failure = Failure.missingClientID()
         default:
-            message = "❌ OAuth failed: \(error.localizedDescription)"
+            message = error.localizedDescription
+            failure = Failure.oauth(message)
         }
-        statusMessage = message
+        progressMessage = ""
+        connectionError = failure
         authState = .error(message)
     }
 

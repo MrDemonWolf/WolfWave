@@ -767,7 +767,7 @@ final class TwitchTokenRefreshTests: XCTestCase {
         let state = await service.managedRedemptionIdentityForTesting()
         XCTAssertEqual(state.oauthToken, "OLD_ACCESS")
         XCTAssertEqual(state.broadcasterID, "broadcaster")
-        XCTAssertTrue(viewModel.statusMessage.contains("try again"))
+        XCTAssertEqual(viewModel.connectionError?.id, "twitch.disconnectFailed")
         XCTAssertEqual(restarts.value, 1)
         let request = try XCTUnwrap(captured.value)
         XCTAssertEqual(request.timeoutInterval, 5)
@@ -799,7 +799,7 @@ final class TwitchTokenRefreshTests: XCTestCase {
                 forKey: AppConstants.UserDefaults.songRequestChannelPointsRewardID),
             "reward")
         XCTAssertEqual(restarts.value, 1)
-        XCTAssertTrue(viewModel.statusMessage.contains("try again"))
+        XCTAssertEqual(viewModel.connectionError?.id, "twitch.disconnectFailed")
     }
 
     func testDisconnectedServiceUsesStoredBroadcasterGrantToPauseBeforeClear()
@@ -938,7 +938,7 @@ final class TwitchTokenRefreshTests: XCTestCase {
         XCTAssertEqual(state.broadcasterID, "broadcaster")
         XCTAssertEqual(state.botID, "broadcaster")
         XCTAssertEqual(KeychainService.loadTwitchToken(), "OLD_ACCESS")
-        XCTAssertTrue(viewModel.statusMessage.contains("try again"))
+        XCTAssertEqual(viewModel.connectionError?.id, "twitch.disconnectFailed")
         XCTAssertEqual(state.oauthToken, "OLD_ACCESS")
         XCTAssertEqual(state.clientID, "client")
     }
