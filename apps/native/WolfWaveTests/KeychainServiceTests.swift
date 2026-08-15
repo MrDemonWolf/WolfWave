@@ -22,14 +22,20 @@ import Foundation
 final class KeychainServiceTests {
 
     private let previousBackend: KeychainBackend
+    private let previousReauthNeeded: Bool
 
     init() {
         SharedTestStateIsolation.acquire()
         previousBackend = KeychainService.backend
+        // The suite flips this directly, and KeychainService sets it on grant
+        // failure, so it must go back the way it was found or the next lock
+        // holder inherits a stale value.
+        previousReauthNeeded = Preferences.twitchReauthNeeded
         KeychainService.backend = InMemoryKeychainBackend()
     }
 
     deinit {
+        Preferences.setTwitchReauthNeeded(previousReauthNeeded)
         KeychainService.backend = previousBackend
         SharedTestStateIsolation.release()
     }
