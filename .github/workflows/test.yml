@@ -50,6 +50,9 @@ jobs:
               - '.github/FUNDING.yml'
               - 'scripts/generate-sponsor-config.sh'
               - 'scripts/check-generated-drift.sh'
+              # The script that decides whether the test run passed. Without
+              # this, editing the gate skips the very job it gates.
+              - 'scripts/check-test-results.sh'
               - '.github/actions/setup-native-build/**'
               - 'package.json'
               - 'bun.lock'

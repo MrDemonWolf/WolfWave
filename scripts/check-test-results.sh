@@ -8,17 +8,31 @@
 
 OUTPUT=$(cat)
 
-# Read the totals from the LAST "Executed N tests, with M failures" line.
+# Read the XCTest total from the LARGEST "Executed N tests" line.
 #
 # Do NOT sum these lines. xcodebuild prints one per test suite AND one per
 # enclosing suite, up to the outermost "All tests", so the same run appears
 # several times over: a suite of 18 with 2 failures printed at three nesting
-# levels summed to "54 tests, 6 failures". The outermost line is printed last
-# and already covers every suite.
-LAST_LINE=$(echo "$OUTPUT" | grep 'Executed.*tests.*failures' | tail -1)
-TOTAL_TESTS=$(echo "$LAST_LINE" | grep -oE 'Executed [0-9]+ tests' | grep -oE '[0-9]+')
-TOTAL_FAILURES=$(echo "$LAST_LINE" | grep -oE 'with [0-9]+ failures' | grep -oE '[0-9]+')
+# levels summed to "54 tests, 6 failures". The outermost line covers every
+# suite, so it is always the largest.
+#
+# Do NOT take the last line either, which is what this did before. That assumes
+# the outermost total prints last, and with parallel execution a straggler suite
+# can flush after it: one run reported "684 tests" (a 100-test suite plus Swift
+# Testing) for a suite that had actually executed 1097. Worse, failures were
+# read from that same line, so a small passing suite printing last would have
+# masked failures in a large one -- a false green.
+TOTAL_TESTS=$(echo "$OUTPUT" \
+    | grep -oE 'Executed [0-9]+ tests' \
+    | grep -oE '[0-9]+' \
+    | sort -n \
+    | tail -1)
 TOTAL_TESTS=${TOTAL_TESTS:-0}
+
+# Count failing XCTest cases directly rather than reading a summary line.
+# xcodebuild prints exactly one of these per failing test, so it cannot be
+# distorted by suite nesting or by the order suites finish in.
+TOTAL_FAILURES=$(echo "$OUTPUT" | grep -cE "^Test Case .* failed \(" || true)
 TOTAL_FAILURES=${TOTAL_FAILURES:-0}
 
 # Swift Testing (`@Test`) results are reported separately and do NOT appear in the
