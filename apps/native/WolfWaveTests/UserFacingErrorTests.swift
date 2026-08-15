@@ -83,6 +83,51 @@ final class UserFacingErrorTests: XCTestCase {
         XCTAssertTrue(error.secondaryActions.isEmpty)
     }
 
+    // MARK: - Docs Anchor
+
+    /// Setting an anchor is enough to get a Learn More button. Requiring
+    /// callers to also pass `.openDocs` would leave `docsAnchor` as a field
+    /// nothing renders, which is the defect this whole effort exists to remove.
+    func testDocsAnchorAddsALearnMoreAction() {
+        let error = UserFacingError(
+            id: "twitch.signInExpired",
+            title: "Twitch sign-in expired",
+            actions: [.reconnectTwitch],
+            docsAnchor: "twitch-sign-in-expired"
+        )
+        XCTAssertEqual(
+            error.resolvedActions,
+            [.reconnectTwitch, .openDocs(anchor: "twitch-sign-in-expired")]
+        )
+        XCTAssertEqual(error.primaryAction, .reconnectTwitch)
+        XCTAssertEqual(error.secondaryActions, [.openDocs(anchor: "twitch-sign-in-expired")])
+    }
+
+    func testNoAnchorLeavesActionsUntouched() {
+        let error = UserFacingError(id: "x", title: "T", actions: [.retry])
+        XCTAssertEqual(error.resolvedActions, [.retry])
+    }
+
+    /// An explicit link wins, so a caller can point somewhere other than this
+    /// error's own section.
+    func testExplicitDocsActionIsNotDuplicated() {
+        let error = UserFacingError(
+            id: "x",
+            title: "T",
+            actions: [.retry, .openDocs(anchor: "somewhere-else")],
+            docsAnchor: "its-own-section"
+        )
+        XCTAssertEqual(
+            error.resolvedActions,
+            [.retry, .openDocs(anchor: "somewhere-else")]
+        )
+    }
+
+    func testAnchorOnlyErrorStillOffersTheLink() {
+        let error = UserFacingError(id: "x", title: "T", docsAnchor: "anchor")
+        XCTAssertEqual(error.primaryAction, .openDocs(anchor: "anchor"))
+    }
+
     // MARK: - ErrorAction
 
     /// macOS uses title-style capitalization for controls, and the app already

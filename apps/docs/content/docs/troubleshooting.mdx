@@ -1,0 +1,212 @@
+---
+title: Troubleshooting
+description: Fixes for the errors WolfWave can show. Twitch sign-in, Apple Music permission, Discord connection, OBS overlay, and what to do when a reset stops partway.
+keywords:
+  - wolfwave troubleshooting
+  - wolfwave twitch sign-in expired
+  - wolfwave apple music permission
+  - wolfwave discord not connecting
+  - wolfwave overlay not updating
+  - wolfwave couldn't check channel
+ogTitle: WolfWave Troubleshooting. Fix it and get back to streaming
+ogDescription: Every error WolfWave shows, what caused it, and the fix.
+ogEyebrow: Troubleshooting
+ogChips:
+  - Twitch
+  - Apple Music
+  - Discord
+  - Overlay
+---
+
+Every error in WolfWave names what broke and offers the button that fixes it.
+This page is the longer version, for when you want the why.
+
+If your problem isn't here, [open an issue](https://github.com/MrDemonWolf/wolfwave/issues/new)
+with your logs attached. Settings, Advanced, Export Logs writes a file you can
+drop straight into the issue. Logs contain no tokens.
+
+## Twitch
+
+### Sign-in expired [#twitch-sign-in-expired]
+
+Twitch access tokens don't last forever. WolfWave refreshes yours in the
+background, but a refresh can fail if you revoked access, changed your Twitch
+password, or the token sat unused for a long time.
+
+**Fix:** click **Reconnect with Twitch** on the banner. Nothing else is lost:
+your channel, commands, and settings stay exactly as they were.
+
+### "Your sign-in is fine" errors [#sign-in-is-fine]
+
+If WolfWave says your sign-in is fine and something else went wrong, believe
+it. Reconnecting won't help, and it's checked rather than assumed.
+
+| Message | What happened | What to do |
+|---|---|---|
+| Twitch isn't | Twitch returned a server error | Wait a minute, then Try Again |
+| We're being rate limited | Too many requests in a short window | Wait for the countdown, then Try Again |
+| You're offline | Your Mac can't reach Twitch | Check your network, then Try Again |
+
+None of these are caused by anything you did, and none of them affect your
+saved sign-in.
+
+### No Twitch channel by that name [#channel-not-found]
+
+Twitch has no channel with that name. Almost always a typo.
+
+Channel names are the name in your channel URL, not your display name. If your
+URL is `twitch.tv/mrdemonwolf`, the channel is `mrdemonwolf`. Letters, numbers,
+and underscores only, 25 characters or fewer.
+
+### Signed in, but missing a permission [#twitch-missing-permission]
+
+Your sign-in works. WolfWave just wasn't granted one of the optional
+permissions, usually because you turned on a feature that needs a permission
+you didn't have when you first signed in.
+
+| Feature | Permission |
+|---|---|
+| Channel-point requests | `channel:manage:redemptions` |
+| Bit requests | `bits:read` |
+| Vote-skip using Twitch Polls | `channel:manage:polls` |
+
+**Fix:** click **Reconnect with Twitch**. This is the one case where
+reconnecting a working sign-in is the right move, because a background refresh
+can't add a permission you never granted. Everything else keeps working while
+the permission is missing, and only the feature that needs it is affected.
+
+### WolfWave isn't set up for Twitch [#twitch-client-id]
+
+This build shipped without a Twitch Client ID, so it can't talk to Twitch at
+all. You'll only see this if you built WolfWave from source.
+
+**Fix:** copy `Config.xcconfig.example` to `Config.xcconfig` in
+`apps/native/WolfWave/`, fill in `TWITCH_CLIENT_ID` from your
+[Twitch application](https://dev.twitch.tv/console/apps), and rebuild. Or
+[download a build](/docs/installation) where it's already wired up.
+
+### Chat replies stopped [#chat-replies-rejected]
+
+WolfWave is connected and reading chat, but Twitch is refusing the messages it
+tries to send. Commands go quiet even though everything looks connected.
+
+**Fix:** reconnect. If it comes back, check whether the account WolfWave signed
+in with is banned or timed out in your own channel, which does happen with bot
+accounts.
+
+## Apple Music
+
+### Let WolfWave read what's playing [#music-permission]
+
+macOS gates one app reading another's state behind Automation permission, and
+it has to be granted per app pair.
+
+**Fix:** click **Open System Settings**, then Privacy & Security, Automation,
+WolfWave, and turn on **Music**.
+
+WolfWave only ever reads the current track. It never plays, pauses, skips, or
+changes your library. If you turned it on and it still says off, quit and
+reopen WolfWave. macOS sometimes doesn't hand the new permission to a running
+app.
+
+### WolfWave lost track of Music [#music-stopped-responding]
+
+Music stopped answering WolfWave, so the now-playing card is frozen on the last
+track it saw. Usually Music itself is wedged.
+
+**Fix:** quit and reopen Music. WolfWave picks the track back up on its own.
+
+### Music can't see your requests playlist [#playlist-not-synced]
+
+Song requests are added to your Apple Music library in the cloud, but they play
+out of the Music app on this Mac. If Sync Library is off, Music never sees the
+playlist and requests have nothing to play from.
+
+**Fix:** in Music, Settings, General, turn on **Sync Library**, then click
+**Check Again** in WolfWave. Song requests keep running while you sort this out.
+
+## Discord
+
+### Discord isn't connecting [#discord-not-connecting]
+
+WolfWave tells these three apart, and they need different fixes.
+
+| Status | What happened | What to do |
+|---|---|---|
+| **Discord not running** | No Discord app found on this Mac | Open Discord. WolfWave connects on its own |
+| **Refused** | Discord is running but rejected the connection | Restart Discord |
+| **Blocked** | macOS blocked WolfWave from reaching Discord's local socket | Restart WolfWave, then send a bug report if it persists |
+
+Rich Presence needs the Discord **desktop app**. The browser version has no
+local connection for WolfWave to use.
+
+### Not configured [#discord-client-id]
+
+This build shipped without a Discord Application ID. Same situation as the
+Twitch one above: set `DISCORD_CLIENT_ID` in `Config.xcconfig` and rebuild, or
+[download a build](/docs/installation) where it's already set.
+
+## Stream widgets
+
+### The overlay stopped updating [#overlay-not-updating]
+
+Almost always the token or the port changed, and OBS is still pointed at the
+old URL.
+
+**Fix:** copy the overlay URL again from Settings, Stream Widgets, and paste it
+into your OBS browser source. Regenerating a token invalidates every URL that
+used the old one.
+
+### Port already in use [#port-in-use]
+
+Another app on your Mac already holds that port.
+
+**Fix:** pick a different port in Settings, Stream Widgets, then update the URL
+in OBS to match.
+
+### That token won't save [#widget-token]
+
+Tokens are exactly 64 hex characters, `0` to `9` and `a` to `f`. The overlay
+and control tokens also have to differ from each other. If saving fails
+outright, your current token stays active, so OBS keeps working.
+
+## Settings and data
+
+### Reset stopped partway [#reset-stopped-partway]
+
+Erase & Reset removes your saved sign-ins first, and stops if macOS refuses.
+**Nothing was erased.** WolfWave says so explicitly rather than leaving you to
+guess.
+
+**Fix:** try again. If it keeps failing, restart your Mac and retry. A Keychain
+that refuses deletion usually clears after a reboot.
+
+### That's not a WolfWave backup [#backup-not-recognized]
+
+The file wasn't produced by WolfWave's Back Up Settings, or it's damaged.
+Backups are written by Settings, Advanced, Back Up Settings. A backup from a
+newer WolfWave than the one you're running can't be imported, so update first.
+
+### Couldn't save your Twitch sign-in [#keychain-write-failed]
+
+macOS blocked WolfWave from writing to the Keychain. You'll be asked to sign in
+again next launch.
+
+**Fix:** sign in again. If it repeats every launch, open Keychain Access and
+check whether the login keychain is locked.
+
+## Updates
+
+### Couldn't check for updates [#update-check-failed]
+
+WolfWave couldn't reach the update server. Usually a network blip.
+
+**Fix:** click **Check Again**. If you installed with Homebrew, WolfWave
+doesn't manage its own updates at all: run `brew upgrade wolfwave`.
+
+## Still stuck
+
+Export your logs from Settings, Advanced, then
+[open an issue](https://github.com/MrDemonWolf/wolfwave/issues/new). Include
+what you were doing and the exact message WolfWave showed. Logs never contain
+tokens or credentials.

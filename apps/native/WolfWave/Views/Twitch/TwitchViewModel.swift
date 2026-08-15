@@ -1154,7 +1154,8 @@ final class TwitchViewModel {
                 cause: "macOS blocked WolfWave from writing to the Keychain.",
                 fix: "You'll be asked to sign in again next launch.",
                 severity: .error,
-                actions: [.reconnectTwitch, .reportBug]
+                actions: [.reconnectTwitch, .reportBug],
+                docsAnchor: "keychain-write-failed"
             )
         }
 
@@ -1168,7 +1169,8 @@ final class TwitchViewModel {
                     + "so you are still signed in.",
                 fix: "Try again. If it keeps failing, restart your Mac.",
                 severity: .error,
-                actions: [.retry, .reportBug]
+                actions: [.retry, .reportBug],
+                docsAnchor: "keychain-write-failed"
             )
         }
 
@@ -1182,7 +1184,8 @@ final class TwitchViewModel {
                 cause: "WolfWave wasn't granted: \(scopes.joined(separator: ", ")).",
                 fix: "Reconnect to grant it. Everything else keeps working.",
                 severity: .warning,
-                actions: [.reconnectTwitch]
+                actions: [.reconnectTwitch],
+                docsAnchor: "twitch-missing-permission"
             )
         }
 
@@ -1193,7 +1196,8 @@ final class TwitchViewModel {
                 cause: "This build has no Twitch Client ID.",
                 fix: "Reinstall from the website, or set TWITCH_CLIENT_ID in Config.xcconfig.",
                 severity: .error,
-                actions: [.openDocs(anchor: "twitch-client-id")]
+                actions: [.openDocs(anchor: "twitch-client-id")],
+                docsAnchor: "twitch-client-id"
             )
         }
 
@@ -1204,7 +1208,8 @@ final class TwitchViewModel {
                 cause: "Chat commands stopped working.",
                 fix: "Reconnect and WolfWave picks up where it left off.",
                 severity: .warning,
-                actions: [.reconnectTwitch]
+                actions: [.reconnectTwitch],
+                docsAnchor: "twitch-sign-in-expired"
             )
         }
 
@@ -1233,7 +1238,8 @@ final class TwitchViewModel {
                 title: "No Twitch channel by that name",
                 cause: "Nothing on Twitch matches \(StreamerMode.mask(channel, style: .channel, isOn: StreamerMode.isEnabled)).",
                 fix: "Check the spelling, then choose Join.",
-                severity: .error
+                severity: .error,
+                docsAnchor: "channel-not-found"
             )
         }
 
@@ -1247,7 +1253,8 @@ final class TwitchViewModel {
                     : "Your sign-in is fine, Twitch isn't",
                 cause: TwitchViewModel.notPermittedMessage(status: status),
                 severity: .warning,
-                actions: [.retry]
+                actions: [.retry],
+                docsAnchor: "sign-in-is-fine"
             )
         }
 
