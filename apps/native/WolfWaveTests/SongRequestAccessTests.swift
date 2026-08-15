@@ -13,7 +13,7 @@ import XCTest
 // MARK: - RequestAudience
 
 @MainActor
-final class RequestAudienceTests: XCTestCase {
+final class RequestAudienceTests: WolfWaveTestCase {
 
     func testEveryonePermitsAnyViewer() {
         XCTAssertTrue(
@@ -89,7 +89,7 @@ final class RequestAudienceTests: XCTestCase {
 // MARK: - SongRequestPreset
 
 @MainActor
-final class SongRequestPresetTests: XCTestCase {
+final class SongRequestPresetTests: WolfWaveTestCase {
 
     private var defaults: UserDefaults!
 
@@ -186,7 +186,7 @@ final class SongRequestPresetTests: XCTestCase {
 // MARK: - SongRequestLimits
 
 @MainActor
-final class SongRequestLimitsTests: XCTestCase {
+final class SongRequestLimitsTests: WolfWaveTestCase {
 
     private var defaults: UserDefaults!
 
@@ -304,7 +304,7 @@ final class SongRequestLimitsTests: XCTestCase {
 // MARK: - RedemptionStatus
 
 @MainActor
-final class RedemptionStatusTests: XCTestCase {
+final class RedemptionStatusTests: WolfWaveTestCase {
 
     func testOkHasNoBanner() {
         XCTAssertNil(RedemptionStatus.ok.bannerMessage)

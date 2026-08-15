@@ -9,7 +9,7 @@
 import XCTest
 @testable import WolfWave
 
-final class StreamerModeTests: XCTestCase {
+final class StreamerModeTests: WolfWaveTestCase {
 
     // MARK: - mask: off
 

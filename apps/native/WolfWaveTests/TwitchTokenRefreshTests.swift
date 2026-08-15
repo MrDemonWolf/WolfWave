@@ -32,7 +32,7 @@ final class TwitchTokenRefreshTests: XCTestCase {
         try await super.setUp()
         handlerStore.handler = nil
         Self.resetRedemptionDefaults()
-        await KeychainBackendTestIsolation.acquireAsync()
+        await SharedTestStateIsolation.acquireAsync()
         previousBackend = KeychainService.backend
         backend = InMemoryKeychainBackend()
         KeychainService.backend = backend
@@ -42,7 +42,7 @@ final class TwitchTokenRefreshTests: XCTestCase {
         Self.resetRedemptionDefaults()
         handlerStore.handler = nil
         KeychainService.backend = previousBackend
-        KeychainBackendTestIsolation.release()
+        SharedTestStateIsolation.release()
         try await super.tearDown()
     }
 

@@ -15,7 +15,7 @@ import Testing
 /// to the documented default, and an explicitly-written value must win.
 ///
 /// Serialized because every case mutates a shared `DefaultsStore.store` key.
-@Suite("FeatureFlags Defaults", .serialized)
+@Suite("FeatureFlags Defaults", .serialized, .isolatedSharedTestState)
 struct FeatureFlagsDefaultsTests {
 
     /// Runs `body` with `value` stored under `key` (or the key removed when

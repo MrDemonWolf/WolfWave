@@ -13,7 +13,7 @@ import XCTest
 /// resolution from UserDefaults. Each test resolves against a throwaway
 /// `UserDefaults` suite so `.standard` is never touched.
 @MainActor
-final class WolfWaveReplyStyleTests: XCTestCase {
+final class WolfWaveReplyStyleTests: WolfWaveTestCase {
 
     /// A fresh, isolated UserDefaults suite, auto-cleaned at tear-down.
     private func makeStore() throws -> UserDefaults {

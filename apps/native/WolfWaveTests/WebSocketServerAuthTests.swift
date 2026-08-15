@@ -209,13 +209,13 @@ final class WebSocketServerAuthTests: XCTestCase {
     // MARK: - Role-isolated persistence
 
     private func withInMemoryKeychain(_ body: () throws -> Void) rethrows {
-        KeychainBackendTestIsolation.acquire()
+        SharedTestStateIsolation.acquire()
         let previous = KeychainService.backend
         KeychainService.backend = InMemoryKeychainBackend()
         defer {
             WebSocketAuthToken.resetSessionCredentialsForTesting()
             KeychainService.backend = previous
-            KeychainBackendTestIsolation.release()
+            SharedTestStateIsolation.release()
         }
         WebSocketAuthToken.resetSessionCredentialsForTesting()
         try body()
@@ -283,13 +283,13 @@ final class WebSocketServerAuthTests: XCTestCase {
     }
 
     func testSessionFallbackDoesNotOverwriteCredentialInstalledDuringRecovery() {
-        KeychainBackendTestIsolation.acquire()
+        SharedTestStateIsolation.acquire()
         let previous = KeychainService.backend
         KeychainService.backend = FailingKeychainBackend()
         defer {
             WebSocketAuthToken.resetSessionCredentialsForTesting()
             KeychainService.backend = previous
-            KeychainBackendTestIsolation.release()
+            SharedTestStateIsolation.release()
         }
         WebSocketAuthToken.resetSessionCredentialsForTesting()
 
@@ -308,13 +308,13 @@ final class WebSocketServerAuthTests: XCTestCase {
     }
 
     func testSessionFallbackPersistsAfterConfirmedAbsenceRecovers() {
-        KeychainBackendTestIsolation.acquire()
+        SharedTestStateIsolation.acquire()
         let previous = KeychainService.backend
         KeychainService.backend = FailingKeychainBackend()
         defer {
             WebSocketAuthToken.resetSessionCredentialsForTesting()
             KeychainService.backend = previous
-            KeychainBackendTestIsolation.release()
+            SharedTestStateIsolation.release()
         }
         WebSocketAuthToken.resetSessionCredentialsForTesting()
 
@@ -329,14 +329,14 @@ final class WebSocketServerAuthTests: XCTestCase {
     }
 
     func testReadFailureNeverAttemptsToPersistFallback() {
-        KeychainBackendTestIsolation.acquire()
+        SharedTestStateIsolation.acquire()
         let previous = KeychainService.backend
         let failing = ReadFailingKeychainBackend()
         KeychainService.backend = failing
         defer {
             WebSocketAuthToken.resetSessionCredentialsForTesting()
             KeychainService.backend = previous
-            KeychainBackendTestIsolation.release()
+            SharedTestStateIsolation.release()
         }
         WebSocketAuthToken.resetSessionCredentialsForTesting()
 
@@ -348,13 +348,13 @@ final class WebSocketServerAuthTests: XCTestCase {
     }
 
     func testRotateDoesNotPublishUnpersistedCredential() {
-        KeychainBackendTestIsolation.acquire()
+        SharedTestStateIsolation.acquire()
         let previous = KeychainService.backend
         KeychainService.backend = FailingKeychainBackend()
         defer {
             WebSocketAuthToken.resetSessionCredentialsForTesting()
             KeychainService.backend = previous
-            KeychainBackendTestIsolation.release()
+            SharedTestStateIsolation.release()
         }
 
         WebSocketAuthToken.resetSessionCredentialsForTesting()

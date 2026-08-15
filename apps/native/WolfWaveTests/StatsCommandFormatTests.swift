@@ -13,7 +13,7 @@ import Foundation
 /// Tests for the `!stats` command configuration types: the window + facts
 /// enums (resolution, parsing, round-tripping) and the pure chat-line renderer.
 @MainActor
-@Suite("Stats Command Format Tests")
+@Suite("Stats Command Format Tests", .isolatedSharedTestState)
 struct StatsCommandFormatTests {
 
     // MARK: - Helpers

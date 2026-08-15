@@ -10,7 +10,7 @@ import XCTest
 @testable import WolfWave
 
 @MainActor
-final class SparkleUpdaterServiceTests: XCTestCase {
+final class SparkleUpdaterServiceTests: WolfWaveTestCase {
 
     // MARK: - Feed URL Tests
 
