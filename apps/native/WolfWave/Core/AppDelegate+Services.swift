@@ -1092,9 +1092,9 @@ extension AppDelegate {
                     // validator. Only the feature needing the scope is affected,
                     // and it surfaces its own banner where it is configured.
                     Log.warn(
-                        "AppDelegate: Twitch token is valid but missing scopes: "
-                            + scopes.joined(separator: ", "),
-                        category: "Twitch"
+                        "AppDelegate: Twitch token is valid but missing scopes",
+                        category: .twitchAuth,
+                        fields: ["scopes": scopes.joined(separator: ",")]
                     )
                 },
                 onTemporarilyUnavailable: { credential in
