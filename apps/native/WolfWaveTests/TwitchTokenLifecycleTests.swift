@@ -24,8 +24,10 @@ final class TwitchTokenLifecycleTests: XCTestCase {
     override func setUp() async throws {
         try await super.setUp()
         handlerStore.handler = nil
-        Self.resetRedemptionDefaults()
+        // Acquire before touching DefaultsStore.store: an unguarded reset here
+        // is the same cross-suite race SharedTestStateIsolation exists to close.
         await SharedTestStateIsolation.acquireAsync()
+        Self.resetRedemptionDefaults()
         previousBackend = KeychainService.backend
         backend = InMemoryKeychainBackend()
         KeychainService.backend = backend
