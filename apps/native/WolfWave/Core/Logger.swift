@@ -9,12 +9,18 @@
 import Foundation
 import os
 
-/// Typed log category. Use the enum form to avoid typos that silently route
-/// a log line to a sibling category. String overloads on `Log` remain for
-/// incremental migration.
-enum LogCategory: String {
+/// Typed log category, and the only way to tag a log line.
+///
+/// This is the sole entry point on purpose. When `Log` also accepted a free-form
+/// `String`, the enum went completely unused (0 call sites) and the exact typo it
+/// existed to prevent shipped anyway: `"Reset"` was written at three sites and was
+/// not a case, so those lines filtered as their own phantom category forever.
+///
+/// The raw value is what appears in the log file's category column and in
+/// Console.app's Category field. Keep raw values at 12 characters or fewer so the
+/// column stays aligned (see `Log.categoryWidth`).
+enum LogCategory: String, CaseIterable {
     case app = "App"
-    case twitch = "Twitch"
     case discord = "Discord"
     case music = "Music"
     case keychain = "Keychain"
@@ -29,53 +35,108 @@ enum LogCategory: String {
     case artwork = "Artwork"
     case whatsNew = "WhatsNew"
     case history = "History"
+    case reset = "Reset"
+
+    // MARK: Twitch
+    //
+    // Twitch alone was 236 of 458 categorized call sites (51%), so filtering by
+    // "Twitch" selected half the log and bought almost nothing. Split along the
+    // existing `TwitchChatService+*` file seams, which makes the mapping
+    // mechanical rather than a judgement call per line.
+
+    /// Anything Twitch that is not one of the four areas below: view models,
+    /// service wiring, settings surfaces.
+    case twitch = "Twitch"
+
+    /// Device-code flow, token refresh, token validation.
+    case twitchAuth = "TwitchAuth"
+
+    /// Chat send/receive and bot-command routing.
+    case twitchChat = "TwitchChat"
+
+    /// EventSub subscription lifecycle and the WebSocket connection under it.
+    case twitchEvents = "TwitchEvents"
+
+    /// Channel-point redemptions, bit cheers, and the resolution outbox.
+    case twitchRedeem = "TwitchRedeem"
 }
 
-/// Severity classification used by every log line. The raw value is the
-/// emoji-prefixed string that appears in both the on-disk log file and the
-/// macOS unified logging system.
+/// Severity classification used by every log line.
+///
+/// The raw value is the bare uppercase token written to the on-disk log file.
+/// It is deliberately *not* emoji-prefixed: an emoji is multi-codepoint
+/// (`ℹ️` is U+2139 U+FE0F), variable-width in bytes, and makes `grep -c ERROR`
+/// ambiguous against message text. The Debug tab's log viewer colorizes by
+/// level instead, and Console.app renders its own level column.
 ///
 /// Severity ordering (lowest → highest): `.debug`, `.info`, `.warn`, `.error`.
-enum LogLevel: String {
+enum LogLevel: String, CaseIterable {
     /// Verbose developer-only information. Suppressed in release builds.
-    case debug = "🐛 DEBUG"
+    case debug = "DEBUG"
 
     /// Informational events that are useful at all times (lifecycle, state
     /// transitions, connection success).
-    case info  = "ℹ️ INFO"
+    case info = "INFO"
 
     /// Recoverable problems or unexpected conditions that did not interrupt
     /// the user-visible flow.
-    case warn  = "⚠️ WARN"
+    case warn = "WARN"
 
     /// Failures that produced an error result or aborted an operation.
-    case error = "🛑 ERROR"
+    case error = "ERROR"
 }
 
-/// Structured logging utility with emoji prefixes and categories.
+// `Log` is one cohesive namespace. Splitting the line-format and redaction
+// helpers into an extension file would force widening a dozen `private` members
+// to internal, since `private` is file-scoped in Swift.
+// swiftlint:disable type_body_length
+
+/// Structured logging utility.
 ///
-/// Debug logs are only emitted in development builds (#DEBUG flag).
+/// ## Line format
+///
+/// Every record written to the log file follows one invariant:
+///
+/// > **A log record starts with an ISO-8601 timestamp at column 0.
+/// > Continuation lines start with whitespace.**
+///
+/// ```
+/// 2026-08-14T14:03:24.102-05:00  ERROR  Twitch        TwitchChatService.swift:812  Reconnect failed attempt=3 code=4003
+/// ```
+///
+/// Fields, left to right: timestamp, level (padded), category (padded),
+/// `File.swift:line` (padded), message, then an optional ` key=value` tail
+/// from ``log(_:level:category:fields:file:line:)``. Fields are separated by
+/// two or more spaces, so a parser can split on that run and take the message
+/// as the remainder. ``LogRecord`` is the canonical reader; the grammar is
+/// written up in `apps/native/docs/logging-format.md`.
+///
+/// Debug logs are only emitted in development builds (`DEBUG` flag).
 /// Production builds only emit info, warning, and error logs.
 ///
-/// Logs are written to both the console and a rotating log file in the
-/// app's Application Support directory. Use `exportLogFile()` to get
-/// the log file URL for sharing.
+/// Logs go to both the macOS unified logging system and a rotating file in the
+/// app's Application Support directory. Use ``exportLogFile()`` for the URL.
 ///
-/// Thread Safety:
-/// All mutable file state (`fileHandle`, `_logFileURL`) is accessed
-/// exclusively on `fileQueue`, a serial dispatch queue.
+/// ## Thread safety
 ///
-/// Usage:
+/// All mutable file state (`fileHandle`, `_logFileURL`, `bannerPending`,
+/// `lineCountCache`) is accessed exclusively on `fileQueue`, a serial dispatch
+/// queue. The throttle table and the OSLog cache have their own locks.
+///
+/// ## Usage
+///
 /// ```swift
-/// Log.info("Message", category: "Category")
-/// Log.error("Error message", category: "Network")
-/// Log.debug("Debug info", category: "Dev")  // Only in development
+/// Log.info("Connected", category: .twitchChat)
+/// Log.error("Reconnect failed", category: .twitchEvents, fields: ["attempt": 3, "code": 4003])
+/// Log.debug("Payload dump", category: .dev)  // Only in development
 /// ```
 enum Log {
 
-    /// Shared timestamp formatter used by every log line. Locale-stable
-    /// HH:mm:ss.SSS so file output collates correctly in any timezone.
-    nonisolated private static var formatter: DateFormatter { SharedFormatters.logTimestamp }
+    /// Ordered `key=value` pairs appended to a log line.
+    ///
+    /// `KeyValuePairs` preserves declaration order and is expressible as a
+    /// dictionary literal at the call site, so no new type is needed.
+    typealias Fields = KeyValuePairs<String, any CustomStringConvertible>
 
     /// Whether debug logging is enabled (only in DEBUG builds)
     nonisolated private static var isDebugLoggingEnabled: Bool {
@@ -86,7 +147,17 @@ enum Log {
         #endif
     }
 
-    // MARK: - OSLog Level Gate
+    // MARK: - Session
+
+    /// Short random identifier for this process, emitted in the launch banner.
+    ///
+    /// Deliberately *not* repeated on every line. The banner marks the session
+    /// boundary and a reader carries it forward, which costs nothing per line.
+    nonisolated static let sessionID: String = {
+        String(format: "%06x", UInt32.random(in: 0...0xFF_FFFF))
+    }()
+
+    // MARK: - Level Gate
 
     /// Numeric severity rank for `LogLevel`. Higher = more severe.
     nonisolated private static func rank(_ level: LogLevel) -> Int {
@@ -98,18 +169,20 @@ enum Log {
         }
     }
 
-    /// Minimum severity that reaches `os.Logger`. File writes are unaffected.
+    /// Minimum severity that is emitted at all, to either sink.
     ///
     /// Defaults:
     /// - Under XCTest (CI / `xcodebuild test`): `.error`. Keeps unit-test runs
-    ///   from flooding the captured xcodebuild output with thousands of info
-    ///   lines per suite while still surfacing real failures.
+    ///   from flooding captured output, and from churning the shared log file.
     /// - Otherwise: `.debug`. Full chatter, same as historical behavior.
     ///
     /// Override with the `WOLFWAVE_LOG_LEVEL` env var (`silent` / `error` /
-    /// `warn` / `info` / `debug`). `silent` suppresses every OSLog dispatch
-    /// including errors.
-    nonisolated private static let minOSLogRank: Int = {
+    /// `warn` / `info` / `debug`). `silent` suppresses everything.
+    ///
+    /// This gates the **file sink as well as OSLog**. It used to gate only
+    /// OSLog, which meant the variable could not actually reduce disk volume
+    /// despite its name saying otherwise.
+    nonisolated private static let minRank: Int = {
         let env = ProcessInfo.processInfo.environment
         if let raw = env["WOLFWAVE_LOG_LEVEL"]?.lowercased() {
             switch raw {
@@ -131,11 +204,6 @@ enum Log {
     /// Subsystem identifier used for all OSLog entries.
     nonisolated private static let subsystem = "com.mrdemonwolf.wolfwave"
 
-    /// Returns a cached `os.Logger` for the given category.
-    ///
-    /// Logs appear in Console.app and Instruments. Filter by subsystem
-    /// `com.mrdemonwolf.wolfwave` and use the Category column to isolate
-    /// specific areas (e.g. "Twitch", "Discord", "Music").
     /// Cache of per-category `os.Logger` instances keyed by category name.
     /// Read/written under `osLoggerLock`.
     nonisolated(unsafe) private static var osLoggers: [String: os.Logger] = [:]
@@ -144,6 +212,10 @@ enum Log {
     nonisolated private static let osLoggerLock = NSLock()
 
     /// Returns a cached `os.Logger` for `category`, creating one on first use.
+    ///
+    /// Logs appear in Console.app and Instruments. Filter by subsystem
+    /// `com.mrdemonwolf.wolfwave` and use the Category column to isolate
+    /// specific areas (e.g. "Twitch", "Discord", "Music").
     ///
     /// - Parameter category: Free-form category tag (e.g. `"Twitch"`).
     /// - Returns: The shared logger for that category.
@@ -161,6 +233,13 @@ enum Log {
     /// Maximum log file size before rotation (5 MB).
     nonisolated private static let maxLogFileSize: UInt64 = 5 * 1024 * 1024
 
+    /// Number of rotated backups retained alongside the live log.
+    ///
+    /// Three (so `wolfwave.log` plus `.1`/`.2`/`.3`, 20 MB worst case). One
+    /// backup was not enough: a tight reconnect loop rotates twice in seconds
+    /// and evicts the original failure entirely.
+    nonisolated private static let rotationDepth = 3
+
     /// Serial queue protecting all file I/O state.
     nonisolated private static let fileQueue = DispatchQueue(label: "com.mrdemonwolf.wolfwave.logger", qos: .utility)
 
@@ -169,6 +248,21 @@ enum Log {
 
     /// URL of the current log file. Only access on `fileQueue`.
     nonisolated(unsafe) private static var _logFileURL: URL?
+
+    /// Inode `fileHandle` was opened against, used to detect the file being
+    /// replaced underneath us. Only access on `fileQueue`.
+    nonisolated(unsafe) private static var openedInode: UInt64?
+
+    /// Whether the session banner still needs writing. Only access on `fileQueue`.
+    ///
+    /// Set back to `true` by ``rotateLogFile(at:)`` so the fresh file also
+    /// carries a banner; otherwise a rotated log would have no build to
+    /// attribute its lines to.
+    nonisolated(unsafe) private static var bannerPending = true
+
+    /// Memoized `(size, modified, lines)` for ``logLineCount()``.
+    /// Only access on `fileQueue`.
+    nonisolated(unsafe) private static var lineCountCache: (size: Int64, modified: Date, lines: Int)?
 
     /// Returns the log file URL, creating the directory and file if needed.
     /// Must be called on `fileQueue`.
@@ -194,12 +288,24 @@ enum Log {
         fileQueue.async {
             let url = logFileURL
 
-            // Rotate if file exceeds max size
-            if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
-               let size = attrs[.size] as? UInt64,
-               size > maxLogFileSize
-            {
+            // One stat serves both the rotation check and the staleness check.
+            let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
+
+            if let size = attrs?[.size] as? UInt64, size > maxLogFileSize {
                 rotateLogFile(at: url)
+            }
+
+            // The file can be replaced underneath a live handle: a factory
+            // reset wipes the whole container, and `logFileURL` then recreates
+            // an empty file at the same path. The old handle still points at
+            // the unlinked inode, so every subsequent line would be written
+            // into a file nobody can open again. Compare inodes and reopen.
+            if let inode = attrs?[.systemFileNumber] as? UInt64,
+               let opened = openedInode,
+               inode != opened
+            {
+                try? fileHandle?.close()
+                fileHandle = nil
             }
 
             // Open file handle if needed. Throwing FileHandle APIs only: the
@@ -209,37 +315,103 @@ enum Log {
             if fileHandle == nil {
                 fileHandle = FileHandle(forWritingAtPath: url.path)
                 _ = try? fileHandle?.seekToEnd()
+                let opened = try? FileManager.default.attributesOfItem(atPath: url.path)
+                openedInode = opened?[.systemFileNumber] as? UInt64
             }
 
-            if let data = (line + "\n").data(using: .utf8) {
-                do {
-                    try fileHandle?.write(contentsOf: data)
-                } catch {
-                    // Self-heal: drop the stale handle so the next write
-                    // reopens it instead of failing forever.
-                    try? fileHandle?.close()
-                    fileHandle = nil
-                }
+            if bannerPending {
+                bannerPending = false
+                appendLine(sessionBannerLine())
             }
+
+            appendLine(frameContinuations(line))
         }
     }
 
-    /// Rotates the log file by renaming the current file and starting fresh.
+    /// Appends one already-formatted record plus a newline. Call on `fileQueue`.
+    nonisolated private static func appendLine(_ line: String) {
+        guard let data = (line + "\n").data(using: .utf8) else { return }
+        do {
+            try fileHandle?.write(contentsOf: data)
+            lineCountCache = nil
+        } catch {
+            // Self-heal: drop the stale handle so the next write
+            // reopens it instead of failing forever.
+            try? fileHandle?.close()
+            fileHandle = nil
+            openedInode = nil
+        }
+    }
+
+    /// Indents every line after the first by two spaces.
+    ///
+    /// Upholds the column-0 invariant: a reader can trust that any line
+    /// starting with whitespace belongs to the record above it. Without this,
+    /// a multi-line `error.localizedDescription` or a `CrashReporter` reason
+    /// produces orphan lines with no level, category, or timestamp.
+    nonisolated private static func frameContinuations(_ line: String) -> String {
+        guard line.contains("\n") else { return line }
+        return line
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .enumerated()
+            .map { $0.offset == 0 ? String($0.element) : "  " + $0.element }
+            .joined(separator: "\n")
+    }
+
+    /// Builds the per-launch banner identifying the build that wrote what follows.
+    nonisolated private static func sessionBannerLine() -> String {
+        let osVersion = ProcessInfo.processInfo.operatingSystemVersion
+        #if arch(arm64)
+        let arch = "arm64"
+        #elseif arch(x86_64)
+        let arch = "x86_64"
+        #else
+        let arch = "unknown"
+        #endif
+
+        return formatFileLine(
+            "WolfWave session start",
+            level: .info,
+            category: LogCategory.app.rawValue,
+            location: "Logger.swift:0",
+            fields: [
+                "session": sessionID,
+                "version": AppConstants.AppInfo.shortVersion,
+                "build": AppConstants.AppInfo.buildNumber,
+                "os": "\(osVersion.majorVersion).\(osVersion.minorVersion).\(osVersion.patchVersion)",
+                "arch": arch,
+                "pid": ProcessInfo.processInfo.processIdentifier
+            ]
+        )
+    }
+
+    /// Rotates the log file by shifting backups and starting fresh.
     nonisolated private static func rotateLogFile(at url: URL) {
         try? fileHandle?.close()
         fileHandle = nil
+        openedInode = nil
 
-        let backupURL = url.deletingLastPathComponent()
-            .appending(path: "wolfwave.log.1")
-        try? FileManager.default.removeItem(at: backupURL)
-        try? FileManager.default.moveItem(at: url, to: backupURL)
-        FileManager.default.createFile(atPath: url.path, contents: nil)
+        let manager = FileManager.default
+        let directory = url.deletingLastPathComponent()
+        let backup = { (index: Int) in directory.appending(path: "wolfwave.log.\(index)") }
 
-        // Clean up old log files (keep only the most recent backup)
-        cleanupOldLogs(in: url.deletingLastPathComponent())
+        // Shift down from the oldest so nothing is overwritten out of order.
+        try? manager.removeItem(at: backup(rotationDepth))
+        for index in stride(from: rotationDepth - 1, through: 1, by: -1) {
+            try? manager.moveItem(at: backup(index), to: backup(index + 1))
+        }
+        try? manager.moveItem(at: url, to: backup(1))
+        manager.createFile(atPath: url.path, contents: nil)
+
+        lineCountCache = nil
+        // The fresh file needs its own banner, or its lines cannot be
+        // attributed to a build.
+        bannerPending = true
+
+        cleanupOldLogs(in: directory)
     }
 
-    /// Removes old log files beyond the most recent backup
+    /// Removes rotated logs beyond ``rotationDepth``.
     nonisolated private static func cleanupOldLogs(in directory: URL) {
         let fileManager = FileManager.default
         guard let files = try? fileManager.contentsOfDirectory(
@@ -248,37 +420,44 @@ enum Log {
             options: .skipsHiddenFiles
         ) else { return }
 
-        // Find all .log files except the current one
-        let logFiles = files.filter { url in
-            let name = url.lastPathComponent
-            return name.hasPrefix("wolfwave.log") && name != "wolfwave.log" && name != "wolfwave.log.1"
-        }
+        let kept: Set<String> = Set(
+            ["wolfwave.log"] + (1...rotationDepth).map { "wolfwave.log.\($0)" }
+        )
 
-        // Delete old log files
-        for file in logFiles {
+        let stale = files.filter { file in
+            let name = file.lastPathComponent
+            return name.hasPrefix("wolfwave.log") && !kept.contains(name)
+        }
+        for file in stale {
             try? fileManager.removeItem(at: file)
         }
     }
 
     // MARK: - Public API
+    //
+    // `LogCategory` is the only accepted category type. There is deliberately no
+    // `String` overload: when one existed, every call site used it, the enum sat
+    // at 0 uses, and a `"Reset"` typo shipped to three sites unnoticed.
 
     /// Writes a log line at the given level. Prefer the convenience entry
     /// points (`debug`, `info`, `warn`, `error`) over calling `log` directly.
     ///
-    /// The message is run through `redactSensitiveInfo` before either sink
-    /// receives it; OSLog entries are marked `.public` because PII redaction
-    /// has already happened.
+    /// The message and every field value are run through `redactSensitiveInfo`
+    /// before either sink receives them; OSLog entries are marked `.public`
+    /// because PII redaction has already happened.
     ///
     /// - Parameters:
     ///   - message: Free-form message body.
     ///   - level: Severity classification. Defaults to `.info`.
     ///   - category: Logical area tag for filtering in Console.app.
+    ///   - fields: Optional ordered `key=value` pairs appended to the line.
     ///   - file: Auto-captured `#fileID`.
     ///   - line: Auto-captured `#line`.
     nonisolated static func log(
         _ message: String,
         level: LogLevel = .info,
-        category: String = "App",
+        category: LogCategory = .app,
+        fields: Fields = [:],
         file: StaticString = #fileID,
         line: UInt = #line
     ) {
@@ -287,21 +466,28 @@ enum Log {
         // Log.log(..., level: .debug) would otherwise bypass that suppression and
         // write to disk in a release build.
         if level == .debug && !isDebugLoggingEnabled { return }
+        guard rank(level) >= minRank else { return }
 
+        let name = category.rawValue
         let redactedMessage = redactSensitiveInfo(message)
         let location = sourceLocation(file: file, line: line)
+        let tail = renderFields(fields)
 
-        // File log keeps emoji + timestamp + location for human grep-ing.
-        let fileLine = formatFileLine(redactedMessage, level: level, category: category, location: location)
-        writeToFile(fileLine)
+        writeToFile(
+            formatFileLine(
+                redactedMessage,
+                level: level,
+                category: name,
+                location: location,
+                renderedFields: tail
+            )
+        )
 
         // OSLog → Xcode console + Console.app + Instruments.
         // Source location appended so it's clickable in Xcode 16+.
         // Messages are marked .public since PII has already been redacted above.
-        // Gate by minOSLogRank so XCTest runs / CI don't flood captured stdout.
-        guard rank(level) >= minOSLogRank else { return }
-        let logger = osLogger(for: category)
-        let osMessage = "\(redactedMessage)  (\(location))"
+        let logger = osLogger(for: name)
+        let osMessage = "\(redactedMessage)\(tail)  (\(location))"
         switch level {
         case .debug: logger.debug("\(osMessage, privacy: .public)")
         case .info:  logger.info("\(osMessage, privacy: .public)")
@@ -317,111 +503,131 @@ enum Log {
     /// skip the work entirely.
     nonisolated static func debug(
         _ message: @autoclosure () -> String,
-        category: String = "App",
+        category: LogCategory = .app,
+        fields: Fields = [:],
         file: StaticString = #fileID,
         line: UInt = #line
     ) {
         guard isDebugLoggingEnabled else { return }
-        log(message(), level: .debug, category: category, file: file, line: line)
+        log(message(), level: .debug, category: category, fields: fields, file: file, line: line)
     }
 
     /// Convenience entry point for `.info` logs.
     nonisolated static func info(
         _ message: String,
-        category: String = "App",
+        category: LogCategory = .app,
+        fields: Fields = [:],
         file: StaticString = #fileID,
         line: UInt = #line
     ) {
-        log(message, level: .info, category: category, file: file, line: line)
+        log(message, level: .info, category: category, fields: fields, file: file, line: line)
     }
 
     /// Convenience entry point for `.warn` logs.
     nonisolated static func warn(
         _ message: String,
-        category: String = "App",
+        category: LogCategory = .app,
+        fields: Fields = [:],
         file: StaticString = #fileID,
         line: UInt = #line
     ) {
-        log(message, level: .warn, category: category, file: file, line: line)
+        log(message, level: .warn, category: category, fields: fields, file: file, line: line)
     }
 
-    /// Convenience entry point for `.error` logs. Flushes the file handle
-    /// immediately so the entry survives a crash that follows the call site.
+    /// Convenience entry point for `.error` logs. Schedules a flush so the
+    /// entry survives a crash that follows the call site.
     nonisolated static func error(
         _ message: String,
-        category: String = "App",
+        category: LogCategory = .app,
+        fields: Fields = [:],
         file: StaticString = #fileID,
         line: UInt = #line
     ) {
-        log(message, level: .error, category: category, file: file, line: line)
-        // Flush immediately for errors to ensure they're written if app crashes
-        flush()
+        log(message, level: .error, category: category, fields: fields, file: file, line: line)
+        scheduleFlush()
     }
 
-    // MARK: - Typed-category overloads
-    //
-    // Forward to the string-keyed implementations. Prefer these at new call
-    // sites so the category name is enum-checked rather than free-form string.
+    // MARK: - Line Format
 
-    nonisolated static func log(
-        _ message: String,
-        level: LogLevel = .info,
-        category: LogCategory,
-        file: StaticString = #fileID,
-        line: UInt = #line
-    ) {
-        log(message, level: level, category: category.rawValue, file: file, line: line)
+    /// Column width of the padded level field.
+    nonisolated static let levelWidth = 5
+
+    /// Column width of the padded category field.
+    nonisolated static let categoryWidth = 12
+
+    /// Column width of the padded `File.swift:line` field.
+    ///
+    /// Longer locations overflow rather than truncate. Truncating would break
+    /// the click-through to a source line, which is the whole point of the
+    /// field; a handful of ragged lines is the cheaper cost.
+    nonisolated static let locationWidth = 34
+
+    /// Pads `value` to at least `width` characters. Never truncates.
+    nonisolated private static func pad(_ value: String, to width: Int) -> String {
+        let deficit = width - value.count
+        guard deficit > 0 else { return value }
+        return value + String(repeating: " ", count: deficit)
     }
 
-    nonisolated static func debug(
-        _ message: @autoclosure () -> String,
-        category: LogCategory,
-        file: StaticString = #fileID,
-        line: UInt = #line
-    ) {
-        guard isDebugLoggingEnabled else { return }
-        log(message(), level: .debug, category: category.rawValue, file: file, line: line)
-    }
-
-    nonisolated static func info(
-        _ message: String,
-        category: LogCategory,
-        file: StaticString = #fileID,
-        line: UInt = #line
-    ) {
-        log(message, level: .info, category: category.rawValue, file: file, line: line)
-    }
-
-    nonisolated static func warn(
-        _ message: String,
-        category: LogCategory,
-        file: StaticString = #fileID,
-        line: UInt = #line
-    ) {
-        log(message, level: .warn, category: category.rawValue, file: file, line: line)
-    }
-
-    nonisolated static func error(
-        _ message: String,
-        category: LogCategory,
-        file: StaticString = #fileID,
-        line: UInt = #line
-    ) {
-        log(message, level: .error, category: category.rawValue, file: file, line: line)
-        flush()
-    }
-
-    /// Builds the exact line written to the on-disk log file:
-    /// `<level emoji> <LEVEL>  [<category>] <timestamp>  <location>  <message>`.
-    /// Message is assumed already redacted by the caller.
+    /// Builds the exact line written to the on-disk log file.
+    ///
+    /// `<ISO timestamp>  <LEVEL>  <Category>  <File.swift:line>  <message>[ k=v…]`
+    ///
+    /// Message is assumed already redacted by the caller; `renderedFields` is
+    /// assumed already redacted and quoted by ``renderFields(_:)``.
     nonisolated private static func formatFileLine(
         _ redactedMessage: String,
         level: LogLevel,
         category: String,
-        location: String
+        location: String,
+        renderedFields: String = ""
     ) -> String {
-        let timestamp = formatter.string(from: Date())
-        return "\(level.rawValue)  [\(category)] \(timestamp)  \(location)  \(redactedMessage)"
+        let timestamp = SharedFormatters.logTimestampISO.string(from: Date())
+        let level = pad(level.rawValue, to: levelWidth)
+        let category = pad(category, to: categoryWidth)
+        let location = pad(location, to: locationWidth)
+        return "\(timestamp)  \(level)  \(category)  \(location)  \(redactedMessage)\(renderedFields)"
+    }
+
+    /// Convenience overload taking unrendered fields.
+    nonisolated private static func formatFileLine(
+        _ redactedMessage: String,
+        level: LogLevel,
+        category: String,
+        location: String,
+        fields: Fields
+    ) -> String {
+        formatFileLine(
+            redactedMessage,
+            level: level,
+            category: category,
+            location: location,
+            renderedFields: renderFields(fields)
+        )
+    }
+
+    /// Renders ordered fields as a ` key=value` tail, redacting each value.
+    nonisolated private static func renderFields(_ fields: Fields) -> String {
+        guard !fields.isEmpty else { return "" }
+        return fields.map { key, value in
+            " \(key)=\(quoteIfNeeded(redactFieldValue(value.description, forKey: key)))"
+        }
+        .joined()
+    }
+
+    /// Wraps a field value in double quotes when it would otherwise break the
+    /// `key=value` grammar (empty, or containing whitespace, `=`, or `"`).
+    nonisolated private static func quoteIfNeeded(_ value: String) -> String {
+        let needsQuoting = value.isEmpty
+            || value.contains(where: { $0.isWhitespace })
+            || value.contains("=")
+            || value.contains("\"")
+        guard needsQuoting else { return value }
+        let escaped = value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\n", with: "\\n")
+        return "\"\(escaped)\""
     }
 
     /// Formats `#fileID` + `#line` as `Module/File.swift:42` (just `File.swift:42` if no module prefix).
@@ -431,29 +637,100 @@ enum Log {
         return "\(name):\(line)"
     }
 
-    /// Flushes any buffered log data to disk immediately.
+    /// Flushes any buffered log data to disk immediately, blocking the caller.
+    ///
+    /// Use for shutdown and export paths. Hot logging paths should prefer
+    /// ``scheduleFlush()``.
     nonisolated static func flush() {
         fileQueue.sync {
             try? fileHandle?.synchronize()
         }
     }
 
+    /// Queues a flush behind the pending writes without blocking the caller.
+    ///
+    /// `fileQueue` is serial, so this still lands after the line that asked for
+    /// it; ordering is preserved and no caller stalls on an `fsync`.
+    ///
+    /// ponytail: accepts a millisecond-wide window where a hard crash lands
+    /// between the write and the sync and loses the last error line. The
+    /// alternative was `fileQueue.sync` on all 165 `Log.error` sites, which
+    /// serialized every caller behind a disk sync during exactly the error
+    /// bursts (reconnect loops, bind failures) where throughput matters most.
+    /// `CrashReporter`'s NSException handler calls the blocking ``flush()``,
+    /// which covers the crash path that can still run Swift code.
+    nonisolated private static func scheduleFlush() {
+        fileQueue.async {
+            try? fileHandle?.synchronize()
+        }
+    }
+
     // MARK: - PII Redaction
 
-    // Compile-checked regex literals, no runtime parsing or `try!`.
-    nonisolated(unsafe) private static let redactionRules: [(Regex<Substring>, String)] = [
-        (#/oauth_[a-zA-Z0-9_-]+/#, "oauth_[REDACTED]"),
-        (#/Bearer\s+[a-zA-Z0-9_-]+/#, "Bearer [REDACTED]"),
-        (#/\b[a-zA-Z0-9_-]{30,}\b/#, "[TOKEN_REDACTED]"),
-        (#/Client-ID[:\s]+[a-zA-Z0-9]+/#, "Client-ID: [REDACTED]"),
-        (#/\b\d{6,}\b/#, "[USER_ID_REDACTED]"),
+    /// Field keys whose value is always replaced wholesale.
+    nonisolated private static let sensitiveFieldKeys: Set<String> = [
+        "token", "accesstoken", "refreshtoken", "secret", "password", "passwd",
+        "auth", "authorization", "apikey", "clientsecret", "credential",
+        "userid", "user_id", "channelid", "channel_id", "broadcasterid",
+        "broadcaster_id", "moderatorid", "moderator_id"
     ]
 
-    /// Redacts sensitive information from log messages
+    /// Field keys whose value is a legitimate large number and must survive the
+    /// bare-digit rule.
+    ///
+    /// The old blanket `\b\d{6,}\b` rule rewrote byte counts, millisecond
+    /// durations, ports, and epoch values to `[USER_ID_REDACTED]`, which is
+    /// silent evidence destruction in the one artifact a user hands over.
+    /// Naming the safe keys is what makes narrowing that rule defensible.
+    nonisolated private static let numericSafeFieldKeys: Set<String> = [
+        "bytes", "size", "length", "ms", "duration", "elapsed", "seconds", "after",
+        "port", "count", "total", "attempt", "retries", "code", "status", "line",
+        "offset", "limit", "remaining", "index", "position", "epoch", "timestamp"
+    ]
+
+    /// Redacts sensitive information from a free-form message body.
     nonisolated private static func redactSensitiveInfo(_ message: String) -> String {
-        redactionRules.reduce(message) { current, rule in
-            current.replacing(rule.0, with: rule.1)
+        applyBaseRedactions(message)
+            .replacing(#/\b\d{9,}\b/#, with: "[USER_ID_REDACTED]")
+    }
+
+    /// Redaction rules that never destroy legitimate numeric evidence.
+    ///
+    /// Ordering matters: the keyed-ID rule runs before the opaque-token rule so
+    /// `user_id=123456789` keeps its key rather than becoming one long
+    /// `[TOKEN_REDACTED]` blob.
+    nonisolated private static func applyBaseRedactions(_ message: String) -> String {
+        var out = message
+        out = out.replacing(#/oauth_[a-zA-Z0-9_-]+/#, with: "oauth_[REDACTED]")
+        out = out.replacing(#/Bearer\s+[a-zA-Z0-9_-]+/#, with: "Bearer [REDACTED]")
+        out = out.replacing(#/Client-ID[:\s]+[a-zA-Z0-9]+/#, with: "Client-ID: [REDACTED]")
+
+        // Digits in an identifier-ish context, whatever their length. Keeps the
+        // key and separator so the line still reads, replaces only the value.
+        out = out.replacing(
+            #/(?i)\b([a-z_]*(?:user|broadcaster|moderator|channel|chatter|owner)[a-z_]*|id)([\s:="']+)\d{4,}\b/#
+        ) { match in
+            "\(match.output.1)\(match.output.2)[USER_ID_REDACTED]"
         }
+
+        out = out.replacing(#/\b[a-zA-Z0-9_-]{30,}\b/#, with: "[TOKEN_REDACTED]")
+        return out
+    }
+
+    /// Redacts a structured field value, using the key to decide how hard.
+    ///
+    /// - A key in ``sensitiveFieldKeys`` is replaced wholesale.
+    /// - A key in ``numericSafeFieldKeys`` skips the bare-digit rule, so
+    ///   `bytes=1048576` survives intact.
+    /// - Anything else gets the full message-body treatment.
+    ///
+    /// Keys themselves are never redacted; they carry no user data and are what
+    /// makes the line searchable.
+    nonisolated private static func redactFieldValue(_ value: String, forKey key: String) -> String {
+        let normalized = key.lowercased()
+        if sensitiveFieldKeys.contains(normalized) { return "[REDACTED]" }
+        if numericSafeFieldKeys.contains(normalized) { return applyBaseRedactions(value) }
+        return redactSensitiveInfo(value)
     }
 
     /// Runs the PII redaction pipeline on an arbitrary string.
@@ -479,27 +756,42 @@ enum Log {
         redactSensitiveInfo(message)
     }
 
+    /// Test-only hook exposing structured-field redaction.
+    nonisolated static func redactFieldForTesting(_ value: String, key: String) -> String {
+        redactFieldValue(value, forKey: key)
+    }
+
     /// Test-only hook exposing the on-disk log line builder.
     ///
     /// Verifies the exact format written to the log file (redaction + level +
-    /// category + message) without reading back the app-wide on-disk log. `Log`
-    /// is a process-global singleton; other suites write into the same file and
-    /// can rotate it mid-test, deleting the line we just wrote (rotation keeps
-    /// only the single `.1` backup, so a burst large enough to rotate twice
-    /// evicts our message entirely). Building the line directly is deterministic
-    /// and touches no shared file. The real disk-write path stays covered by
-    /// `testLogFileExport`.
+    /// category + message + fields) without reading back the app-wide on-disk
+    /// log. `Log` is a process-global singleton; other suites write into the
+    /// same file and can rotate it mid-test, deleting the line we just wrote.
+    /// Building the line directly is deterministic and touches no shared file.
+    /// The real disk-write path stays covered by `testLogFileExport`.
     nonisolated static func formatFileLineForTesting(
         _ message: String,
         level: LogLevel = .info,
-        category: String = "App"
+        category: String = "App",
+        fields: Fields = [:]
     ) -> String {
         formatFileLine(
             redactSensitiveInfo(message),
             level: level,
             category: category,
-            location: "Test.swift:0"
+            location: "Test.swift:0",
+            fields: fields
         )
+    }
+
+    /// Test-only hook exposing the session banner builder.
+    nonisolated static func sessionBannerLineForTesting() -> String {
+        sessionBannerLine()
+    }
+
+    /// Test-only hook exposing the continuation-line framer.
+    nonisolated static func frameContinuationsForTesting(_ line: String) -> String {
+        frameContinuations(line)
     }
 
     /// Test-only hook exposing the debug-logging build gate.
@@ -527,6 +819,19 @@ enum Log {
         }
     }
 
+    /// Returns the rotated backups that exist, oldest first.
+    ///
+    /// Export paths need these: if rotation just fired, the lines worth reading
+    /// are in a backup and the live log is nearly empty.
+    nonisolated static func rotatedLogFiles() -> [URL] {
+        fileQueue.sync {
+            let directory = logFileURL.deletingLastPathComponent()
+            return stride(from: rotationDepth, through: 1, by: -1)
+                .map { directory.appending(path: "wolfwave.log.\($0)") }
+                .filter { FileManager.default.fileExists(atPath: $0.path) }
+        }
+    }
+
     // MARK: - Diagnostics
 
     /// Returns the byte size of the current log file, or 0 if unavailable.
@@ -541,11 +846,24 @@ enum Log {
     }
 
     /// Returns the number of newline-terminated lines in the current log file.
-    /// Streams the file in chunks to avoid loading the whole file into memory.
+    ///
+    /// Streams the file in chunks rather than loading it, and memoizes the
+    /// result against the file's size and modification date. Settings panes
+    /// poll this, and rescanning 5 MB on every refresh was the reason two call
+    /// sites had to hop off the main thread to stay responsive.
     nonisolated static func logLineCount() -> Int {
         fileQueue.sync {
             let url = logFileURL
             try? fileHandle?.synchronize()
+
+            let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
+            let size = (attrs?[.size] as? NSNumber)?.int64Value ?? 0
+            let modified = (attrs?[.modificationDate] as? Date) ?? .distantPast
+
+            if let cache = lineCountCache, cache.size == size, cache.modified == modified {
+                return cache.lines
+            }
+
             guard let handle = try? FileHandle(forReadingFrom: url) else { return 0 }
             defer { try? handle.close() }
 
@@ -556,35 +874,46 @@ enum Log {
                     if byte == newline { acc += 1 }
                 }
             }
+
+            lineCountCache = (size: size, modified: modified, lines: count)
             return count
         }
     }
 
     /// Truncates the current log file in place and writes a single header line.
+    ///
+    /// The header goes through the same builder as every other record, so the
+    /// file never contains a second, incompatible line shape for a parser to
+    /// choke on. The banner is re-armed so the next write re-identifies the
+    /// build.
     nonisolated static func clearLogFile() {
         fileQueue.sync {
             let url = logFileURL
 
-            if fileHandle == nil {
-                fileHandle = FileHandle(forWritingAtPath: url.path)
-            }
+            // Drop the handle instead of seeking and truncating through it. A
+            // retained handle keeps its old write offset, and if anything
+            // restores that offset the next write lands past the end of the
+            // freshly truncated file, re-extending it with a NUL gap the exact
+            // size of the old log. Clearing a 300 KB log produced a 300 KB file
+            // of zero bytes that still "passed" a line-count assertion, because
+            // NULs contain no newlines.
+            //
+            // An atomic whole-file replace has no offset to get stale, and the
+            // next write reopens and seeks to the real end.
+            try? fileHandle?.close()
+            fileHandle = nil
+            openedInode = nil
 
-            try? fileHandle?.seek(toOffset: 0)
-            try? fileHandle?.truncate(atOffset: 0)
+            let header = formatFileLine(
+                "Log cleared by user",
+                level: .info,
+                category: LogCategory.app.rawValue,
+                location: "Logger.swift:0"
+            )
+            try? Data((header + "\n").utf8).write(to: url, options: .atomic)
 
-            let stamp = formatter.string(from: Date())
-            let header = "[\(stamp)] ℹ️ INFO [App] Log cleared by user\n"
-            if let data = header.data(using: .utf8) {
-                do {
-                    try fileHandle?.write(contentsOf: data)
-                } catch {
-                    // Self-heal: drop the stale handle so the next write
-                    // reopens it instead of failing forever.
-                    try? fileHandle?.close()
-                    fileHandle = nil
-                }
-            }
-            try? fileHandle?.synchronize()
+            bannerPending = true
+            lineCountCache = nil
         }
     }
 
@@ -596,6 +925,9 @@ enum Log {
             try? fileHandle?.synchronize()
             try? fileHandle?.close()
             fileHandle = nil
+            openedInode = nil
         }
     }
 }
+
+// swiftlint:enable type_body_length

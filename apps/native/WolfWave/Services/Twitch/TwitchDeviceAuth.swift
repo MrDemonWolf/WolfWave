@@ -689,7 +689,7 @@ nonisolated final class TwitchDeviceAuth: Sendable {
             if pollingNow() >= expiryDeadline {
                 Log.error(
                     "TwitchDeviceAuth: Device code expired before the next poll",
-                    category: "Twitch")
+                    category: .twitchAuth)
                 throw TwitchDeviceAuthError.expiredToken
             }
 
@@ -731,10 +731,10 @@ nonisolated final class TwitchDeviceAuth: Sendable {
                 if (200..<300).contains(http.statusCode) {
                     guard let parsed = TwitchDeviceAuth.parseRotatingTokenResponse(data) else {
                         Log.error(
-                            "TwitchDeviceAuth: Failed to parse access token from response", category: "Twitch")
+                            "TwitchDeviceAuth: Failed to parse access token from response", category: .twitchAuth)
                         throw TwitchDeviceAuthError.invalidResponse
                     }
-                    Log.info("TwitchDeviceAuth: Device code token obtained successfully", category: "Twitch")
+                    Log.info("TwitchDeviceAuth: Device code token obtained successfully", category: .twitchAuth)
                     return parsed
                 }
 
@@ -747,12 +747,12 @@ nonisolated final class TwitchDeviceAuth: Sendable {
                     nextDelayOverride = retryAfter
                     Log.debug(
                         "TwitchDeviceAuth: Authorization pending or service temporarily unavailable",
-                        category: "Twitch")
+                        category: .twitchAuth)
                 case .slowDown:
                     currentInterval = try Self.increasedPollingInterval(currentInterval)
                     Log.info(
                         "TwitchDeviceAuth: Received slow_down; increasing poll interval to \(currentInterval)s",
-                        category: "Twitch")
+                        category: .twitchAuth)
                 case .rateLimited(let retryAfter):
                     currentInterval = try Self.rateLimitBackoffInterval(
                         currentInterval,
@@ -760,11 +760,11 @@ nonisolated final class TwitchDeviceAuth: Sendable {
                     )
                     Log.info(
                         "TwitchDeviceAuth: Rate limited; increasing poll interval to \(currentInterval)s",
-                        category: "Twitch")
+                        category: .twitchAuth)
                 case .terminal(let error):
                     Log.error(
                         "TwitchDeviceAuth: Terminal device-code error - \(error.localizedDescription)",
-                        category: "Twitch")
+                        category: .twitchAuth)
                     throw error
                 }
             } catch let error as TwitchDeviceAuthError {
@@ -783,7 +783,7 @@ nonisolated final class TwitchDeviceAuth: Sendable {
                 }
                 Log.warn(
                     "TwitchDeviceAuth: Transient polling failure; retrying - \(error.localizedDescription)",
-                    category: "Twitch")
+                    category: .twitchAuth)
             }
 
             try await sleepBeforeNextPoll(
@@ -1242,7 +1242,7 @@ actor TwitchTokenRefresher {
         case .missingRefreshToken:
             Log.info(
                 "TwitchTokenRefresher: No stored refresh token; cannot refresh",
-                category: "Twitch")
+                category: .twitchAuth)
             return .invalid
         case .unavailable:
             return .temporarilyUnavailable
@@ -1405,7 +1405,7 @@ actor TwitchTokenRefresher {
             guard attempt < attempts else {
                 Log.warn(
                     "TwitchTokenRefresher: Refresh temporarily unavailable after \(attempts) attempts",
-                    category: "Twitch")
+                    category: .twitchAuth)
                 return .temporarilyUnavailable
             }
             let fallback = Duration.milliseconds(250 * (1 << (attempt - 1)))
@@ -1417,7 +1417,7 @@ actor TwitchTokenRefresher {
             }
             Log.warn(
                 "TwitchTokenRefresher: Transient refresh failure; retrying (\(attempt)/\(attempts))",
-                category: "Twitch")
+                category: .twitchAuth)
             try await sleep(delay)
         }
         return .temporarilyUnavailable
@@ -1447,7 +1447,7 @@ actor TwitchTokenRefresher {
         } catch {
             Log.warn(
                 "TwitchTokenRefresher: Refreshed but could not persist - \(error.localizedDescription)",
-                category: "Twitch")
+                category: .twitchAuth)
             return TwitchCredentialStore.shared.matches(expected)
                 ? .temporarilyUnavailable
                 : .superseded

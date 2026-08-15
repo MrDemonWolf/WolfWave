@@ -36,6 +36,7 @@ struct AdvancedSettingsView: View {
     /// `applicationDidFinishLaunching`). Drives the "Recovered from a crash"
     /// callout at the top of this pane.
     @AppStorage(AppConstants.UserDefaults.lastLaunchCrashed) private var lastLaunchCrashed = false
+    @AppStorage(AppConstants.UserDefaults.lastCrashSummary) private var lastCrashSummary: String?
 
     /// Mirrors the opt-in MetricKit diagnostics toggle so the crash callout can
     /// point the user at it without enabling anything on their behalf.
@@ -90,7 +91,7 @@ struct AdvancedSettingsView: View {
     /// suffix is `reason` (e.g. "for export", "to reveal", "to copy").
     private func requireLogFile(orWarn reason: String) -> URL? {
         guard let logURL = Log.exportLogFile() else {
-            Log.warn("No log file available \(reason)", category: "App")
+            Log.warn("No log file available \(reason)", category: .app)
             return nil
         }
         return logURL
@@ -106,23 +107,47 @@ struct AdvancedSettingsView: View {
     private func exportLogs() {
         guard let logURL = requireLogFile(orWarn: "for export") else { return }
 
+        _ = logURL // presence already validated above
+
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = "wolfwave-logs.log"
+        panel.nameFieldStringValue = DiagnosticsBundle.suggestedFilename(date: Date())
         let logType = UTType(filenameExtension: "log") ?? .plainText
         panel.allowedContentTypes = [logType, .plainText]
         panel.canCreateDirectories = true
 
         let completion: (NSApplication.ModalResponse) -> Void = { response in
             guard response == .OK, let destination = panel.url else { return }
-            do {
-                if FileManager.default.fileExists(atPath: destination.path) {
-                    try FileManager.default.removeItem(at: destination)
+            // Composition reads every rotated log, so it happens off the main
+            // actor. A bare copyItem used to ship only the live file, which is
+            // nearly empty right after a rotation.
+            Task {
+                // Capture on the main actor (it reads Bundle + defaults), then
+                // do the file reading and joining off it.
+                let snapshot = DiagnosticSnapshot.capture(logSizeBytes: Log.logFileSize())
+                let crash = DefaultsStore.store.string(
+                    forKey: AppConstants.UserDefaults.lastCrashSummary)
+
+                let text = await Task.detached(priority: .userInitiated) {
+                    DiagnosticsBundle.compose(
+                        snapshot: snapshot,
+                        crash: crash,
+                        logs: DiagnosticsBundle.logFilesOldestFirst()
+                    )
+                }.value
+
+                do {
+                    try Data(text.utf8).write(to: destination, options: .atomic)
+                    Log.info(
+                        "Diagnostics exported",
+                        category: .app,
+                        fields: ["file": destination.lastPathComponent, "bytes": text.utf8.count])
+                    refreshLogStats()
+                } catch {
+                    Log.error(
+                        "Failed to export diagnostics",
+                        category: .app,
+                        fields: ["error": error.localizedDescription])
                 }
-                try FileManager.default.copyItem(at: logURL, to: destination)
-                Log.info("Logs exported to \(destination.lastPathComponent)", category: "App")
-                refreshLogStats()
-            } catch {
-                Log.error("Failed to export logs: \(error.localizedDescription)", category: "App")
             }
         }
 
@@ -157,23 +182,28 @@ struct AdvancedSettingsView: View {
                 trimmed = contents
             }
 
-            Pasteboard.copy(trimmed)
+            // Prepend the environment block. A pasted log tail with no version
+            // or OS cannot be attributed to a build, which is most of what makes
+            // it useful in an issue.
+            let header = DiagnosticSnapshot.capture(logSizeBytes: Int64(contents.utf8.count))
+                .exportHeader
+            Pasteboard.copy("\(header)\n\n\(trimmed)")
 
             withAnimation(reduceMotion ? nil : .default) { showingCopyFeedback = true }
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(2))
                 withAnimation(reduceMotion ? nil : .default) { showingCopyFeedback = false }
             }
-            Log.info("Logs copied to clipboard", category: "App")
+            Log.info("Logs copied to clipboard", category: .app)
         } catch {
-            Log.error("Failed to copy logs: \(error.localizedDescription)", category: "App")
+            Log.error("Failed to copy logs: \(error.localizedDescription)", category: .app)
         }
     }
 
     /// Clears the current log file (truncates in place).
     private func clearLogs() {
         Log.clearLogFile()
-        Log.info("Logs cleared by user", category: "App")
+        Log.info("Logs cleared by user", category: .app)
         refreshLogStats()
     }
 
@@ -202,7 +232,7 @@ struct AdvancedSettingsView: View {
     /// Clears the persisted artwork links cache (memory + disk).
     private func clearArtworkCache() async {
         await ArtworkService.shared.clearCache()
-        Log.info("Artwork cache cleared by user", category: "App")
+        Log.info("Artwork cache cleared by user", category: .app)
         refreshArtworkStats()
     }
 
@@ -289,7 +319,7 @@ struct AdvancedSettingsView: View {
                 Button("Cancel", role: .cancel) {}
                 Button("Reset") {
                     DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
-                    Log.info("Onboarding reset by user", category: "Onboarding")
+                    Log.info("Onboarding reset by user", category: .onboarding)
                     AppDelegate.shared?.showOnboarding()
                 }
             } message: {
@@ -537,7 +567,7 @@ struct AdvancedSettingsView: View {
         do {
             data = try service.makeBackupData()
         } catch {
-            Log.error("Failed to build settings backup: \(error.localizedDescription)", category: "App")
+            Log.error("Failed to build settings backup: \(error.localizedDescription)", category: .app)
             exportErrorMessage = "Couldn't save your backup. \(error.localizedDescription)"
             showingExportError = true
             return
@@ -552,9 +582,9 @@ struct AdvancedSettingsView: View {
             guard response == .OK, let url = panel.url else { return }
             do {
                 try data.write(to: url, options: .atomic)
-                Log.info("Settings exported to \(url.lastPathComponent)", category: "App")
+                Log.info("Settings exported to \(url.lastPathComponent)", category: .app)
             } catch {
-                Log.error("Failed to write settings backup: \(error.localizedDescription)", category: "App")
+                Log.error("Failed to write settings backup: \(error.localizedDescription)", category: .app)
                 exportErrorMessage = "Couldn't save your backup. \(error.localizedDescription)"
                 showingExportError = true
             }
@@ -616,7 +646,7 @@ struct AdvancedSettingsView: View {
             showingImportSuccess = true
             Log.info(
                 "Settings imported (\(summary.restoredCount) restored, twitch=\(summary.reconnectedTwitch))",
-                category: "App"
+                category: .app
             )
         }
     }

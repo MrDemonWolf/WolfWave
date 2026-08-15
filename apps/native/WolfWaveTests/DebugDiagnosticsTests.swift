@@ -18,10 +18,12 @@ final class DebugDiagnosticsTests: XCTestCase {
         build: String = "42",
         logSizeBytes: Int64 = 1024,
         logLineCount: Int = 100,
+        musicTrackingEnabled: Bool = true,
+        discordPresenceEnabled: Bool = false,
+        widgetHTTPEnabled: Bool = true,
         twitchConnected: Bool = true,
-        discordConnected: Bool = false,
-        widgetEnabled: Bool = true,
-        musicTrackingEnabled: Bool = true
+        discordConnection: String = "disconnected",
+        twitchTokenStored: Bool = true
     ) -> DebugDiagnostics.Snapshot {
         DebugDiagnostics.Snapshot(
             appVersion: appVersion,
@@ -31,17 +33,20 @@ final class DebugDiagnosticsTests: XCTestCase {
             installMethod: "DMG",
             logSizeBytes: logSizeBytes,
             logLineCount: logLineCount,
+            musicTrackingEnabled: musicTrackingEnabled,
+            discordPresenceEnabled: discordPresenceEnabled,
+            widgetHTTPEnabled: widgetHTTPEnabled,
             twitchConnected: twitchConnected,
-            discordConnected: discordConnected,
-            widgetEnabled: widgetEnabled,
-            musicTrackingEnabled: musicTrackingEnabled
+            discordConnection: discordConnection,
+            twitchTokenStored: twitchTokenStored
         )
     }
 
-    func testIncludesEnvironmentAndServiceStateHeadings() {
+    func testIncludesAllThreeHeadings() {
         let output = DebugDiagnostics.markdown(sampleSnapshot())
         XCTAssertTrue(output.contains("## Environment"))
-        XCTAssertTrue(output.contains("## Service State"))
+        XCTAssertTrue(output.contains("## Connections"))
+        XCTAssertTrue(output.contains("## Preferences"))
     }
 
     func testEnvironmentFieldsAppearVerbatim() {
@@ -59,17 +64,53 @@ final class DebugDiagnosticsTests: XCTestCase {
         XCTAssertTrue(output.contains(expected), "expected formatted size in markdown")
     }
 
-    func testServiceFlagsRenderAsYesNo() {
+    /// The whole point of the split. A preference being on says nothing about
+    /// whether the service actually connected, and the old single "Service
+    /// State" table conflated them: it reported `discordPresenceEnabled` under
+    /// a "Discord" row, so a pasted issue claimed Discord was up for a user
+    /// whose RPC socket never connected.
+    func testPreferencesAndConnectionsAreReportedSeparately() {
         let output = DebugDiagnostics.markdown(sampleSnapshot(
-            twitchConnected: true,
-            discordConnected: false,
-            widgetEnabled: true,
-            musicTrackingEnabled: false
+            discordPresenceEnabled: true,
+            twitchConnected: false,
+            discordConnection: "disconnected"
         ))
-        XCTAssertTrue(output.contains("| Twitch | Yes |"))
-        XCTAssertTrue(output.contains("| Discord | No |"))
-        XCTAssertTrue(output.contains("| Widget HTTP | Yes |"))
+
+        XCTAssertTrue(output.contains("| Discord presence | Yes |"),
+            "preference should read as enabled")
+        XCTAssertTrue(output.contains("| Discord RPC | disconnected |"),
+            "live connection should read as disconnected, not inherit the preference")
+        XCTAssertTrue(output.contains("| Twitch chat | not connected |"))
+    }
+
+    func testConnectionStateUsesLiveWordingNotYesNo() {
+        let connected = DebugDiagnostics.markdown(sampleSnapshot(twitchConnected: true))
+        XCTAssertTrue(connected.contains("| Twitch chat | connected |"))
+
+        let offline = DebugDiagnostics.markdown(sampleSnapshot(twitchConnected: false))
+        XCTAssertTrue(offline.contains("| Twitch chat | not connected |"))
+    }
+
+    /// A stored token is not a connection. It is reported, but as its own row so
+    /// it cannot be mistaken for one.
+    func testStoredTokenIsReportedApartFromConnection() {
+        let output = DebugDiagnostics.markdown(sampleSnapshot(
+            twitchConnected: false,
+            twitchTokenStored: true
+        ))
+        XCTAssertTrue(output.contains("| Twitch token in Keychain | Yes |"))
+        XCTAssertTrue(output.contains("| Twitch chat | not connected |"))
+    }
+
+    func testPreferenceFlagsRenderAsYesNo() {
+        let output = DebugDiagnostics.markdown(sampleSnapshot(
+            musicTrackingEnabled: false,
+            discordPresenceEnabled: true,
+            widgetHTTPEnabled: true
+        ))
         XCTAssertTrue(output.contains("| Music tracking | No |"))
+        XCTAssertTrue(output.contains("| Discord presence | Yes |"))
+        XCTAssertTrue(output.contains("| Widget HTTP server | Yes |"))
     }
 
     func testEmptyVersionAndZeroLogStatsTolerated() {
@@ -89,6 +130,7 @@ final class DebugDiagnosticsTests: XCTestCase {
         let output = DebugDiagnostics.markdown(sampleSnapshot())
         XCTAssertTrue(output.contains("| Field | Value |"))
         XCTAssertTrue(output.contains("| Service | State |"))
+        XCTAssertTrue(output.contains("| Setting | Enabled |"))
         XCTAssertTrue(output.contains("|---|---|"))
     }
 }

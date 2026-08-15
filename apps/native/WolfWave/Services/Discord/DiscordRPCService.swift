@@ -914,7 +914,7 @@ actor DiscordRPCService {
         for i in envStart..<strings.count {
             if strings[i].hasPrefix("TMPDIR=") {
                 let value = String(strings[i].dropFirst(7))
-                Log.debug("DiscordRPCService: Read TMPDIR from Discord process: \(value)", category: "Discord")
+                Log.debug("DiscordRPCService: Read TMPDIR from Discord process: \(value)", category: .discord)
                 return value
             }
         }

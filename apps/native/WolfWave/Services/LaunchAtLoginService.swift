@@ -75,13 +75,17 @@ enum LaunchAtLoginService {
             // Log the post-operation status so a requires-approval / not-yet-active
             // state is visible in Console rather than silently swallowed.
             let status = SMAppService.mainApp.status
-            Log.info("LaunchAtLogin: \(enabled ? "Registered" : "Unregistered") (status: \(statusDescription(status)))", category: "App")
+            Log.info(
+                "LaunchAtLogin: \(enabled ? "Registered" : "Unregistered") (status: \(statusDescription(status)))",
+                category: .app)
             if enabled && status == .requiresApproval {
                 return .requiresApproval
             }
             return .success
         } catch {
-            Log.error("LaunchAtLogin: Failed to \(enabled ? "register" : "unregister"): \(error.localizedDescription)", category: "App")
+            Log.error(
+                "LaunchAtLogin: Failed to \(enabled ? "register" : "unregister"): \(error.localizedDescription)",
+                category: .app)
             return .failure
         }
     }

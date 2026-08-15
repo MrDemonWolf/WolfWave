@@ -173,14 +173,14 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         let parameters = NWParameters.tcp
 
         guard let nwPort = NWEndpoint.Port(rawValue: port) else {
-            Log.error("WidgetHTTPService: Invalid port \(port)", category: "WebSocket")
+            Log.error("WidgetHTTPService: Invalid port \(port)", category: .websocket)
             return
         }
 
         do {
             listener = try NWListener(using: parameters, on: nwPort)
         } catch {
-            Log.error("WidgetHTTPService: Failed to create listener: \(error)", category: "WebSocket")
+            Log.error("WidgetHTTPService: Failed to create listener: \(error)", category: .websocket)
             return
         }
 
@@ -190,11 +190,11 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             case .ready:
                 Log.info(
                     "WidgetHTTPService: Listening on port \(self.boundPort ?? self.port)",
-                    category: "WebSocket"
+                    category: .websocket
                 )
                 self.markReady()
             case .failed(let error):
-                Log.error("WidgetHTTPService: Listener failed: \(error)", category: "WebSocket")
+                Log.error("WidgetHTTPService: Listener failed: \(error)", category: .websocket)
                 self.listener = nil
                 self.failReadyWaiters(with: .listenerFailed)
             default:
@@ -228,7 +228,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         // Wake any caller still awaiting `ready()` so a stop-before-bind doesn't
         // leave them suspended forever.
         failReadyWaiters(with: .stopped)
-        Log.info("WidgetHTTPService: Server stopped", category: "WebSocket")
+        Log.info("WidgetHTTPService: Server stopped", category: .websocket)
     }
 
     /// Suspends until the listener reaches `NWListener.State.ready` (the port
@@ -306,7 +306,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         guard accepted else {
             Log.warn(
                 "WidgetHTTPService: Refusing connection, \(maxConcurrentConnections) already active",
-                category: "WebSocket"
+                category: .websocket
             )
             connection.cancel()
             return
@@ -347,7 +347,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             guard stillAwaitingHeaders else { return }
             Log.warn(
                 "WidgetHTTPService: Cancelling connection with incomplete headers after \(self.headerTimeout)s",
-                category: "WebSocket"
+                category: .websocket
             )
             connection.cancel()
         }
@@ -439,7 +439,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     private func serveWidget(to connection: NWConnection, hostHeader: String?) {
         guard let url = Bundle.main.url(forResource: "widget", withExtension: "html"),
               let raw = try? String(contentsOf: url, encoding: .utf8) else {
-            Log.error("WidgetHTTPService: widget.html not found in bundle", category: "WebSocket")
+            Log.error("WidgetHTTPService: widget.html not found in bundle", category: .websocket)
             send404(to: connection)
             return
         }
@@ -461,7 +461,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             if shouldInjectToken, let token = overlayToken, !WebSocketAuthToken.isValid(token) {
                 Log.warn(
                     "WidgetHTTPService: Refusing to inject non-hex auth token into widget.html",
-                    category: "WebSocket"
+                    category: .websocket
                 )
             }
             rendered = raw
@@ -483,7 +483,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     private func serveTokensJS(to connection: NWConnection) {
         guard let url = Bundle.main.url(forResource: "widget-tokens.generated", withExtension: "js"),
               let body = try? Data(contentsOf: url) else {
-            Log.error("WidgetHTTPService: widget-tokens.generated.js not found in bundle", category: "WebSocket")
+            Log.error("WidgetHTTPService: widget-tokens.generated.js not found in bundle", category: .websocket)
             send404(to: connection)
             return
         }

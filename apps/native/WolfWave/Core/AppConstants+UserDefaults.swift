@@ -28,6 +28,10 @@ extension AppConstants {
         /// Per-install runtime state, never exported. (Bool, default: false)
         static let lastLaunchCrashed = "lastLaunchCrashed"
 
+        /// One-line summary of that crash (signal/exception, time, build), shown in
+        /// the Advanced pane callout. Runtime state, not exported.
+        static let lastCrashSummary = "lastCrashSummary"
+
         /// Dock visibility mode: "menuOnly", "dockOnly", or "both" (String, default: "both")
         static let dockVisibility = "dockVisibility"
 
@@ -451,6 +455,7 @@ extension AppConstants {
             trackingEnabled,
             lastResolvedMusicPermission,
             lastLaunchCrashed,
+            lastCrashSummary,
             dockVisibility,
             twitchReauthNeeded,
             twitchChannelName,
@@ -845,6 +850,7 @@ extension AppConstants {
         static let runtimeStateKeys: [String] = [
             lastResolvedMusicPermission,
             lastLaunchCrashed,
+            lastCrashSummary,
             selectedSettingsSection,
             hasCompletedOnboarding,
             diagnosticsLaunchCount,

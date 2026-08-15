@@ -63,7 +63,7 @@ extension TwitchChatService {
     /// Fetches the bot's identity (user ID and usernames) from Twitch.
     func fetchBotIdentity(token: String, clientID: String) async throws -> BotIdentity {
         guard let url = URL(string: apiBaseURL + "/users") else {
-            Log.error("TwitchChatService: Failed to construct users endpoint URL", category: "Twitch")
+            Log.error("TwitchChatService: Failed to construct users endpoint URL", category: .twitchAuth)
             throw ConnectionError.networkError("Invalid users endpoint")
         }
 
@@ -77,17 +77,17 @@ extension TwitchChatService {
             if case .authenticationFailed = mapped {
                 Log.error(
                     "TwitchChatService: Authentication failed (401) - invalid or expired OAuth token",
-                    category: "Twitch")
+                    category: .twitchAuth)
             } else {
                 Log.error(
                     "TwitchChatService: Users endpoint failed - \(error.localizedDescription)",
-                    category: "Twitch")
+                    category: .twitchAuth)
             }
             throw mapped
         }
 
         guard let first = response.data.first else {
-            Log.error("TwitchChatService: Failed to parse user identity from response", category: "Twitch")
+            Log.error("TwitchChatService: Failed to parse user identity from response", category: .twitchAuth)
             throw ConnectionError.networkError("Unable to parse user identity")
         }
 
@@ -108,7 +108,7 @@ extension TwitchChatService {
     ) async -> TokenValidationResult {
         guard !token.isEmpty else { return .invalid }
         guard let url = URL(string: "https://id.twitch.tv/oauth2/validate") else {
-            Log.error("TwitchChatService: Invalid validate URL", category: "Twitch")
+            Log.error("TwitchChatService: Invalid validate URL", category: .twitchAuth)
             return .temporarilyUnavailable
         }
 
@@ -124,12 +124,12 @@ extension TwitchChatService {
 
             guard (200..<300).contains(response.statusCode) else {
                 if response.statusCode == 401 {
-                    Log.warn("TwitchChatService: Stored OAuth token is invalid or expired", category: "Twitch")
+                    Log.warn("TwitchChatService: Stored OAuth token is invalid or expired", category: .twitchAuth)
                     return .invalid
                 } else {
                     Log.warn(
                         "TwitchChatService: Token validation temporarily unavailable (HTTP \(response.statusCode))",
-                        category: "Twitch")
+                        category: .twitchAuth)
                     return .temporarilyUnavailable
                 }
             }
@@ -138,7 +138,7 @@ extension TwitchChatService {
                 TwitchValidateResponse.self,
                 from: data
             ) else {
-                Log.warn("TwitchChatService: Could not parse token validate response", category: "Twitch")
+                Log.warn("TwitchChatService: Could not parse token validate response", category: .twitchAuth)
                 return .temporarilyUnavailable
             }
 
@@ -146,19 +146,19 @@ extension TwitchChatService {
                 guard let validatedClientID = parsed.clientID else {
                     Log.warn(
                         "TwitchChatService: Token validate response omitted client_id",
-                        category: "Twitch")
+                        category: .twitchAuth)
                     return .temporarilyUnavailable
                 }
                 guard validatedClientID == expectedClientID else {
                     Log.warn(
                         "TwitchChatService: Token belongs to a different Twitch client",
-                        category: "Twitch")
+                        category: .twitchAuth)
                     return .invalid
                 }
             }
 
             guard let scopes = parsed.scopes else {
-                Log.warn("TwitchChatService: Token validate response omitted scopes", category: "Twitch")
+                Log.warn("TwitchChatService: Token validate response omitted scopes", category: .twitchAuth)
                 return .temporarilyUnavailable
             }
             // Vote-skip Polls mode needs the polls scope. Only require it when
@@ -185,7 +185,7 @@ extension TwitchChatService {
             if !missing.isEmpty {
                 Log.warn(
                     "TwitchChatService: Token missing required scopes: \(missing.joined(separator: ", "))",
-                    category: "Twitch")
+                    category: .twitchAuth)
                 // Not `.invalid`: Twitch just accepted this token. Reporting a
                 // scope gap as an expired session tells the user to reconnect
                 // for a session that still works, and the re-auth flag that
@@ -197,7 +197,7 @@ extension TwitchChatService {
         } catch {
             Log.error(
                 "TwitchChatService: Token validation temporarily unavailable - \(error.localizedDescription)",
-                category: "Twitch")
+                category: .twitchAuth)
             return .temporarilyUnavailable
         }
     }
@@ -227,7 +227,7 @@ extension TwitchChatService {
         } catch {
             Log.warn(
                 "TwitchChatService: Poll scope validation was inconclusive - \(error.localizedDescription)",
-                category: "Twitch")
+                category: .twitchAuth)
             return .indeterminate
         }
     }
@@ -349,7 +349,7 @@ extension TwitchChatService {
         } catch {
             Log.error(
                 "TwitchChatService: Failed to resolve username - \(error.localizedDescription)",
-                category: "Twitch")
+                category: .twitchAuth)
             throw mapHelixError(error)
         }
     }

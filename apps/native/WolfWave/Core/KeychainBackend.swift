@@ -130,16 +130,16 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
                 guard retryStatus == errSecSuccess else {
                     Log.error(
                         "Failed to save \(account) after duplicate-item recovery - OSStatus \(retryStatus)",
-                        category: "Keychain"
+                        category: .keychain
                     )
                     throw KeychainService.KeychainError.saveFailed(retryStatus)
                 }
             } else if addStatus != errSecSuccess {
-                Log.error("Failed to save \(account) - OSStatus \(addStatus)", category: "Keychain")
+                Log.error("Failed to save \(account) - OSStatus \(addStatus)", category: .keychain)
                 throw KeychainService.KeychainError.saveFailed(addStatus)
             }
         } else if updateStatus != errSecSuccess {
-            Log.error("Failed to update \(account) - OSStatus \(updateStatus)", category: "Keychain")
+            Log.error("Failed to update \(account) - OSStatus \(updateStatus)", category: .keychain)
             throw KeychainService.KeychainError.saveFailed(updateStatus)
         }
     }
@@ -158,7 +158,7 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
         guard status == errSecSuccess else {
             Log.error(
                 "KeychainService: Failed to load item '\(account)' - OSStatus \(status)",
-                category: "Keychain")
+                category: .keychain)
             throw KeychainService.KeychainError.loadFailed(status)
         }
         guard let data = item as? Data,
@@ -175,7 +175,7 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
         let query = queryFor(account: account)
         let status = SecItemDelete(query as CFDictionary)
         if status != errSecSuccess && status != errSecItemNotFound {
-            Log.error("KeychainService: Failed to delete item '\(account)' - OSStatus \(status)", category: "Keychain")
+            Log.error("KeychainService: Failed to delete item '\(account)' - OSStatus \(status)", category: .keychain)
             throw KeychainService.KeychainError.deleteFailed(status)
         }
     }
@@ -192,7 +192,7 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
         }
         let status = SecItemDelete(query as CFDictionary)
         if status != errSecSuccess && status != errSecItemNotFound {
-            Log.error("KeychainService: Failed to delete all items - OSStatus \(status)", category: "Keychain")
+            Log.error("KeychainService: Failed to delete all items - OSStatus \(status)", category: .keychain)
             throw KeychainService.KeychainError.deleteFailed(status)
         }
     }

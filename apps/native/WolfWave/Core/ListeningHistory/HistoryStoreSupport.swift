@@ -79,7 +79,7 @@ nonisolated final class HistoryClearMarkerStore: @unchecked Sendable {
             } catch {
                 Log.error(
                     "HistoryClearMarkerStore: Begin failed: \(error.localizedDescription)",
-                    category: AppConstants.History.logCategory)
+                    category: .history)
                 return false
             }
         }
@@ -101,7 +101,7 @@ nonisolated final class HistoryClearMarkerStore: @unchecked Sendable {
             } catch {
                 Log.error(
                     "HistoryClearMarkerStore: Completion failed: \(error.localizedDescription)",
-                    category: AppConstants.History.logCategory)
+                    category: .history)
                 return false
             }
         }

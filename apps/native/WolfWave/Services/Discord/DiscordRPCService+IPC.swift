@@ -30,7 +30,7 @@ extension DiscordRPCService {
         guard isEnabled else { return }
         guard state == .disconnected else { return }
         guard !clientID.isEmpty else {
-            Log.warn("DiscordRPCService: No client ID configured: skipping connection", category: "Discord")
+            Log.warn("DiscordRPCService: No client ID configured: skipping connection", category: .discord)
             lastFailure = .notConfigured
             return
         }
@@ -40,14 +40,14 @@ extension DiscordRPCService {
 
         let candidates = tempDirectoryCandidates()
         guard !candidates.isEmpty else {
-            Log.error("DiscordRPCService: Cannot determine any temp directory", category: "Discord")
+            Log.error("DiscordRPCService: Cannot determine any temp directory", category: .discord)
             lastFailure = .socketUnavailable
             state = .disconnected
             return
         }
 
         for basePath in candidates {
-            Log.debug("DiscordRPCService: Searching for IPC socket in \(basePath)", category: "Discord")
+            Log.debug("DiscordRPCService: Searching for IPC socket in \(basePath)", category: .discord)
 
             for slot in 0..<AppConstants.Discord.ipcSocketSlots {
                 let socketPath = URL(filePath: basePath)
@@ -113,7 +113,7 @@ extension DiscordRPCService {
                     startIPCReadPump()
                     return
                 } else {
-                    Log.warn("DiscordRPCService: Handshake failed on slot \(slot)", category: "Discord")
+                    Log.warn("DiscordRPCService: Handshake failed on slot \(slot)", category: .discord)
                     // A socket existed and Discord refused us, so this is not
                     // "Discord isn't running" however the loop ends.
                     lastFailure = .handshakeRejected
@@ -133,7 +133,7 @@ extension DiscordRPCService {
             }
         }
 
-        Log.debug("DiscordRPCService: No active IPC socket found in any candidate directory", category: "Discord")
+        Log.debug("DiscordRPCService: No active IPC socket found in any candidate directory", category: .discord)
         guard isEnabled,
               connectionGeneration == attemptGeneration,
               state == .connecting else { return }
@@ -217,7 +217,7 @@ extension DiscordRPCService {
         let restoreResult = fcntl(fd, F_SETFL, originalFlags)
         guard connectError == 0, restoreResult == 0 else {
             let err = connectError != 0 ? connectError : errno
-            Log.debug("DiscordRPCService: connect() failed on slot \(slot): errno \(err) (\(String(cString: strerror(err))))", category: "Discord")
+            Log.debug("DiscordRPCService: connect() failed on slot \(slot): errno \(err) (\(String(cString: strerror(err))))", category: .discord)
             Darwin.close(fd)
             return -1
         }
@@ -294,7 +294,7 @@ extension DiscordRPCService {
         ]
 
         guard let outbound = Self.encodeFrame(opcode: .handshake, payload: handshake) else {
-            Log.error("DiscordRPCService: Failed to serialize handshake", category: "Discord")
+            Log.error("DiscordRPCService: Failed to serialize handshake", category: .discord)
             return false
         }
 
@@ -323,7 +323,7 @@ extension DiscordRPCService {
             let reason = "\(err) (\(String(cString: strerror(err))))"
             Log.error(
                 "DiscordRPCService: Handshake write failed/timed out: \(reason)",
-                category: "Discord"
+                category: .discord
             )
             return false
         }
@@ -334,10 +334,10 @@ extension DiscordRPCService {
                 let reason = "\(err) (\(String(cString: strerror(err))))"
                 Log.error(
                     "DiscordRPCService: Handshake read failed/timed out: \(reason)",
-                    category: "Discord"
+                    category: .discord
                 )
             } else {
-                Log.warn("DiscordRPCService: Invalid handshake response; expected DISPATCH/READY", category: "Discord")
+                Log.warn("DiscordRPCService: Invalid handshake response; expected DISPATCH/READY", category: .discord)
             }
             return false
         }
@@ -480,7 +480,7 @@ extension DiscordRPCService {
             let err = errno
             Log.error(
                 "DiscordRPCService: Failed to suppress SIGPIPE: errno \(err)",
-                category: "Discord"
+                category: .discord
             )
             return false
         }
@@ -488,7 +488,7 @@ extension DiscordRPCService {
             let err = errno
             Log.error(
                 "DiscordRPCService: Failed to set receive timeout: errno \(err)",
-                category: "Discord"
+                category: .discord
             )
             return false
         }
@@ -496,7 +496,7 @@ extension DiscordRPCService {
             let err = errno
             Log.error(
                 "DiscordRPCService: Failed to set send timeout: errno \(err)",
-                category: "Discord"
+                category: .discord
             )
             return false
         }
@@ -751,7 +751,7 @@ extension DiscordRPCService {
               let command = payload["cmd"] as? String,
               !command.isEmpty,
               let outbound = Self.encodeFrame(opcode: .frame, payload: payload) else {
-            Log.error("DiscordRPCService: Invalid command payload", category: "Discord")
+            Log.error("DiscordRPCService: Invalid command payload", category: .discord)
             return false
         }
 
@@ -777,7 +777,7 @@ extension DiscordRPCService {
             let reason = "\(err) (\(String(cString: strerror(err))))"
             Log.error(
                 "DiscordRPCService: Command write failed/timed out: \(reason)",
-                category: "Discord"
+                category: .discord
             )
             await handleConnectionLost(fd: fd, generation: generation)
             return false
@@ -791,17 +791,17 @@ extension DiscordRPCService {
                 let reason = "\(err) (\(String(cString: strerror(err))))"
                 Log.error(
                     "DiscordRPCService: Command reply read failed/timed out: \(reason)",
-                    category: "Discord"
+                    category: .discord
                 )
             } else {
-                Log.warn("DiscordRPCService: Missing or mismatched command reply", category: "Discord")
+                Log.warn("DiscordRPCService: Missing or mismatched command reply", category: .discord)
             }
             await handleConnectionLost(fd: fd, generation: generation)
             return false
         }
 
         if responsePayload["evt"] as? String == "ERROR" {
-            Log.warn("DiscordRPCService: Discord rejected \(command)", category: "Discord")
+            Log.warn("DiscordRPCService: Discord rejected \(command)", category: .discord)
             return false
         }
         return true
@@ -1083,7 +1083,7 @@ extension DiscordRPCService {
                 if err != 0 {
                     Log.debug(
                         "DiscordRPCService: Idle IPC read failed: errno \(err)",
-                        category: "Discord"
+                        category: .discord
                     )
                 }
                 await handleConnectionLost(fd: fd, generation: generation)
@@ -1200,7 +1200,7 @@ extension DiscordRPCService {
         guard isEnabled else { return }
 
         let delay = reconnectDelay
-        Log.info("DiscordRPCService: Scheduling reconnect in \(delay)s", category: "Discord")
+        Log.info("DiscordRPCService: Scheduling reconnect in \(delay)s", category: .discord)
         reconnectTask?.cancel()
         reconnectTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(delay))

@@ -270,7 +270,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Skip full app setup when running unit tests to prevent windows from
         // appearing and services (WebSocket, Discord) from starting.
         if WolfWaveApp.isRunningTests {
-            Log.debug("AppDelegate: Running under XCTest, skipping service setup", category: "App")
+            Log.debug("AppDelegate: Running under XCTest, skipping service setup", category: .app)
             return
         }
 
@@ -295,10 +295,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Record whether the previous run left a crash breadcrumb, mirror it to a
         // UserDefaults flag the Advanced pane reads, then clear the marker so the
         // callout shows exactly once (next clean launch is silent).
-        let crashedLastLaunch = CrashReporter.didCrashLastLaunch()
-        DefaultsStore.store.set(crashedLastLaunch, forKey: AppConstants.UserDefaults.lastLaunchCrashed)
-        if crashedLastLaunch {
-            Log.warn("AppDelegate: previous launch ended in a crash (breadcrumb found)", category: "App")
+        // Read the marker's CONTENTS before clearing it. This used to be an
+        // existence check followed by a delete, which destroyed the signal name
+        // and the 20-frame exception backtrace without them ever reaching the
+        // log, the UI, or a bug report.
+        let marker = CrashReporter.readMarker()
+        DefaultsStore.store.set(marker != nil, forKey: AppConstants.UserDefaults.lastLaunchCrashed)
+        if let marker {
+            // Into the log at .error so it lands in the file a user actually
+            // exports, and so the summary survives past this one launch.
+            Log.error(
+                "AppDelegate: previous launch ended in a crash\n\(marker.detail)",
+                category: .app,
+                fields: [
+                    "kind": marker.kind.rawValue,
+                    "signal": marker.signalName ?? "none",
+                    "frames": marker.frames.count
+                ])
+            DefaultsStore.store.set(
+                marker.summary, forKey: AppConstants.UserDefaults.lastCrashSummary)
+        } else {
+            DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.lastCrashSummary)
         }
         CrashReporter.clearMarker()
 
@@ -317,7 +334,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Defer onboarding and What's New past the initial layout pass
         // to avoid "layoutSubtreeIfNeeded on a view already being laid out" warning
         Task { @MainActor [weak self] in
-            Log.debug("AppDelegate: hasCompletedOnboarding = \(OnboardingViewModel.hasCompletedOnboarding)", category: "App")
+            Log.debug(
+                "AppDelegate: hasCompletedOnboarding = \(OnboardingViewModel.hasCompletedOnboarding)",
+                category: .app)
 
             if !OnboardingViewModel.hasCompletedOnboarding {
                 self?.showOnboarding()

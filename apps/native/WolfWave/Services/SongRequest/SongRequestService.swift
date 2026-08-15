@@ -211,7 +211,7 @@ final class SongRequestService {
             defaults.set(false, forKey: AppConstants.UserDefaults.songRequestSetupComplete)
             defaults.set(false, forKey: AppConstants.UserDefaults.songRequestEnabled)
             NotificationCenter.default.postEnabled(.songRequestSettingChanged, enabled: false)
-            Log.info("SongRequestService: Playlist setup broke; re-engaging setup gate", category: "SongRequest")
+            Log.info("SongRequestService: Playlist setup broke; re-engaging setup gate", category: .songRequest)
         }
         setPlaylistStatus(outcome.status)
     }
@@ -260,7 +260,7 @@ final class SongRequestService {
         guard !Task.isCancelled else { return }
         DefaultsStore.store.set(enabled, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
         NotificationCenter.default.postEnabled(.songRequestHoldChanged, enabled: enabled)
-        Log.debug("SongRequestService: Hold \(enabled ? "enabled" : "released")", category: "SongRequest")
+        Log.debug("SongRequestService: Hold \(enabled ? "enabled" : "released")", category: .songRequest)
         defer { reconcilePlaybackMonitoring() }
 
         if !enabled {
@@ -777,7 +777,7 @@ final class SongRequestService {
         if let next = await playNextInQueueUnguarded(generation: generation) {
             resetTakeoverTracking()
             resetRequestPlaybackTracking()
-            Log.debug("SongRequestService: Skipped to \"\(next.title)\"", category: "SongRequest")
+            Log.debug("SongRequestService: Skipped to \"\(next.title)\"", category: .songRequest)
             result = next
         } else {
             result = nil
@@ -877,7 +877,7 @@ final class SongRequestService {
         } catch {
             Log.debug(
                 "SongRequestService: Target-bound vote-skip failed: \(error)",
-                category: "SongRequest")
+                category: .songRequest)
             didMutate = false
         }
 
@@ -1200,7 +1200,7 @@ final class SongRequestService {
                 await stopPlaybackStartedBeforeClear()
                 Log.warn(
                     "SongRequestService: Stopped stale playback start for \"\(item.title)\" after queue clear",
-                    category: "SongRequest"
+                    category: .songRequest
                 )
                 return nil
             }
@@ -1208,14 +1208,21 @@ final class SongRequestService {
                 await runCoalescedNativeClear()
                 Log.warn(
                     "SongRequestService: Stopped stale playback start for \"\(item.title)\" after queue changed",
-                    category: "SongRequest"
+                    category: .songRequest
                 )
                 guard generation == playbackGeneration else { return nil }
                 return await playNextInQueueUnguarded(generation: generation)
             }
             playAttemptCounts[item.id] = nil
             isPlayingFallback = false
-            Log.debug("SongRequestService: Now playing \"\(item.title)\" by \(item.artist) (requested by \(item.requesterUsername))", category: "SongRequest")
+            Log.debug(
+                "SongRequestService: Now playing",
+                category: .songRequest,
+                fields: [
+                    "title": item.title,
+                    "artist": item.artist,
+                    "requester": item.requesterUsername
+                ])
             return committed
         } catch {
             guard generation == playbackGeneration else {
@@ -1226,7 +1233,7 @@ final class SongRequestService {
             if error is CancellationError {
                 Log.debug(
                     "SongRequestService: Playback start was cancelled; retained \"\(item.title)\" at queue head",
-                    category: "SongRequest"
+                    category: .songRequest
                 )
                 return nil
             }
@@ -1235,7 +1242,7 @@ final class SongRequestService {
             case PlaybackError.musicAppNotRunning:
                 Log.debug(
                     "SongRequestService: Music.app closed, retained \"\(item.title)\" at queue head",
-                    category: "SongRequest"
+                    category: .songRequest
                 )
                 return nil
 
@@ -1245,28 +1252,30 @@ final class SongRequestService {
                     playAttemptCounts[item.id] = nil
                     guard queue.removeNext(id: item.id) != nil else { return nil }
                     Log.debug(
-                        "SongRequestService: Dropping \"\(title)\" after \(attempts) failed play attempts (unavailable or no subscription)",
-                        category: "SongRequest"
+                        "SongRequestService: Dropping track, unavailable or no subscription",
+                        category: .songRequest,
+                        fields: ["title": title, "attempt": attempts]
                     )
                     sendChatMessage?("Couldn't play \"\(title)\" (not available on Apple Music). Skipping it.")
                     return await playNextInQueueUnguarded(generation: generation)
                 }
                 playAttemptCounts[item.id] = attempts
                 Log.debug(
-                    "SongRequestService: \"\(title)\" not ready (attempt \(attempts)/\(maxPlayAttempts)); retained at head",
-                    category: "SongRequest"
+                    "SongRequestService: Track not ready, retained at head",
+                    category: .songRequest,
+                    fields: ["title": title, "attempt": attempts, "limit": maxPlayAttempts]
                 )
                 return nil
 
             case PlaybackError.commandFailed(let command, let message):
                 Log.warn(
                     "SongRequestService: \(command) failed for \"\(item.title)\": \(message); retained at head",
-                    category: "SongRequest"
+                    category: .songRequest
                 )
                 return nil
 
             default:
-                Log.debug("SongRequestService: Failed to play \"\(item.title)\": \(error)", category: "SongRequest")
+                Log.debug("SongRequestService: Failed to play \"\(item.title)\": \(error)", category: .songRequest)
                 guard queue.removeNext(id: item.id) != nil else { return nil }
                 return await playNextInQueueUnguarded(generation: generation)
             }
@@ -1314,11 +1323,11 @@ final class SongRequestService {
             await startFallbackIfConfigured()
         } else if isAutoplayWhenEmptyEnabled {
             isPlayingFallback = false
-            Log.debug("SongRequestService: Queue empty, Apple Music continues normally", category: "SongRequest")
+            Log.debug("SongRequestService: Queue empty, Apple Music continues normally", category: .songRequest)
         } else {
             await runCoalescedNativeClear()
             isPlayingFallback = false
-            Log.debug("SongRequestService: Queue empty, autoplay off, stopping playback", category: "SongRequest")
+            Log.debug("SongRequestService: Queue empty, autoplay off, stopping playback", category: .songRequest)
         }
     }
 
@@ -1326,11 +1335,11 @@ final class SongRequestService {
     /// starts the fallback playlist) after a 500 ms grace period so Music.app
     /// has time to initialize its AppleScript surface.
     private func handleMusicAppLaunched() async {
-        Log.debug("SongRequestService: Music.app launched, flushing buffered requests", category: "SongRequest")
+        Log.debug("SongRequestService: Music.app launched, flushing buffered requests", category: .songRequest)
         // Give Music.app a moment to finish launching before sending commands
         try? await Task.sleep(for: .milliseconds(500))
         guard !isHoldEnabled else {
-            Log.debug("SongRequestService: Hold enabled, skipping flush on Music.app launch", category: "SongRequest")
+            Log.debug("SongRequestService: Hold enabled, skipping flush on Music.app launch", category: .songRequest)
             return
         }
         if queue.nowPlaying == nil && !queue.isEmpty {
@@ -1355,13 +1364,13 @@ final class SongRequestService {
             try await musicController.playFallbackPlaylist(name: name)
             didStart = true
         } catch {
-            Log.debug("SongRequestService: Failed to start fallback playlist: \(error)", category: "SongRequest")
+            Log.debug("SongRequestService: Failed to start fallback playlist: \(error)", category: .songRequest)
         }
         if generation != playbackGeneration {
             await stopPlaybackStartedBeforeClear()
         } else if didStart {
             isPlayingFallback = true
-            Log.debug("SongRequestService: Fallback playlist '\(name)' playing", category: "SongRequest")
+            Log.debug("SongRequestService: Fallback playlist '\(name)' playing", category: .songRequest)
         }
         isStartingPlayback = false
         await reconcilePendingClearIfNeeded()

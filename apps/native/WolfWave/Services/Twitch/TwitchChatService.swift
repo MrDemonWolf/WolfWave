@@ -1200,7 +1200,7 @@ actor TwitchChatService {
             if state.remaining <= 5 && state.remaining > 0 {
                 Log.warn(
                     "TwitchChatService: Approaching rate limit on \(endpoint): \(state.remaining)/\(state.limit) remaining",
-                    category: "Twitch")
+                    category: .twitchChat)
             }
 
             MetricsService.shared.recordTwitchRateLimit(
@@ -1233,11 +1233,11 @@ actor TwitchChatService {
         credentialRevision: UInt64? = nil
     ) async throws {
         guard !broadcasterID.isEmpty, !botID.isEmpty, !token.isEmpty else {
-            Log.error("TwitchChatService: Invalid credentials for channel join", category: "Twitch")
+            Log.error("TwitchChatService: Invalid credentials for channel join", category: .twitchChat)
             throw ConnectionError.invalidCredentials
         }
         guard !clientID.isEmpty else {
-            Log.error("TwitchChatService: Missing client ID for channel join", category: "Twitch")
+            Log.error("TwitchChatService: Missing client ID for channel join", category: .twitchChat)
             throw ConnectionError.missingClientID
         }
         if attemptGeneration == nil {
@@ -1304,13 +1304,13 @@ actor TwitchChatService {
         }
         await MainActor.run {
             commandDispatcher.setCurrentSongInfoAsync {
-                Log.debug("Twitch provider: current song closure invoked", category: "Twitch")
+                Log.debug("Twitch provider: current song closure invoked", category: .twitchChat)
                 guard let provider = providers.current() else {
-                    Log.debug("Twitch provider: current song: no provider, default", category: "Twitch")
+                    Log.debug("Twitch provider: current song: no provider, default", category: .twitchChat)
                     return "No track currently playing"
                 }
                 let result = await provider()
-                Log.debug("Twitch provider: current song returned \(result.prefix(40))", category: "Twitch")
+                Log.debug("Twitch provider: current song returned \(result.prefix(40))", category: .twitchChat)
                 return result
             }
             commandDispatcher.setLastSongInfoAsync {
@@ -1359,11 +1359,11 @@ actor TwitchChatService {
         expectedCredentialRevision: UInt64? = nil
     ) async throws {
         guard !channelName.isEmpty, !token.isEmpty else {
-            Log.error("TwitchChatService: Invalid channel name or token", category: "Twitch")
+            Log.error("TwitchChatService: Invalid channel name or token", category: .twitchChat)
             throw ConnectionError.invalidCredentials
         }
         guard !clientID.isEmpty else {
-            Log.error("TwitchChatService: Missing client ID for channel connect", category: "Twitch")
+            Log.error("TwitchChatService: Missing client ID for channel connect", category: .twitchChat)
             throw ConnectionError.missingClientID
         }
         guard let credentialSnapshot = TwitchCredentialStore.shared.connectionSnapshot(
@@ -1456,7 +1456,7 @@ actor TwitchChatService {
         // subscription setup and tear down this socket on a critical failure.
         connectToEventSub()
 
-        Log.info("TwitchChatService: Connected to channel \(channelName)", category: "Twitch")
+        Log.info("TwitchChatService: Connected to channel \(channelName)", category: .twitchChat)
     }
 
     /// Starts a new logical connection attempt and supersedes any older one.
@@ -1521,7 +1521,7 @@ actor TwitchChatService {
     func leaveChannel(
         allowDiscardingOpaqueRedemptionRecovery: Bool = false
     ) async -> Bool {
-        Log.info("TwitchChatService:leaveChannel() called", category: "Twitch")
+        Log.info("TwitchChatService:leaveChannel() called", category: .twitchChat)
         eventSubCredentialTeardownFenceDepth += 1
         eventSubTeardownQuiescing.set(true)
         defer {
@@ -1553,7 +1553,7 @@ actor TwitchChatService {
         ) else {
             Log.error(
                 "TwitchChatService: Refusing credential teardown while the managed reward may still accept redemptions",
-                category: "Twitch")
+                category: .twitchChat)
             return false
         }
 
@@ -1584,7 +1584,7 @@ actor TwitchChatService {
             }
             Log.info(
                 "TwitchChatService: Account changed during reward pause; skipping stale teardown",
-                category: "Twitch")
+                category: .twitchChat)
             // A newer session owns any subsequent reconciliation.
             await refreshRedemptionSubscriptions()
             return false
@@ -1615,7 +1615,7 @@ actor TwitchChatService {
                     generation: teardownOwnershipGeneration)
                 Log.error(
                     "TwitchChatService: Refusing credential teardown because paid work arrived at the final EventSub intake boundary",
-                    category: "Twitch")
+                    category: .twitchChat)
                 return false
             }
         }
@@ -1670,7 +1670,7 @@ actor TwitchChatService {
         clientID = nil
         hasSentConnectionMessage = false
 
-        Log.info("TwitchChatService: Left channel", category: "Twitch")
+        Log.info("TwitchChatService: Left channel", category: .twitchChat)
         return true
     }
 
@@ -1802,7 +1802,7 @@ actor TwitchChatService {
               let botID,
               let token = oauthToken,
               let clientID else {
-            Log.warn("TwitchChatService: Not connected, send attempt failed", category: "Twitch")
+            Log.warn("TwitchChatService: Not connected, send attempt failed", category: .twitchChat)
             return .retryableFailure
         }
 
@@ -1838,14 +1838,14 @@ actor TwitchChatService {
                     Log.warn(
                         "TwitchChatService: Send response contained no result; "
                             + "not retrying an indeterminate delivery",
-                        category: "Twitch")
+                        category: .twitchChat)
                     return .permanentFailure
                 }
                 guard first.isSent else {
                     Log.warn(
                         "TwitchChatService: Message dropped by Twitch; "
                             + "not retrying a permanent rejection",
-                        category: "Twitch")
+                        category: .twitchChat)
                     return .permanentFailure
                 }
             } catch {
@@ -1853,14 +1853,14 @@ actor TwitchChatService {
                     "TwitchChatService: Failed to decode send-message response; "
                         + "delivery is indeterminate and will not be retried - "
                         + error.localizedDescription,
-                    category: "Twitch")
+                    category: .twitchChat)
                 return .permanentFailure
             }
             return .sent
         } catch ConnectionError.authenticationFailed {
             Log.error(
                 "TwitchChatService: Send rejected (401); attempting token refresh",
-                category: "Twitch")
+                category: .twitchChat)
             guard let expectedCredential else {
                 return .permanentFailure
             }
@@ -1873,7 +1873,7 @@ actor TwitchChatService {
                 ) else { return .permanentFailure }
                 Log.error(
                     "TwitchChatService: Refreshed token was rejected by chat send",
-                    category: "Twitch")
+                    category: .twitchChat)
                 signalReauthNeededAndStop()
                 return .permanentFailure
             }
@@ -1904,17 +1904,17 @@ actor TwitchChatService {
         } catch HelixRequestError.permanentHTTP(let statusCode) {
             Log.error(
                 "TwitchChatService: Chat send permanently rejected with HTTP \(statusCode)",
-                category: "Twitch")
+                category: .twitchChat)
             return .permanentFailure
         } catch HelixRequestError.retryableHTTP(let statusCode) {
             Log.warn(
                 "TwitchChatService: Chat send transiently failed with HTTP \(statusCode)",
-                category: "Twitch")
+                category: .twitchChat)
             return .retryableFailure
         } catch {
             Log.error(
                 "TwitchChatService: Failed to send message - \(error.localizedDescription)",
-                category: "Twitch")
+                category: .twitchChat)
             return .retryableFailure
         }
     }
@@ -1955,7 +1955,7 @@ actor TwitchChatService {
         guard attempts < maxMessageRetries else {
             Log.error(
                 "TwitchChatService: Message dropped after \(maxMessageRetries) retry attempts",
-                category: "Twitch")
+                category: .twitchChat)
             return
         }
 
@@ -1966,13 +1966,13 @@ actor TwitchChatService {
         if dropped > 0 {
             Log.warn(
                 "TwitchChatService: Retry queue full, dropped \(dropped) oldest message(s)",
-                category: "Twitch")
+                category: .twitchChat)
         }
 
         Log.debug(
             "TwitchChatService: Queued message retry \(attempts + 1)/\(maxMessageRetries) "
                 + "(\(pendingMessages.count) pending)",
-            category: "Twitch")
+            category: .twitchChat)
 
         startRetryDrainLoopIfNeeded()
     }
@@ -2059,7 +2059,7 @@ actor TwitchChatService {
         if let waitTime = await rateLimiter.waitTimeIfRateLimited(endpoint: endpoint) {
             Log.info(
                 "TwitchChatService: Request queued due to rate limit. Retry after \(String(format: "%.1f", waitTime))s",
-                category: "Twitch")
+                category: .twitchChat)
             try await rateLimiter.awaitCapacity(endpoint: endpoint)
         }
 
@@ -2075,7 +2075,7 @@ actor TwitchChatService {
         } catch {
             Log.error(
                 "TwitchChatService: Failed to serialize request body - \(error.localizedDescription)",
-                category: "Twitch")
+                category: .twitchChat)
             throw ConnectionError.networkError("Failed to serialize request body")
         }
 
@@ -2093,14 +2093,14 @@ actor TwitchChatService {
             if let wait {
                 Log.info(
                     "TwitchChatService: API \(endpoint) hit 429; waiting \(String(format: "%.1f", wait))s before one retry",
-                    category: "Twitch")
+                    category: .twitchChat)
                 await rateLimiter.noteRateLimited(
                     endpoint: endpoint, untilEpoch: Date().timeIntervalSince1970 + wait)
                 try await rateLimiter.awaitCapacity(endpoint: endpoint)
             } else {
                 Log.info(
                     "TwitchChatService: API \(endpoint) hit 429 without a reset header; one immediate retry",
-                    category: "Twitch")
+                    category: .twitchChat)
             }
 
             try Task.checkCancellation()
@@ -2114,7 +2114,7 @@ actor TwitchChatService {
             let responseText = String(data: data, encoding: .utf8) ?? "No response body"
             Log.warn(
                 "TwitchChatService: API \(endpoint) returned HTTP \(http.statusCode) - \(responseText)",
-                category: "Twitch")
+                category: .twitchChat)
 
             switch disposition {
             case .success:

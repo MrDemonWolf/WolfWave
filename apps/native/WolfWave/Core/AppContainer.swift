@@ -64,7 +64,7 @@ enum AppContainer {
         } catch {
             Log.error(
                 "AppContainer: failed to wipe container - \(error.localizedDescription)",
-                category: "Reset"
+                category: .reset
             )
             return false
         }

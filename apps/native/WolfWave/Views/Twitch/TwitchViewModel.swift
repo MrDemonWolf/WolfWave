@@ -214,7 +214,7 @@ final class TwitchViewModel {
 
             Log.error(
                 "TwitchViewModel: AppDelegate.shared is nil or service not available",
-                category: "Twitch")
+                category: .twitch)
             return nil
         }
         set {
@@ -434,7 +434,7 @@ final class TwitchViewModel {
             Log.error(
                 "TwitchViewModel: Could not read saved Twitch credentials - "
                     + error.localizedDescription,
-                category: "Twitch"
+                category: .twitch
             )
             if connectionError == nil {
                 connectionError = Failure.keychainUnreadable()
@@ -479,7 +479,7 @@ final class TwitchViewModel {
     private func handleTwitchConnectionState(isConnected: Bool?, errorMessage: String?) {
         guard let isConnected else {
             Log.error(
-                "TwitchViewModel: Notification userInfo missing or invalid", category: "Twitch")
+                "TwitchViewModel: Notification userInfo missing or invalid", category: .twitch)
             return
         }
 
@@ -496,10 +496,10 @@ final class TwitchViewModel {
                     ? Failure.connectionTimedOut()
                     : Failure.connectionFailed(error)
                 Log.error(
-                    "TwitchViewModel: Connection error - \(error)", category: "Twitch")
+                    "TwitchViewModel: Connection error - \(error)", category: .twitch)
             } else if self.reauthNeeded {
                 self.connectionError = Failure.signInExpired()
-                Log.warn("TwitchViewModel: UI updated - Reauth needed", category: "Twitch")
+                Log.warn("TwitchViewModel: UI updated - Reauth needed", category: .twitch)
             }
             // A plain disconnect is not a failure, so it clears nothing and
             // shows nothing. The chip already reads "Disconnected".
@@ -858,7 +858,7 @@ final class TwitchViewModel {
 
         guard let credential = TwitchCredentialStore.shared.connectionSnapshot() else {
             connectionError = Failure.noCredentials()
-            Log.error("TwitchViewModel: No OAuth token found", category: "Twitch")
+            Log.error("TwitchViewModel: No OAuth token found", category: .twitch)
             isConnecting = false
             return
         }
@@ -876,7 +876,7 @@ final class TwitchViewModel {
                     self.connectionError = Failure.serviceUnavailable()
                     self.isConnecting = false
                     Log.error(
-                        "TwitchViewModel: twitchService property returned nil", category: "Twitch")
+                        "TwitchViewModel: twitchService property returned nil", category: .twitch)
                     return
                 }
 
@@ -946,7 +946,7 @@ final class TwitchViewModel {
 
                 Log.info(
                     "TwitchViewModel: Twitch service found, starting connection to channel: \(channel)",
-                    category: "Twitch")
+                    category: .twitch)
 
                 self.progressMessage = "Connecting to Twitch..."
 
@@ -1066,7 +1066,7 @@ final class TwitchViewModel {
             Log.warn(
                 "TwitchViewModel: Skipping background token validation because "
                     + "Keychain is temporarily unavailable",
-                category: "Twitch"
+                category: .twitch
             )
             return
         }
@@ -1372,7 +1372,7 @@ final class TwitchViewModel {
         authState = .error(message)
         Log.error(
             "TwitchViewModel: Keychain credential deletion failed - \(error.localizedDescription)",
-            category: "Twitch")
+            category: .twitch)
     }
 
     /// Installs exactly one validation owner for whichever durable grant
@@ -1391,7 +1391,7 @@ final class TwitchViewModel {
             Log.warn(
                 "TwitchViewModel: Conservatively restoring token validation "
                     + "after a Keychain read failure",
-                category: "Twitch"
+                category: .twitch
             )
             restartTokenValidationSchedule()
         }
@@ -1541,7 +1541,7 @@ final class TwitchViewModel {
         } catch {
             Log.error(
                 "TwitchViewModel: Failed to save OAuth token: \(error.localizedDescription)",
-                category: "Twitch"
+                category: .twitch
             )
             connectionError = Failure.keychainWriteFailed()
             authState = .error(error.localizedDescription)
@@ -1589,7 +1589,7 @@ final class TwitchViewModel {
             guard !Task.isCancelled, oauthGeneration == generation else { return true }
             Log.error(
                 "TwitchViewModel: Failed to resolve bot identity: \(error.localizedDescription)",
-                category: "Twitch"
+                category: .twitch
             )
             connectionError = Failure.botIdentityUnresolved()
             authState = .error(error.localizedDescription)

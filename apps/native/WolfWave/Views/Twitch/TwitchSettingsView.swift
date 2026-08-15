@@ -64,7 +64,7 @@ struct TwitchSettingsView: View {
             // `layoutSubtreeIfNeeded on a view which is already being laid out`
             // recursion that has been associated with the post-onboarding hang.
             Task { @MainActor in
-                Log.debug("TwitchSettingsView: onAppear first-mount, loading credentials", category: "Twitch")
+                Log.debug("TwitchSettingsView: onAppear first-mount, loading credentials", category: .twitch)
                 viewModel.loadSavedCredentials()
 
                 if viewModel.twitchService == nil {
@@ -73,10 +73,10 @@ struct TwitchSettingsView: View {
                         if viewModel.twitchService == nil {
                             Log.error(
                                 "TwitchSettingsView: AppDelegate.twitchService is nil!",
-                                category: "Twitch")
+                                category: .twitch)
                         }
                     } else {
-                        Log.error("TwitchSettingsView: AppDelegate.shared is nil", category: "Twitch")
+                        Log.error("TwitchSettingsView: AppDelegate.shared is nil", category: .twitch)
                     }
                 }
 

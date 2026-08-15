@@ -42,6 +42,16 @@ enum BugReportURL {
     ///   - install: How the app was installed.
     /// - Returns: A URL pointing to the GitHub issue form with prefilled body,
     ///   or `nil` if the base URL is malformed.
+    /// Builds the issue URL from a captured ``DiagnosticSnapshot``.
+    ///
+    /// Preferred over the field-by-field overload: the snapshot also carries the
+    /// crash flag, log size, and diagnostics opt-in. "Report a Bug" is the
+    /// primary button on the crash-recovery callout, and it used to open a form
+    /// that said nothing about the crash at all.
+    static func make(base: String, snapshot: DiagnosticSnapshot) -> URL? {
+        make(base: base, environment: snapshot.markdownBullets)
+    }
+
     static func make(
         base: String,
         appVersion: String,
@@ -50,6 +60,15 @@ enum BugReportURL {
         arch: String,
         install: InstallMethod
     ) -> URL? {
+        make(base: base, environment: """
+            - **App version:** \(appVersion) (build \(build))
+            - **macOS:** \(osVersion)
+            - **Architecture:** \(arch)
+            - **Install method:** \(install.rawValue)
+            """)
+    }
+
+    private static func make(base: String, environment: String) -> URL? {
         guard var components = URLComponents(string: base) else { return nil }
 
         let body = """
@@ -69,16 +88,14 @@ enum BugReportURL {
 
         ## Environment
 
-        - **App version:** \(appVersion) (build \(build))
-        - **macOS:** \(osVersion)
-        - **Architecture:** \(arch)
-        - **Install method:** \(install.rawValue)
+        \(environment)
 
         ## Logs
 
         <!--
-        Paste relevant log output here, or attach the exported log file.
-        You can export logs from Settings → Advanced → Export Logs.
+        Attach the exported diagnostics file, or paste the relevant part here.
+        Settings → Advanced → Export Logs writes one file containing your
+        environment, the last crash if there was one, and every rotated log.
         -->
         """
 
@@ -102,16 +119,14 @@ enum BugReportURL {
     /// "Send Feedback" so environment assembly lives in one place.
     @MainActor
     static func openPrefilledIssue() {
+        // Snapshot form, so the report carries the crash flag, log size, and
+        // diagnostics opt-in rather than four environment lines and no state.
         let url = make(
             base: AppConstants.URLs.githubIssuesNew,
-            appVersion: AppConstants.AppInfo.shortVersion,
-            build: AppConstants.AppInfo.buildNumber,
-            osVersion: ProcessInfo.processInfo.operatingSystemVersionString,
-            arch: currentArch(),
-            install: Bundle.main.isHomebrewInstall ? .homebrew : .dmg
+            snapshot: DiagnosticSnapshot.capture(logSizeBytes: Log.logFileSize())
         )
         guard let url else {
-            Log.error("BugReportURL: Failed to build bug report URL", category: "App")
+            Log.error("BugReportURL: Failed to build bug report URL", category: .app)
             return
         }
         ExternalLink.open(url.absoluteString)

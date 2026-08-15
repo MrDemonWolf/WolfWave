@@ -83,7 +83,7 @@ final class OnboardingViewModel {
     func completeOnboarding() {
         DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
         showCompletion = true
-        Log.info("OnboardingViewModel: Onboarding completed", category: "App")
+        Log.info("OnboardingViewModel: Onboarding completed", category: .app)
     }
 
     /// Whether onboarding has been completed on a previous launch.

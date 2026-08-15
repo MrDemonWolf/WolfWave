@@ -321,9 +321,6 @@ nonisolated enum AppConstants {
         /// Maximum number of `PlayRecord`s retained on disk and in memory.
         /// Older plays are folded into the lifetime tally and dropped.
         static let maxRetainedRecords = 10_000
-
-        /// Logging category for history-related log lines.
-        static let logCategory = "History"
     }
 
     // MARK: - External APIs

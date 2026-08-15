@@ -429,7 +429,7 @@ final class NotificationService: NSObject {
         } catch {
             Log.error(
                 "NotificationService: Failed to post notification: \(error.localizedDescription)",
-                category: "App"
+                category: .app
             )
             return false
         }
@@ -528,7 +528,7 @@ final class NotificationService: NSObject {
         } catch {
             Log.debug(
                 "NotificationService: Artwork attachment unavailable: \(error.localizedDescription)",
-                category: "App"
+                category: .app
             )
             return nil
         }

@@ -349,7 +349,7 @@ final class BotCommandDispatcher {
                         )
                         Log.debug(
                             "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) on cooldown for user \(userID), global: \(String(format: "%.1f", remaining.global))s remaining, per-user: \(String(format: "%.1f", remaining.perUser))s remaining",
-                            category: "Twitch")
+                            category: .twitchChat)
                         return nil
                     }
 
@@ -358,7 +358,7 @@ final class BotCommandDispatcher {
                         cooldownManager.recordUse(trigger: canonical, userID: userID)
                         Log.debug(
                             "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) executed, cooldown set: global=\(String(format: "%.1f", globalCD))s, per-user=\(String(format: "%.1f", userCD))s",
-                            category: "Twitch")
+                            category: .twitchChat)
                         return response
                     }
                     break
@@ -382,11 +382,11 @@ final class BotCommandDispatcher {
         context: BotCommandContext?
     ) async -> String? {
         guard !Task.isCancelled else { return nil }
-        Log.debug("BotCommandDispatcher: processMessageAsync enter msg=\(message.prefix(40))", category: "Twitch")
+        Log.debug("BotCommandDispatcher: processMessageAsync enter msg=\(message.prefix(40))", category: .twitchChat)
         let trimmedMessage = message.trimmingCharacters(in: .whitespaces)
 
         guard !trimmedMessage.isEmpty, trimmedMessage.count <= AppConstants.Twitch.maxMessageLength else {
-            Log.debug("BotCommandDispatcher: processMessageAsync: empty/too-long, bail", category: "Twitch")
+            Log.debug("BotCommandDispatcher: processMessageAsync: empty/too-long, bail", category: .twitchChat)
             return nil
         }
 
@@ -394,7 +394,9 @@ final class BotCommandDispatcher {
         // command stays silent regardless of its own enable state.
         let gate = lock.withLock { globalGate }
         guard gate() else {
-            Log.debug("BotCommandDispatcher: global gate closed (live-only, stream offline), bail", category: "Twitch")
+            Log.debug(
+                "BotCommandDispatcher: global gate closed (live-only, stream offline), bail",
+                category: .twitchChat)
             return nil
         }
 
@@ -412,17 +414,21 @@ final class BotCommandDispatcher {
             for trigger in triggers {
                 let triggerLowered = trigger.lowercased()
                 if commandToken == triggerLowered {
-                    Log.debug("BotCommandDispatcher: matched trigger \(trigger)", category: "Twitch")
+                    Log.debug("BotCommandDispatcher: matched trigger \(trigger)", category: .twitchChat)
                     // `break` (not `return nil`) so a disabled/denied command
                     // falls through to another match on the same trigger (e.g. a
                     // disabled custom command → its shadowed built-in).
                     guard command.isCommandEnabled else {
-                        Log.debug("BotCommandDispatcher: command \(trigger) disabled, try next match", category: "Twitch")
+                        Log.debug(
+                            "BotCommandDispatcher: command \(trigger) disabled, try next match",
+                            category: .twitchChat)
                         break
                     }
 
                     if let context, !command.isAllowed(context: context) {
-                        Log.debug("BotCommandDispatcher: command \(trigger) denied by permission, try next match", category: "Twitch")
+                        Log.debug(
+                            "BotCommandDispatcher: command \(trigger) denied by permission, try next match",
+                            category: .twitchChat)
                         break
                     }
 
@@ -445,7 +451,7 @@ final class BotCommandDispatcher {
                         )
                         Log.debug(
                             "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) on cooldown for user \(userID), global: \(String(format: "%.1f", remaining.global))s remaining, per-user: \(String(format: "%.1f", remaining.perUser))s remaining",
-                            category: "Twitch")
+                            category: .twitchChat)
                         return nil
                     }
 
@@ -457,16 +463,24 @@ final class BotCommandDispatcher {
                         guard !Task.isCancelled else { return nil }
                         Log.debug(
                             "BotCommandDispatcher: Async command \(trigger) completed (group: \(canonical))",
-                            category: "Twitch")
+                            category: .twitchChat)
                         return response
                     }
 
                     let response: String?
                     if let track = command as? TrackInfoCommand {
                         guard !Task.isCancelled else { return nil }
-                        Log.debug("BotCommandDispatcher: TrackInfoCommand.executeAsync start \(trigger)", category: "Twitch")
+                        Log.debug(
+                            "BotCommandDispatcher: TrackInfoCommand.executeAsync start \(trigger)",
+                            category: .twitchChat)
                         response = await track.executeAsync(message: trimmedMessage)
-                        Log.debug("BotCommandDispatcher: TrackInfoCommand.executeAsync done \(trigger) → \(response?.prefix(40) ?? "nil")", category: "Twitch")
+                        Log.debug(
+                            "BotCommandDispatcher: TrackInfoCommand.executeAsync done",
+                            category: .twitchChat,
+                            fields: [
+                                "trigger": trigger,
+                                "response": response?.prefix(40) ?? "nil"
+                            ])
                     } else {
                         response = command.execute(message: trimmedMessage)
                     }
@@ -475,7 +489,7 @@ final class BotCommandDispatcher {
                         cooldownManager.recordUse(trigger: canonical, userID: userID)
                         Log.debug(
                             "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) executed, cooldown set: global=\(String(format: "%.1f", globalCD))s, per-user=\(String(format: "%.1f", userCD))s",
-                            category: "Twitch")
+                            category: .twitchChat)
                         return response
                     }
                     break
