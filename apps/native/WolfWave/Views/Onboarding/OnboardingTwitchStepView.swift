@@ -101,7 +101,7 @@ struct OnboardingTwitchStepView: View {
                     userCode: code,
                     verificationURI: uri,
                     onCopy: {
-                        twitchViewModel.statusMessage = "Code copied"
+                        twitchViewModel.progressMessage = "Code copied"
                         hasStartedActivation = true
                     },
                     onActivate: {

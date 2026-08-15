@@ -29,7 +29,7 @@ struct TwitchViewModelTests {
         #expect(viewModel.channelConnected == false)
         #expect(viewModel.isConnecting == false)
         #expect(viewModel.reauthNeeded == false)
-        #expect(viewModel.statusMessage == "")
+        #expect(viewModel.progressMessage == "")
         #expect(viewModel.channelValidationState == .idle)
         #expect(viewModel.testAuthResult == .idle)
         #expect(viewModel.authState == .idle)
@@ -289,7 +289,7 @@ struct TwitchViewModelTests {
             viewModel.channelID = "testchannel"
             viewModel.credentialsSaved = true
             viewModel.reauthNeeded = true
-            viewModel.statusMessage = "Test status"
+            viewModel.progressMessage = "Test status"
             viewModel.authState = .inProgress
             viewModel.channelValidationState = .valid
 
@@ -302,7 +302,7 @@ struct TwitchViewModelTests {
             #expect(viewModel.channelID == "")
             #expect(viewModel.credentialsSaved == false)
             #expect(viewModel.reauthNeeded == false)
-            #expect(viewModel.statusMessage == "")
+            #expect(viewModel.progressMessage == "")
             #expect(viewModel.authState == .idle)
             #expect(viewModel.channelValidationState == .idle)
         }
@@ -318,7 +318,7 @@ struct TwitchViewModelTests {
             viewModel.channelID = "mrdemonwolf"
             viewModel.credentialsSaved = true
             viewModel.reauthNeeded = true
-            viewModel.statusMessage = "Test status"
+            viewModel.progressMessage = "Test status"
             viewModel.authState = .inProgress
             viewModel.channelValidationState = .valid
 
@@ -329,7 +329,7 @@ struct TwitchViewModelTests {
             #expect(viewModel.oauthToken == "")
             #expect(viewModel.credentialsSaved == false)
             #expect(viewModel.reauthNeeded == false)
-            #expect(viewModel.statusMessage == "")
+            #expect(viewModel.progressMessage == "")
             #expect(viewModel.authState == .idle)
             #expect(viewModel.channelValidationState == .idle)
         }
@@ -342,11 +342,11 @@ struct TwitchViewModelTests {
         let viewModel = TwitchViewModel()
         
         viewModel.authState = .waitingForAuth(userCode: "ABC123", verificationURI: "https://test.com")
-        viewModel.statusMessage = "Waiting for auth..."
+        viewModel.progressMessage = "Waiting for auth..."
         
         await viewModel.cancelOAuth()
         
         #expect(viewModel.authState == .idle)
-        #expect(viewModel.statusMessage == "")
+        #expect(viewModel.progressMessage == "")
     }
 }

@@ -915,7 +915,7 @@ final class KeychainServiceTests {
                 oauthToken: viewModel.oauthToken,
                 channelID: viewModel.channelID,
                 credentialsSaved: viewModel.credentialsSaved,
-                statusMessage: viewModel.statusMessage,
+                errorID: viewModel.connectionError?.id,
                 isAccountTeardownInProgress: viewModel.isAccountTeardownInProgress
             )
         }
@@ -925,7 +925,7 @@ final class KeychainServiceTests {
         #expect(viewState.oauthToken == "ACCESS")
         #expect(viewState.channelID == "channel")
         #expect(viewState.credentialsSaved)
-        #expect(viewState.statusMessage.contains("Please try again"))
+        #expect(viewState.errorID == "twitch.credentialClearFailed")
         #expect(!viewState.isAccountTeardownInProgress)
         #expect(cancellations.value == 1)
         #expect(restarts.value == 1)
