@@ -15,7 +15,7 @@ import Testing
 /// and the concurrency around first-use playlist creation. Transport seams keep
 /// these tests deterministic without a live MusicKit user token.
 @MainActor
-@Suite("Apple Music Library Service", .serialized)
+@Suite("Apple Music Library Service", .serialized, .isolatedSharedTestState)
 struct AppleMusicLibraryServiceTests {
 
     @Test("endpoint builds a versioned Apple Music API URL")

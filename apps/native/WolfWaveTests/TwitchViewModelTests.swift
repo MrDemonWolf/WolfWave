@@ -245,7 +245,7 @@ struct TwitchViewModelTests {
     
     @Test("Temporary token validation failure preserves credentials and reauth state")
     func testTemporaryValidationFailurePreservesSession() async {
-        await KeychainBackendTestIsolation.withIsolatedCredentialState {
+        await SharedTestStateIsolation.withIsolatedSharedState {
             let viewModel = TwitchViewModel()
             viewModel.oauthToken = "stored-token"
             viewModel.botUsername = "stored-bot"
@@ -263,7 +263,7 @@ struct TwitchViewModelTests {
 
     @Test("Only definitive token invalidation sets reauth")
     func testDefinitiveValidationFailureSetsReauth() async {
-        await KeychainBackendTestIsolation.withIsolatedCredentialState {
+        await SharedTestStateIsolation.withIsolatedSharedState {
             let viewModel = TwitchViewModel()
             viewModel.credentialsSaved = true
 
@@ -280,7 +280,7 @@ struct TwitchViewModelTests {
     
     @Test("Clear credentials resets all state")
     func testClearCredentials() async throws {
-        await KeychainBackendTestIsolation.withIsolatedCredentialState {
+        await SharedTestStateIsolation.withIsolatedSharedState {
             let viewModel = TwitchViewModel()
 
             // Set some state
@@ -310,7 +310,7 @@ struct TwitchViewModelTests {
 
     @Test("clearAuthOnly preserves channel ID")
     func testClearAuthOnlyPreservesChannelID() async {
-        await KeychainBackendTestIsolation.withIsolatedCredentialState {
+        await SharedTestStateIsolation.withIsolatedSharedState {
             let viewModel = TwitchViewModel()
 
             viewModel.botUsername = "testbot"

@@ -10,7 +10,7 @@ import XCTest
 @testable import WolfWave
 
 @MainActor
-final class BotCommandDispatcherTests: XCTestCase {
+final class BotCommandDispatcherTests: WolfWaveTestCase {
     var dispatcher: BotCommandDispatcher!
 
     override func setUp() async throws {

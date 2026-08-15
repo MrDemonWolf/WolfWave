@@ -14,7 +14,7 @@ import XCTest
 /// Uses an isolated `UserDefaults(suiteName:)` per test so settings can't leak
 /// between tests or pollute the user's real defaults.
 @MainActor
-final class DiscordPresenceBuilderTests: XCTestCase {
+final class DiscordPresenceBuilderTests: WolfWaveTestCase {
 
     private var defaults: UserDefaults!
     private var suiteName: String!
