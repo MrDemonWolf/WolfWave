@@ -31,6 +31,7 @@ extension DiscordRPCService {
         guard state == .disconnected else { return }
         guard !clientID.isEmpty else {
             Log.warn("DiscordRPCService: No client ID configured: skipping connection", category: "Discord")
+            lastFailure = .notConfigured
             return
         }
 
@@ -40,6 +41,7 @@ extension DiscordRPCService {
         let candidates = tempDirectoryCandidates()
         guard !candidates.isEmpty else {
             Log.error("DiscordRPCService: Cannot determine any temp directory", category: "Discord")
+            lastFailure = .socketUnavailable
             state = .disconnected
             return
         }
@@ -104,6 +106,7 @@ extension DiscordRPCService {
                         return
                     }
                     state = .connected
+                    lastFailure = .none
                     reconnectDelay = AppConstants.Discord.reconnectBaseDelay
                     updateAvailabilityPolling()
                     await refreshPresenceFromSettings()
@@ -111,6 +114,9 @@ extension DiscordRPCService {
                     return
                 } else {
                     Log.warn("DiscordRPCService: Handshake failed on slot \(slot)", category: "Discord")
+                    // A socket existed and Discord refused us, so this is not
+                    // "Discord isn't running" however the loop ends.
+                    lastFailure = .handshakeRejected
                     // performHandshake may have already torn down via
                     // handleConnectionLost -> disconnect(), which closes the fd
                     // and resets socketFD to -1. Only close here if the fd is
@@ -131,6 +137,11 @@ extension DiscordRPCService {
         guard isEnabled,
               connectionGeneration == attemptGeneration,
               state == .connecting else { return }
+        // Only claim Discord is closed when no slot rejected us. A handshake
+        // rejection recorded above outranks this.
+        if lastFailure != .handshakeRejected {
+            lastFailure = .notRunning
+        }
         state = .disconnected
     }
 

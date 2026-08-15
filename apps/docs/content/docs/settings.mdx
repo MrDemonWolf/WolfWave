@@ -75,6 +75,16 @@ cooldowns. Command reference: [Bot Commands](/docs/bot-commands).
 Rich Presence: show what you're listening to on your Discord profile, with
 optional buttons and an idle status when nothing is playing.
 
+If the connection doesn't come up, the pane now says which of these it is
+instead of always guessing that Discord is closed:
+
+| Status | What it means |
+|---|---|
+| **Discord not running** | No Discord app was found. Open Discord and WolfWave connects on its own. |
+| **Refused** | Discord is running but rejected the connection. Restarting Discord usually clears it. |
+| **Blocked** | macOS blocked WolfWave from reaching Discord's local socket. Restart WolfWave, and send a bug report if it persists. |
+| **Not configured** | This build shipped without a Discord Application ID. |
+
 ## Software Update
 
 Check for updates, switch between the Stable and Nightly channels, and see
