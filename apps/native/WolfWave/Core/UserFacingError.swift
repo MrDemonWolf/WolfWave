@@ -118,11 +118,26 @@ nonisolated struct UserFacingError: Equatable, Sendable, Identifiable {
         [cause, fix].compactMap { $0 }.joined(separator: " ")
     }
 
+    /// Every action to render, including the docs link implied by
+    /// ``docsAnchor``.
+    ///
+    /// Setting an anchor is enough to get a Learn More button; callers do not
+    /// also have to add `.openDocs`. An explicit `.openDocs` wins, so a caller
+    /// can still point somewhere other than this error's own section.
+    var resolvedActions: [ErrorAction] {
+        guard let docsAnchor else { return actions }
+        let hasExplicitDocs = actions.contains {
+            if case .openDocs = $0 { return true }
+            return false
+        }
+        return hasExplicitDocs ? actions : actions + [.openDocs(anchor: docsAnchor)]
+    }
+
     /// The action a banner should render as its filled button, if any.
-    var primaryAction: ErrorAction? { actions.first }
+    var primaryAction: ErrorAction? { resolvedActions.first }
 
     /// Remaining actions, rendered as bordered buttons beside the primary.
-    var secondaryActions: [ErrorAction] { Array(actions.dropFirst()) }
+    var secondaryActions: [ErrorAction] { Array(resolvedActions.dropFirst()) }
 
     /// Accessibility identifier for the rendered banner.
     var accessibilityIdentifier: String { "errorCallout.\(id)" }

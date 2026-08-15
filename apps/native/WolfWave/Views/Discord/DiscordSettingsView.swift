@@ -201,7 +201,8 @@ struct DiscordSettingsView: View {
                 id: "discord.notRunning",
                 title: "Discord isn't running",
                 fix: "Open Discord and WolfWave connects on its own.",
-                severity: .info
+                severity: .info,
+                docsAnchor: "discord-not-connecting"
             )
         case .handshakeRejected:
             return UserFacingError(
@@ -210,7 +211,8 @@ struct DiscordSettingsView: View {
                 cause: "Discord is running but rejected WolfWave's handshake.",
                 fix: "Restarting Discord usually clears it.",
                 severity: .warning,
-                actions: [.retry]
+                actions: [.retry],
+                docsAnchor: "discord-not-connecting"
             )
         case .socketUnavailable:
             return UserFacingError(
@@ -219,7 +221,8 @@ struct DiscordSettingsView: View {
                 cause: "macOS blocked the connection to Discord's local socket.",
                 fix: "Restart WolfWave. If it keeps happening, send a bug report.",
                 severity: .error,
-                actions: [.retry, .reportBug]
+                actions: [.retry, .reportBug],
+                docsAnchor: "discord-not-connecting"
             )
         }
     }
