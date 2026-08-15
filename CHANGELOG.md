@@ -6,6 +6,19 @@ All notable changes to this project will be documented in this file.
 
 > The next release. These changes ship on the [Nightly channel](https://mrdemonwolf.github.io/wolfwave/docs/nightly) off `main` until 2.1.1 is tagged for stable, when this heading gets its date.
 
+### Added
+
+- **A Sponsor link you can turn off.** WolfWave now has a Sponsor item in the menu bar's Help submenu as well as the Help menu and the About pane. If you'd rather not be asked, turn off "Show sponsor links" in Settings, About. The toggle stays put so you can turn it back on, and WolfWave is free and complete either way.
+
+### Fixed
+
+- **Errors now tell you what broke and what to do about it.** Failures used to say things like "Couldn't check channel" with no explanation, and the real reason was only visible if you hovered for a tooltip. Messages now name the cause and come with a button that performs the fix.
+- **Twitch errors were invisible.** Around forty failure messages, including every failed channel join and every Keychain problem, were written to a status line that no screen ever displayed. They now appear in the Twitch pane.
+- **A missing permission no longer looks like an expired sign-in.** If your Twitch token was missing an optional permission, WolfWave said your session had expired and told you to reconnect, then quietly stopped re-checking the token. It now says exactly which permission is missing, and everything else keeps working.
+- **"Your sign-in is fine" when it is.** If Twitch is down, rate limiting us, or you're offline, WolfWave used to blame your sign-in and send you to reconnect, which never helped. Those now say what actually happened.
+- **Erase & Reset no longer stops silently.** If macOS refused to remove your saved sign-ins, the reset stopped partway and said nothing, so it looked like everything had been erased when nothing had. It now tells you plainly that nothing was erased.
+- **Discord says what went wrong.** "Discord not running" was shown for every connection problem, including ones that happen with Discord open in front of you. WolfWave now distinguishes Discord being closed, Discord refusing the connection, and macOS blocking it.
+
 ### Developer
 
 - **CI/CD deduplicated.** The build preamble (Bun, caches, design tokens, widget, `Config.xcconfig`, `SponsorConfig`, SwiftPM cache) lived in five places across CI, Release, and Nightly; it is now the `.github/actions/setup-native-build` composite action. The ~90-line inside-out signing and notarization block lived in two; it is now `scripts/codesign-app.sh`, `scripts/notarize-dmg.sh`, `scripts/import-signing-cert.sh`, and `scripts/generate-appcast.sh`, which `make notarize` also uses. Three drifting copies of the `xcodebuild test` invocation collapsed onto `make test-ci`, so CI runs exactly what a contributor runs.

@@ -53,6 +53,10 @@ struct DiscordSettingsView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var connectionState: DiscordRPCService.ConnectionState = .disconnected
+
+    /// Why the last connect attempt failed. Drives the status chip wording and
+    /// the error banner, so a rejected handshake stops reading as "not running".
+    @State private var connectionFailure: DiscordRPCService.ConnectionFailure = .none
     @State private var hasClientID = false
     @State private var nowPlaying: NowPlayingSnapshot = .sample
     /// What the preview card represents, driven by live playback notifications.
@@ -113,6 +117,8 @@ struct DiscordSettingsView: View {
                     case "connecting":  connectionState = .connecting
                     default:            connectionState = .disconnected
                     }
+                    connectionFailure = (notification.errorMessage)
+                        .flatMap(DiscordRPCService.ConnectionFailure.init(rawValue:)) ?? .none
                 }
             }
         }
@@ -164,7 +170,57 @@ struct DiscordSettingsView: View {
                     title: "Not configured",
                     style: .warning
                 )
+            } else if let error = connectionErrorBanner {
+                ErrorCallout(error: error) { action in
+                    switch action {
+                    case .retry:
+                        Task { await AppDelegate.shared?.discordService?.connectIfNeeded() }
+                    case .reportBug:
+                        BugReportURL.openPrefilledIssue()
+                    default:
+                        break
+                    }
+                }
             }
+        }
+    }
+
+    /// The failure to show, or `nil` when there is nothing wrong worth saying.
+    ///
+    /// Every one of these used to be `Log.error` only, surfacing as the single
+    /// asserted string "Discord not running" no matter what actually happened.
+    private var connectionErrorBanner: UserFacingError? {
+        guard presenceEnabled, connectionState == .disconnected else { return nil }
+        switch connectionFailure {
+        case .none, .notConfigured:
+            // Not configured has its own banner above; `.none` means no attempt
+            // has failed yet.
+            return nil
+        case .notRunning:
+            return UserFacingError(
+                id: "discord.notRunning",
+                title: "Discord isn't running",
+                fix: "Open Discord and WolfWave connects on its own.",
+                severity: .info
+            )
+        case .handshakeRejected:
+            return UserFacingError(
+                id: "discord.handshakeRejected",
+                title: "Discord refused the connection",
+                cause: "Discord is running but rejected WolfWave's handshake.",
+                fix: "Restarting Discord usually clears it.",
+                severity: .warning,
+                actions: [.retry]
+            )
+        case .socketUnavailable:
+            return UserFacingError(
+                id: "discord.socketUnavailable",
+                title: "WolfWave can't reach Discord",
+                cause: "macOS blocked the connection to Discord's local socket.",
+                fix: "Restart WolfWave. If it keeps happening, send a bug report.",
+                severity: .error,
+                actions: [.retry, .reportBug]
+            )
         }
     }
 
@@ -439,7 +495,16 @@ struct DiscordSettingsView: View {
         switch connectionState {
         case .connected:    return "Connected"
         case .connecting:   return "Connecting"
-        case .disconnected: return presenceEnabled ? "Discord not running" : "Disconnected"
+        case .disconnected:
+            guard presenceEnabled else { return "Disconnected" }
+            // "Discord not running" used to be asserted for every failure,
+            // including a rejected handshake with Discord open on screen.
+            switch connectionFailure {
+            case .notRunning, .none:    return "Discord not running"
+            case .handshakeRejected:    return "Refused"
+            case .socketUnavailable:    return "Blocked"
+            case .notConfigured:        return "Not configured"
+            }
         }
     }
 

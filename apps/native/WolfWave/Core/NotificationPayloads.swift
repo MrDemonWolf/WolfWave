@@ -67,9 +67,12 @@ extension NotificationCenter {
         post(name: .nowPlayingChanged, object: nil, userInfo: info)
     }
 
-    /// Posts `.discordStateChanged` with a connection-state raw value.
-    nonisolated func postDiscordState(_ rawValue: String) {
-        post(name: .discordStateChanged, object: nil, userInfo: [NotificationKeys.state: rawValue])
+    /// Posts `.discordStateChanged` with a connection-state raw value, plus the
+    /// reason the last attempt failed so the UI can say more than "not running".
+    nonisolated func postDiscordState(_ rawValue: String, failure: String? = nil) {
+        var info: [String: Any] = [NotificationKeys.state: rawValue]
+        if let failure { info[NotificationKeys.error] = failure }
+        post(name: .discordStateChanged, object: nil, userInfo: info)
     }
 
     /// Posts a notification carrying only an `enabled` flag. Used by the many
