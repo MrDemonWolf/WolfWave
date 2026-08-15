@@ -249,7 +249,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             guard error == nil, let data else {
                 Log.debug(
                     "Artwork: iTunes transport failed for \"\(track)\" by \(artist)",
-                    category: "Artwork"
+                    category: .artwork
                 )
                 self.finishInFlight(inFlightKey: inFlightKey, with: emptyLinks)
                 return
@@ -259,7 +259,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
                 let status = (response as? HTTPURLResponse)?.statusCode ?? 0
                 Log.debug(
                     "Artwork: iTunes lookup returned HTTP \(status) for \"\(track)\"",
-                    category: "Artwork"
+                    category: .artwork
                 )
                 self.finishInFlight(inFlightKey: inFlightKey, with: emptyLinks)
                 return
@@ -268,7 +268,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
                   let results = json["results"] as? [[String: Any]] else {
                 Log.debug(
                     "Artwork: iTunes lookup returned malformed JSON for \"\(track)\"",
-                    category: "Artwork"
+                    category: .artwork
                 )
                 self.finishInFlight(inFlightKey: inFlightKey, with: emptyLinks)
                 return
@@ -300,7 +300,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
                 self.recordResolution(cacheKey)
             }
 
-            Log.debug("Artwork: Found track links for \"\(track)\"", category: "Artwork")
+            Log.debug("Artwork: Found track links for \"\(track)\"", category: .artwork)
             self.finishInFlight(inFlightKey: inFlightKey, with: links)
         }.resume()
     }
@@ -413,7 +413,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             }
         }
         await deletion?.value
-        Log.info("Artwork: cache cleared", category: "Artwork")
+        Log.info("Artwork: cache cleared", category: .artwork)
     }
 
     // MARK: - Persistence
@@ -452,7 +452,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             resolvedAt[key] = entry.resolvedAt
             cacheKeyOrder.append(key)
         }
-        Log.debug("Artwork: loaded \(cacheKeyOrder.count) cached entries from disk", category: "Artwork")
+        Log.debug("Artwork: loaded \(cacheKeyOrder.count) cached entries from disk", category: .artwork)
     }
 
     /// Snapshots the current cache and writes it to disk asynchronously.

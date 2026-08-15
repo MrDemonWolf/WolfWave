@@ -136,7 +136,7 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
         guard let handle = openHandle() else { return }
         guard let json = try? encoder.encode(record),
               let line = String(data: json, encoding: .utf8) else {
-            Log.warn("PlayLogStore: Failed to encode a play record", category: AppConstants.History.logCategory)
+            Log.warn("PlayLogStore: Failed to encode a play record", category: .history)
             return
         }
         guard let data = (line + "\n").data(using: .utf8) else { return }
@@ -144,7 +144,7 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
             try handle.seekToEnd()
             try handle.write(contentsOf: data)
         } catch {
-            Log.error("PlayLogStore: Append failed: \(error.localizedDescription)", category: AppConstants.History.logCategory)
+            Log.error("PlayLogStore: Append failed: \(error.localizedDescription)", category: .history)
         }
     }
 
@@ -177,7 +177,7 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
             try data.write(to: fileURL, options: .atomic)
             return true
         } catch {
-            Log.error("PlayLogStore: Rewrite failed: \(error.localizedDescription)", category: AppConstants.History.logCategory)
+            Log.error("PlayLogStore: Rewrite failed: \(error.localizedDescription)", category: .history)
             return false
         }
     }

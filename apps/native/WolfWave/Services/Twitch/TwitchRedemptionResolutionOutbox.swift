@@ -244,7 +244,7 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
                 opaqueRecoveryRisk = true
                 Log.error(
                     "Twitch redemption outbox was quarantined at \(quarantineURL.lastPathComponent): \(error.localizedDescription)",
-                    category: "Twitch"
+                    category: .twitchRedeem
                 )
             } catch let quarantineError {
                 // If recovery bytes cannot be preserved, refuse to overwrite
@@ -252,7 +252,7 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
                 self.existingStoreIsUnreadable = true
                 Log.error(
                     "Twitch redemption outbox quarantine failed: \(quarantineError.localizedDescription)",
-                    category: "Twitch"
+                    category: .twitchRedeem
                 )
             }
             return
@@ -296,18 +296,18 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
                 } catch {
                     Log.error(
                         "Twitch redemption outbox valid subset could not be restored: \(error.localizedDescription)",
-                        category: "Twitch"
+                        category: .twitchRedeem
                     )
                 }
                 Log.error(
                     "Twitch redemption outbox contained invalid records; original quarantined at \(quarantineURL.lastPathComponent)",
-                    category: "Twitch"
+                    category: .twitchRedeem
                 )
             } catch {
                 existingStoreIsUnreadable = true
                 Log.error(
                     "Twitch redemption outbox quarantine failed: \(error.localizedDescription)",
-                    category: "Twitch"
+                    category: .twitchRedeem
                 )
             }
             return
@@ -329,7 +329,7 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         } catch {
             Log.error(
                 "Twitch redemption outbox maintenance write failed: \(error.localizedDescription)",
-                category: "Twitch")
+                category: .twitchRedeem)
         }
     }
 

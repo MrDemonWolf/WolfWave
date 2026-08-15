@@ -340,7 +340,10 @@ struct SettingsView: View {
             AboutSettingsView()
         #if DEBUG
         case .debug:
-            DebugSettingsView()
+            // Unreachable: `detailPane` intercepts `.debug` so the pane can own
+            // its own scroll for SettingsNavRail. Present only for switch
+            // exhaustiveness, matching .general / .songRequests / .historyStats.
+            EmptyView()
         #endif
         }
     }
@@ -427,7 +430,7 @@ struct SettingsView: View {
         ) else {
             Log.warn(
                 "SettingsView: Factory reset aborted because Twitch teardown was not safe",
-                category: "App")
+                category: .app)
             return
         }
 
@@ -455,7 +458,7 @@ struct SettingsView: View {
             )
             Log.error(
                 "SettingsView: Factory reset Keychain deletion failed - \(error.localizedDescription)",
-                category: "App")
+                category: .app)
             return
         }
 
@@ -502,12 +505,12 @@ struct SettingsView: View {
                 if let error {
                     Log.error(
                         "Relaunch after reset failed: \(error.localizedDescription)",
-                        category: "Reset"
+                        category: .reset
                     )
                     return
                 }
                 guard app != nil else {
-                    Log.error("Relaunch after reset returned no app instance", category: "Reset")
+                    Log.error("Relaunch after reset returned no app instance", category: .reset)
                     return
                 }
                 NSApplication.shared.terminate(nil)

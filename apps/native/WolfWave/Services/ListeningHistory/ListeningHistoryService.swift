@@ -127,7 +127,7 @@ final class ListeningHistoryService {
         guard !isEnabled else { return }
         isEnabled = true
         scheduleLoad()
-        Log.info("ListeningHistoryService: Listening History enabled", category: AppConstants.History.logCategory)
+        Log.info("ListeningHistoryService: Listening History enabled", category: .history)
     }
 
     /// Spawns `loadFromDisk()` unless a load is already in flight, so overlapping
@@ -150,7 +150,7 @@ final class ListeningHistoryService {
     func disable() {
         guard isEnabled else { return }
         isEnabled = false
-        Log.info("ListeningHistoryService: Listening History disabled", category: AppConstants.History.logCategory)
+        Log.info("ListeningHistoryService: Listening History disabled", category: .history)
     }
 
     /// Flushes buffered writes. Call before the app terminates.
@@ -237,7 +237,7 @@ final class ListeningHistoryService {
         guard completePendingClear() else {
             Log.warn(
                 "ListeningHistoryService: Play not recorded while history clear is pending",
-                category: AppConstants.History.logCategory)
+                category: .history)
             return
         }
 
@@ -292,7 +292,7 @@ final class ListeningHistoryService {
         rebuildSnapshot()
         Log.debug(
             "ListeningHistoryService: Recorded play: \(record.track) (\(Int(record.playedSeconds))s)",
-            category: AppConstants.History.logCategory
+            category: .history
         )
     }
 
@@ -307,7 +307,7 @@ final class ListeningHistoryService {
         guard clearMarkerStore.begin() else {
             Log.error(
                 "ListeningHistoryService: Could not persist history clear intent",
-                category: AppConstants.History.logCategory)
+                category: .history)
             return false
         }
 
@@ -327,11 +327,11 @@ final class ListeningHistoryService {
         if completed {
             Log.info(
                 "ListeningHistoryService: History cleared by user",
-                category: AppConstants.History.logCategory)
+                category: .history)
         } else {
             Log.error(
                 "ListeningHistoryService: History clear pending durable retry",
-                category: AppConstants.History.logCategory)
+                category: .history)
         }
         return completed
     }
@@ -593,7 +593,7 @@ final class ListeningHistoryService {
             finishLoading()
             Log.info(
                 "ListeningHistoryService: Discarded stale disk load after history clear",
-                category: AppConstants.History.logCategory)
+                category: .history)
             return
         }
 
@@ -615,7 +615,7 @@ final class ListeningHistoryService {
             }
             Log.error(
                 "ListeningHistoryService: History clear still pending after launch recovery",
-                category: AppConstants.History.logCategory)
+                category: .history)
             return
         }
         clearIsPending = false
@@ -642,18 +642,18 @@ final class ListeningHistoryService {
         if result.foldedCount > 0 {
             Log.info(
                 "ListeningHistoryService: Folded \(result.foldedCount) old plays into lifetime tally (cap \(cap))",
-                category: AppConstants.History.logCategory
+                category: .history
             )
         }
         if result.retentionExpiredCount > 0 {
             Log.info(
                 "ListeningHistoryService: Expired \(result.retentionExpiredCount) plays under finite retention",
-                category: AppConstants.History.logCategory
+                category: .history
             )
         }
         Log.info(
             "ListeningHistoryService: Loaded \(result.records.count) plays from disk",
-            category: AppConstants.History.logCategory
+            category: .history
         )
     }
 

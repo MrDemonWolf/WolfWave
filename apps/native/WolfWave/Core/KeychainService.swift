@@ -247,7 +247,7 @@ nonisolated enum KeychainService {
         } catch {
             Log.error(
                 "KeychainService: Failed to load Twitch credential grant - \(error.localizedDescription)",
-                category: "Keychain")
+                category: .keychain)
             return .empty
         }
     }
@@ -385,7 +385,7 @@ nonisolated enum KeychainService {
             // snapshot preserves existing users and retries on the next read.
             Log.error(
                 "KeychainService: Twitch credential migration deferred - \(error.localizedDescription)",
-                category: "Keychain"
+                category: .keychain
             )
         }
     }
@@ -478,7 +478,7 @@ nonisolated enum KeychainService {
             } catch {
                 Log.error(
                     "KeychainService: Could not remove legacy Twitch item '\(account)' - \(error.localizedDescription)",
-                    category: "Keychain")
+                    category: .keychain)
             }
         }
     }
@@ -576,7 +576,7 @@ nonisolated enum KeychainService {
     /// regardless of backend and stays unit-testable without the Keychain.
     private static func upsertItem(account: String, value: String) throws {
         guard !value.isEmpty else {
-            Log.warn("Keychain: Attempted to save empty value for account \(account)", category: "Keychain")
+            Log.warn("Keychain: Attempted to save empty value for account \(account)", category: .keychain)
             throw KeychainError.invalidData
         }
         try backend.save(account: account, value: value)
@@ -589,7 +589,7 @@ nonisolated enum KeychainService {
         } catch {
             Log.error(
                 "KeychainService: Failed to load item '\(account)' - \(error.localizedDescription)",
-                category: "Keychain")
+                category: .keychain)
             return nil
         }
     }

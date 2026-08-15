@@ -147,15 +147,23 @@ struct DebugInspectorsCard: View {
                 keychainRow("Control Auth Token", present: keychainPresence["controlToken"] ?? false) {
                     try KeychainService.deleteControlToken()
                 }
+                // No per-field delete on purpose. The Twitch access token,
+                // refresh token, and resolved identity share one crash-atomic
+                // versioned Keychain record, so deleting a single field would
+                // split the grant into a half-signed-in state that no code path
+                // expects. Sign out from the Twitch pane to clear all of it.
                 keychainRow(
                     "Twitch OAuth Token",
-                    present: keychainPresence["twitchToken"] ?? false)
+                    present: keychainPresence["twitchToken"] ?? false,
+                    note: "part of the atomic grant")
                 keychainRow(
                     "Twitch Username",
-                    present: keychainPresence["twitchUsername"] ?? false)
+                    present: keychainPresence["twitchUsername"] ?? false,
+                    note: "part of the atomic grant")
                 keychainRow(
                     "Twitch Bot User ID",
-                    present: keychainPresence["twitchBotUserID"] ?? false)
+                    present: keychainPresence["twitchBotUserID"] ?? false,
+                    note: "part of the atomic grant")
                 keychainRow("Twitch Channel ID", present: keychainPresence["twitchChannelID"] ?? false) {
                     try TwitchCredentialStore.shared.updateChannelID(nil)
                 }
@@ -206,6 +214,7 @@ struct DebugInspectorsCard: View {
     private func keychainRow(
         _ label: String,
         present: Bool,
+        note: String? = nil,
         onDelete: (() throws -> Void)? = nil
     ) -> some View {
         HStack {
@@ -213,6 +222,11 @@ struct DebugInspectorsCard: View {
                 .foregroundStyle(present ? DSColor.success : .secondary)
             Text(label)
                 .font(.system(size: DSFont.Size.body))
+            if let note {
+                Text(note)
+                    .font(.system(size: DSFont.Size.xs))
+                    .foregroundStyle(.secondary)
+            }
             Spacer()
             if present, let onDelete {
                 Button {
@@ -222,7 +236,7 @@ struct DebugInspectorsCard: View {
                     } catch {
                         Log.error(
                             "Debug inspector: Keychain delete failed - \(error.localizedDescription)",
-                            category: "Keychain")
+                            category: .keychain)
                     }
                 } label: {
                     Image(systemName: "trash")
@@ -266,13 +280,6 @@ struct DebugInspectorsCard: View {
     }
 
     // MARK: - Helpers
-
-    /// Reads an arbitrary Info.plist string for ad-hoc inspector rows. Version
-    /// and build intentionally use `AppConstants.AppInfo` instead so their
-    /// fallbacks match the rest of the app.
-    private func bundleString(_ key: String) -> String {
-        Bundle.main.infoDictionary?[key] as? String ?? "N/A"
-    }
 
     private var configurationString: String {
         #if DEBUG

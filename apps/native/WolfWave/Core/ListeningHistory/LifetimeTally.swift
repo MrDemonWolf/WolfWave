@@ -197,7 +197,7 @@ nonisolated final class LifetimeTallyStore: @unchecked Sendable {
             guard let data = try? encoder.encode(tally) else {
                 Log.warn(
                     "LifetimeTallyStore: Failed to encode tally",
-                    category: AppConstants.History.logCategory
+                    category: .history
                 )
                 return false
             }
@@ -207,7 +207,7 @@ nonisolated final class LifetimeTallyStore: @unchecked Sendable {
             } catch {
                 Log.error(
                     "LifetimeTallyStore: Save failed: \(error.localizedDescription)",
-                    category: AppConstants.History.logCategory
+                    category: .history
                 )
                 return false
             }
@@ -230,7 +230,7 @@ nonisolated final class LifetimeTallyStore: @unchecked Sendable {
             } catch {
                 Log.error(
                     "LifetimeTallyStore: Clear failed: \(error.localizedDescription)",
-                    category: AppConstants.History.logCategory)
+                    category: .history)
                 return false
             }
         }

@@ -93,7 +93,7 @@ final class AppleMusicLibraryService {
         try await addCatalogSongIDToRequestsPlaylist(song.id.rawValue)
         Log.debug(
             "AppleMusicLibraryService: Added \"\(song.title)\" to \(AppConstants.Music.requestsPlaylistName)",
-            category: "SongRequest"
+            category: .songRequest
         )
     }
 
@@ -414,7 +414,7 @@ final class AppleMusicLibraryService {
         }
         Log.debug(
             "AppleMusicLibraryService: Created \(AppConstants.Music.requestsPlaylistName) playlist (\(id))",
-            category: "SongRequest"
+            category: .songRequest
         )
         return id
     }

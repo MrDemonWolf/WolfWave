@@ -114,6 +114,6 @@ final class SongRequestSetupViewModel {
         defaults.set(PlaylistSetupStatus.ok.rawValue, forKey: AppConstants.UserDefaults.songRequestPlaylistStatus)
         defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
         NotificationCenter.default.postEnabled(.songRequestSettingChanged, enabled: true)
-        Log.info("SongRequestSetupViewModel: Setup completed", category: "SongRequest")
+        Log.info("SongRequestSetupViewModel: Setup completed", category: .songRequest)
     }
 }

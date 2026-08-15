@@ -66,7 +66,7 @@ final class SongSearchResolver {
     /// - Parameter urlString: The validated music URL extracted from chat text.
     /// - Returns: `.found`, `.linkNotFound`, or `.error`.
     private func resolveLink(_ urlString: String) async -> Result {
-        Log.debug("SongSearchResolver: Resolving link: \(urlString)", category: "SongRequest")
+        Log.debug("SongSearchResolver: Resolving link: \(urlString)", category: .songRequest)
 
         let result = await linkResolver.resolve(url: urlString)
 
@@ -86,7 +86,7 @@ final class SongSearchResolver {
         case .found(let title, let artist):
             // oEmbed gave us title/artist, search MusicKit
             let searchQuery = artist.map { "\(title) \($0)" } ?? title
-            Log.debug("SongSearchResolver: oEmbed resolved to: \(searchQuery)", category: "SongRequest")
+            Log.debug("SongSearchResolver: oEmbed resolved to: \(searchQuery)", category: .songRequest)
             return await resolveText(searchQuery)
 
         case .notFound:
@@ -103,7 +103,7 @@ final class SongSearchResolver {
     /// - Parameter query: Search string (song name, artist, etc.).
     /// - Returns: `.found`, `.notFound`, or `.error`.
     private func resolveText(_ query: String) async -> Result {
-        Log.debug("SongSearchResolver: Searching Apple Music for: \(query)", category: "SongRequest")
+        Log.debug("SongSearchResolver: Searching Apple Music for: \(query)", category: .songRequest)
 
         let searchResult = await musicController.search(query: query)
 

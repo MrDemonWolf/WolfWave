@@ -24,6 +24,18 @@ struct DebugServiceControlsCard: View {
     @State private var wsTestArtist: String = "Debug"
     @State private var musicSelfTestReport: String = ""
     @State private var musicSelfTestRunning: Bool = false
+    @State private var sparkleNotice: String?
+
+    /// Live connection state, refreshed by the poll below.
+    ///
+    /// `TwitchChatService.currentlyConnected` and `DiscordRPCService.stateSnapshot`
+    /// are `nonisolated` atomic snapshots with no SwiftUI observation attached, so
+    /// reading them straight from `body` produced a value frozen at first layout:
+    /// the row claimed "Connected: no" through an entire session, and
+    /// "Send Test Chat" stayed disabled after a successful connect (or enabled
+    /// after a disconnect) until some unrelated state change forced a re-render.
+    @State private var twitchConnected = false
+    @State private var discordState: DiscordRPCService.ConnectionState = .disconnected
     @AppStorage(AppConstants.UserDefaults.debugTreatAllChattersAsViewers)
     private var treatAllChattersAsViewers = false
     @AppStorage(AppConstants.UserDefaults.debugViewerUsernames)
@@ -52,6 +64,29 @@ struct DebugServiceControlsCard: View {
             songRequestSection
         }
         .cardStyle()
+        // Twitch posts this on connect/disconnect, so the row flips immediately
+        // rather than waiting out the poll interval.
+        .onReceive(NotificationCenter.default.publisher(
+            for: Notification.Name.twitchConnectionStateChanged)) { _ in
+            refreshConnectionState()
+        }
+        // Backstop for state with no change notification (Discord RPC, and any
+        // Twitch transition that did not post). Structured concurrency cancels
+        // this when the card goes away.
+        .task {
+            while !Task.isCancelled {
+                refreshConnectionState()
+                try? await Task.sleep(for: Self.pollInterval)
+            }
+        }
+    }
+
+    /// Poll interval for connection state. Matches `DebugInspectorsCard`.
+    private static let pollInterval: Duration = .seconds(2)
+
+    private func refreshConnectionState() {
+        twitchConnected = appDelegate?.twitchService?.currentlyConnected == true
+        discordState = appDelegate?.discordService?.stateSnapshot ?? .disconnected
     }
 
     // MARK: - Playback
@@ -174,7 +209,7 @@ struct DebugServiceControlsCard: View {
     private var twitchSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             sectionLabel("Twitch")
-            Text("Connected: \(appDelegate?.twitchService?.currentlyConnected == true ? "yes" : "no")")
+            Text("Connected: \(twitchConnected ? "yes" : "no")")
                 .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.secondary)
             Toggle("Treat every chatter as a normal viewer", isOn: $treatAllChattersAsViewers)
@@ -207,7 +242,7 @@ struct DebugServiceControlsCard: View {
                 }
                 .buttonStyle(.bordered)
                 .pointerCursor()
-                .disabled(appDelegate?.twitchService?.currentlyConnected != true)
+                .disabled(!twitchConnected)
             }
         }
     }
@@ -217,6 +252,9 @@ struct DebugServiceControlsCard: View {
     private var discordSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             sectionLabel("Discord RPC")
+            Text("State: \(discordState.rawValue)")
+                .font(.system(size: DSFont.Size.sm))
+                .foregroundStyle(.secondary)
             HStack {
                 Button {
                     if let service = appDelegate?.discordService {
@@ -296,7 +334,13 @@ struct DebugServiceControlsCard: View {
             sectionLabel("Sparkle Updater")
             HStack {
                 Button {
-                    appDelegate?.sparkleUpdater?.checkForUpdates()
+                    let started = appDelegate?.sparkleUpdater?.checkForUpdates() ?? false
+                    // `checkForUpdates()` is @discardableResult and returns false
+                    // on a Homebrew install or an uninitialized updater, so this
+                    // button used to do nothing with no feedback at all.
+                    sparkleNotice = started
+                        ? nil
+                        : "Sparkle is disabled (Homebrew install or updater not started)."
                 } label: {
                     Label("Check for Updates", systemImage: "arrow.down.app")
                         .frame(maxWidth: .infinity)
@@ -306,13 +350,19 @@ struct DebugServiceControlsCard: View {
 
                 Button {
                     DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.updateSkippedVersion)
-                    Log.info("Cleared updateSkippedVersion (dev)", category: "Update")
+                    Log.info("Cleared updateSkippedVersion (dev)", category: .update)
                 } label: {
                     Label("Clear Skipped Version", systemImage: "trash")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
                 .pointerCursor()
+            }
+
+            if let sparkleNotice {
+                Text(sparkleNotice)
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(DSColor.warning)
             }
         }
     }
@@ -351,10 +401,11 @@ struct DebugServiceControlsCard: View {
 
             Button {
                 let current = FeatureFlags.songRequestHoldEnabled
-                Task {
-                    await appDelegate?.songRequestService?.setHold(!current)
-                    DefaultsStore.store.set(!current, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
-                }
+                // `setHold` already writes `songRequestHoldEnabled` and posts
+                // `.songRequestHoldChanged`. Writing it again here fired a second
+                // `didChangeNotification`, which cost DebugInspectorsCard another
+                // six Keychain reads for nothing.
+                Task { await appDelegate?.songRequestService?.setHold(!current) }
             } label: {
                 Label("Toggle Hold Mode", systemImage: "pause.circle")
                     .frame(maxWidth: .infinity)
@@ -378,7 +429,7 @@ struct DebugServiceControlsCard: View {
             )
             _ = queue.add(item)
         }
-        Log.info("Injected \(queueCount) fake requests (dev)", category: "SongRequest")
+        Log.info("Injected \(queueCount) fake requests (dev)", category: .songRequest)
     }
 
     // MARK: - Helpers

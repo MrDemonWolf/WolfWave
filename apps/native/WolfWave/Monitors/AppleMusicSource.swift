@@ -283,7 +283,7 @@ final class AppleMusicSource: @unchecked Sendable {
             return
         }
 
-        Log.debug("AppleMusicSource: Music notification received", category: "Music")
+        Log.debug("AppleMusicSource: Music notification received", category: .music)
         scheduleTrackCheck(reason: "notification", generation: generation)
     }
 
@@ -637,7 +637,7 @@ final class AppleMusicSource: @unchecked Sendable {
             return true
         }
         guard shouldLog else { return }
-        Log.warn(message, category: "Music")
+        Log.warn(message, category: .music)
     }
 
     nonisolated private func handleNotPlayingState(generation: UInt64) {
@@ -665,7 +665,7 @@ final class AppleMusicSource: @unchecked Sendable {
             return true
         }
         guard isNew else { return }
-        Log.debug("AppleMusicSource: Now Playing → \(trackName) by \(artist) [\(album)]", category: "Music")
+        Log.debug("AppleMusicSource: Now Playing → \(trackName) by \(artist) [\(album)]", category: .music)
     }
 
     nonisolated private func subscribeToMusicNotifications(generation: UInt64) {
@@ -748,7 +748,7 @@ final class AppleMusicSource: @unchecked Sendable {
     nonisolated private func scheduleTrackCheck(reason: String, generation: UInt64) {
         guard isCurrentTrackingGeneration(generation) else { return }
         Task { [weak self] in
-            Log.debug("AppleMusicSource: track check scheduled (\(reason))", category: "Music")
+            Log.debug("AppleMusicSource: track check scheduled (\(reason))", category: .music)
             await self?.checkCurrentTrack(generation: generation)
         }
     }
@@ -761,7 +761,7 @@ final class AppleMusicSource: @unchecked Sendable {
         guard isCurrentTrackingGeneration(generation) else { return }
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(delay))
-            Log.debug("AppleMusicSource: delayed track check fired (\(reason))", category: "Music")
+            Log.debug("AppleMusicSource: delayed track check fired (\(reason))", category: .music)
             await self?.checkCurrentTrack(generation: generation)
         }
     }

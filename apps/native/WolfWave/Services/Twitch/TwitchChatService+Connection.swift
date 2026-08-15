@@ -236,7 +236,7 @@ extension TwitchChatService {
             guard networkReconnectCycles < maxNetworkReconnectCycles else {
                 Log.error(
                     "TwitchChatService: Max network reconnect cycles reached, not reconnecting",
-                    category: "Twitch")
+                    category: .twitchEvents)
                 return
             }
 
@@ -248,7 +248,7 @@ extension TwitchChatService {
             reconnectionAttempts = 0
             scheduleReconnect()
         } else if wasReachable && !isReachable {
-            Log.warn("TwitchChatService: Network unavailable, disconnecting", category: "Twitch")
+            Log.warn("TwitchChatService: Network unavailable, disconnecting", category: .twitchEvents)
             // Do this before tearing down the socket so a delayed backoff task
             // cannot wake and consume an attempt while the machine is offline.
             reconnectTask?.cancel()
@@ -266,7 +266,7 @@ extension TwitchChatService {
         guard let channelName = reconnectChannelName,
               let token = reconnectToken,
               let clientID = reconnectClientID else {
-            Log.debug("TwitchChatService: Cannot reconnect - missing credentials", category: "Twitch")
+            Log.debug("TwitchChatService: Cannot reconnect - missing credentials", category: .twitchEvents)
             return
         }
 
@@ -274,8 +274,9 @@ extension TwitchChatService {
 
         if attempts >= maxReconnectionAttempts {
             Log.error(
-                "TwitchChatService: Max reconnection attempts reached (\(maxReconnectionAttempts))",
-                category: "Twitch")
+                "TwitchChatService: Max reconnection attempts reached",
+                category: .twitchEvents,
+                fields: ["limit": maxReconnectionAttempts])
             // Keep the exhausted count intact. A manual connection may still
             // start, and an accepted network-recovery cycle gets a fresh bounded
             // budget; otherwise only session_welcome proves transport success.
@@ -286,8 +287,13 @@ extension TwitchChatService {
         let delaySeconds = min(pow(2.0, Double(attempts)), 16.0)
 
         Log.info(
-            "TwitchChatService: Scheduling reconnection attempt \(attempts + 1)/\(maxReconnectionAttempts) in \(String(format: "%.1f", delaySeconds))s",
-            category: "Twitch")
+            "TwitchChatService: Scheduling reconnection",
+            category: .twitchEvents,
+            fields: [
+                "attempt": attempts + 1,
+                "limit": maxReconnectionAttempts,
+                "after": String(format: "%.1fs", delaySeconds)
+            ])
 
         reconnectTask?.cancel()
         reconnectTask = Task { [weak self] in
@@ -302,13 +308,13 @@ extension TwitchChatService {
         guard !Task.isCancelled else {
             Log.debug(
                 "TwitchChatService: Scheduled reconnect cancelled before starting",
-                category: "Twitch")
+                category: .twitchEvents)
             return
         }
         guard !isProcessingDisconnect else {
             Log.debug(
                 "TwitchChatService: Disconnect in progress, skipping scheduled reconnect",
-                category: "Twitch")
+                category: .twitchEvents)
             return
         }
         guard reconnectChannelName == channelName,
@@ -316,13 +322,13 @@ extension TwitchChatService {
               reconnectClientID == clientID else {
             Log.info(
                 "TwitchChatService: Connection configuration changed, skipping stale reconnect",
-                category: "Twitch")
+                category: .twitchEvents)
             return
         }
         guard isNetworkReachable else {
             Log.info(
                 "TwitchChatService: Network unavailable, skipping scheduled reconnect",
-                category: "Twitch")
+                category: .twitchEvents)
             return
         }
         guard let expected = TwitchCredentialStore.shared
@@ -331,7 +337,7 @@ extension TwitchChatService {
             )?.accessExpectation else {
             Log.info(
                 "TwitchChatService: Stored credential changed, skipping stale reconnect",
-                category: "Twitch")
+                category: .twitchEvents)
             return
         }
         guard let attemptNumber = Self.nextReconnectAttempt(
@@ -340,7 +346,7 @@ extension TwitchChatService {
         ) else {
             Log.error(
                 "TwitchChatService: Reconnection cap reached before attempt start",
-                category: "Twitch")
+                category: .twitchEvents)
             return
         }
         reconnectionAttempts = attemptNumber
@@ -353,10 +359,9 @@ extension TwitchChatService {
                 clientID: clientID,
                 attemptGeneration: generation)
             Log.info(
-                "TwitchChatService: Reconnection transport started "
-                    + "(attempt \(attemptNumber)/\(maxReconnectionAttempts)); "
-                    + "awaiting session_welcome",
-                category: "Twitch")
+                "TwitchChatService: Reconnection transport started, awaiting session_welcome",
+                category: .twitchEvents,
+                fields: ["attempt": attemptNumber, "limit": maxReconnectionAttempts])
         } catch ConnectionError.authenticationFailed {
             guard !Task.isCancelled, connectionAttemptIsCurrent(generation) else { return }
             // A 401 means the stored token is dead. Retrying with the same token
@@ -365,7 +370,7 @@ extension TwitchChatService {
             // first; only fall back to interactive re-auth when that fails.
             Log.error(
                 "TwitchChatService: Reconnect failed with 401; token is invalid or expired",
-                category: "Twitch")
+                category: .twitchEvents)
             await handleAuthenticationFailureDuringReconnect(
                 expected: expected,
                 channelName: channelName,
@@ -377,14 +382,15 @@ extension TwitchChatService {
         } catch {
             guard connectionAttemptIsCurrent(generation) else { return }
             Log.warn(
-                "TwitchChatService: Reconnection attempt \(attemptNumber) failed: \(error.localizedDescription)",
-                category: "Twitch")
+                "TwitchChatService: Reconnection attempt failed",
+                category: .twitchEvents,
+                fields: ["attempt": attemptNumber, "error": error.localizedDescription])
             if reconnectionAttempts < maxReconnectionAttempts && isNetworkReachable {
                 scheduleReconnect()
             } else if !isNetworkReachable {
                 Log.info(
                     "TwitchChatService: Network no longer reachable, stopping reconnection attempts",
-                    category: "Twitch")
+                    category: .twitchEvents)
             }
         }
     }
@@ -434,7 +440,7 @@ extension TwitchChatService {
 
             Log.info(
                 "TwitchChatService: Reactive token refresh succeeded; reconnecting",
-                category: "Twitch")
+                category: .twitchEvents)
             let refreshedGeneration = beginConnectionAttempt()
             do {
                 try await connectToChannel(
@@ -444,7 +450,7 @@ extension TwitchChatService {
                     attemptGeneration: refreshedGeneration)
                 Log.info(
                     "TwitchChatService: Reconnection transport started after token refresh; awaiting session_welcome",
-                    category: "Twitch")
+                    category: .twitchEvents)
                 return
             } catch {
                 guard reconnectCredentialIsCurrent(
@@ -459,21 +465,21 @@ extension TwitchChatService {
                 case .authenticationFailure:
                     Log.error(
                         "TwitchChatService: Refreshed token was rejected with 401",
-                        category: "Twitch")
+                        category: .twitchEvents)
                     signalReauthNeededAndStop()
                     return
                 case .retryableFailure:
                     Log.warn(
                         "TwitchChatService: Reconnect after refresh failed transiently - "
                             + error.localizedDescription,
-                        category: "Twitch")
+                        category: .twitchEvents)
                     if reconnectionAttempts < maxReconnectionAttempts && isNetworkReachable {
                         scheduleReconnect()
                     } else if !isNetworkReachable {
                         Log.info(
                             "TwitchChatService: Network no longer reachable, "
                                 + "stopping reconnection attempts",
-                            category: "Twitch")
+                            category: .twitchEvents)
                     }
                     return
                 }
@@ -495,7 +501,7 @@ extension TwitchChatService {
             ) else { return }
             Log.warn(
                 "TwitchChatService: Token refresh temporarily unavailable; keeping credentials",
-                category: "Twitch"
+                category: .twitchEvents
             )
             if reconnectionAttempts < maxReconnectionAttempts && isNetworkReachable {
                 scheduleReconnect()
@@ -518,7 +524,7 @@ extension TwitchChatService {
     func connectToEventSub(urlString: String = TwitchChatService.defaultEventSubURL) {
         guard !eventSubTeardownQuiescing.value else { return }
         guard let url = URL(string: urlString) else {
-            Log.error("TwitchChatService: Invalid EventSub URL", category: "Twitch")
+            Log.error("TwitchChatService: Invalid EventSub URL", category: .twitchEvents)
             disconnectFromEventSub()
             return
         }
@@ -531,7 +537,7 @@ extension TwitchChatService {
         let task = eventSubWebSocketFactory?(url) ?? urlSession.webSocketTask(with: url)
         webSocketTask = task
 
-        Log.info("TwitchChatService: Starting EventSub WebSocket connection", category: "Twitch")
+        Log.info("TwitchChatService: Starting EventSub WebSocket connection", category: .twitchEvents)
         eventSubWebSocketResume(task)
 
         startSessionWelcomeTimeout(
@@ -639,8 +645,9 @@ extension TwitchChatService {
         guard now >= snapshot.deadline else { return false }
 
         Log.warn(
-            "TwitchChatService: Keepalive watchdog fired (no frame within \(Int(keepaliveDeadlineSeconds))s); reconnecting",
-            category: "Twitch")
+            "TwitchChatService: Keepalive watchdog fired, reconnecting",
+            category: .twitchEvents,
+            fields: ["seconds": Int(keepaliveDeadlineSeconds)])
         disconnectFromEventSub()
 
         if let channelName = reconnectChannelName,
@@ -670,7 +677,7 @@ extension TwitchChatService {
 
         Log.error(
             "TwitchChatService: Session welcome timeout - WebSocket may not be responding",
-            category: "Twitch")
+            category: .twitchEvents)
         disconnectFromEventSub()
 
         if let channelName = reconnectChannelName,
@@ -680,7 +687,7 @@ extension TwitchChatService {
            isNetworkReachable {
             Log.info(
                 "TwitchChatService: Attempting reconnection after session welcome timeout",
-                category: "Twitch")
+                category: .twitchEvents)
             scheduleReconnect()
         }
     }
@@ -694,7 +701,7 @@ extension TwitchChatService {
                 || !eventSubTeardownQuiescing.value else {
             Log.debug(
                 "TwitchChatService: Deferring EventSub disconnect during credential teardown",
-                category: "Twitch")
+                category: .twitchEvents)
             return
         }
         invalidateSessionBoundChatWork()
@@ -719,7 +726,7 @@ extension TwitchChatService {
         isMigratingSession = false
         broadcastConnectionState(false, error: error)
 
-        Log.debug("TwitchChatService: EventSub WebSocket disconnected", category: "Twitch")
+        Log.debug("TwitchChatService: EventSub WebSocket disconnected", category: .twitchEvents)
     }
 
     /// Stops the socket at the receive boundary without cancelling a receive
@@ -750,7 +757,7 @@ extension TwitchChatService {
             guard clock.now < deadline else {
                 Log.error(
                     "TwitchChatService: Timed out quiescing EventSub paid-event intake before credential teardown",
-                    category: "Twitch")
+                    category: .twitchEvents)
                 return false
             }
             do {
@@ -842,7 +849,7 @@ extension TwitchChatService {
             migrationSourceReceiveTask = nil
             Log.info(
                 "TwitchChatService: Migration source socket closed; awaiting replacement welcome",
-                category: "Twitch")
+                category: .twitchEvents)
             return
         }
 
@@ -859,11 +866,16 @@ extension TwitchChatService {
         if errorDomain == NSURLErrorDomain && errorCode == NSURLErrorTimedOut {
             Log.error(
                 "TwitchChatService: WebSocket connection timed out. This may be due to network issues, firewall blocking, or Twitch service problems.",
-                category: "Twitch")
+                category: .twitchEvents)
         } else {
             Log.error(
-                "TwitchChatService: WebSocket connection error: \(error.localizedDescription) (Domain: \(errorDomain), Code: \(errorCode))",
-                category: "Twitch")
+                "TwitchChatService: WebSocket connection error",
+                category: .twitchEvents,
+                fields: [
+                    "error": error.localizedDescription,
+                    "domain": errorDomain,
+                    "code": errorCode
+                ])
         }
 
         disconnectFromEventSub(error: error.localizedDescription)
@@ -873,7 +885,7 @@ extension TwitchChatService {
            let clientID = reconnectClientID,
            !channelName.isEmpty, !token.isEmpty, !clientID.isEmpty,
            isNetworkReachable {
-            Log.info("TwitchChatService: Attempting automatic reconnection", category: "Twitch")
+            Log.info("TwitchChatService: Attempting automatic reconnection", category: .twitchEvents)
             scheduleReconnect()
         }
     }

@@ -39,7 +39,9 @@ struct DebugLogsAndEventsCard: View {
         }
         .cardStyle()
         .task(id: refreshTick) {
-            logStatsLoaded = false
+            // Deliberately does NOT reset `logStatsLoaded` here. Doing so swapped
+            // the stats for a LoadingRow on every manual refresh and flickered.
+            // DebugInspectorsCard keeps its last values for the same reason.
             let stats = await Task.detached(priority: .userInitiated) {
                 (url: Log.exportLogFile(), size: Log.logFileSize(), lines: Log.logLineCount())
             }.value
@@ -121,22 +123,22 @@ struct DebugLogsAndEventsCard: View {
             }
 
             HStack {
-                Button { Log.debug("Debug test line from Debug tab", category: "DevTools") } label: {
+                Button { Log.debug("Debug test line from Debug tab", category: .devTools) } label: {
                     Text("Log .debug").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
                 .pointerCursor()
-                Button { Log.info("Info test line from Debug tab", category: "DevTools") } label: {
+                Button { Log.info("Info test line from Debug tab", category: .devTools) } label: {
                     Text("Log .info").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
                 .pointerCursor()
-                Button { Log.warn("Warn test line from Debug tab", category: "DevTools") } label: {
+                Button { Log.warn("Warn test line from Debug tab", category: .devTools) } label: {
                     Text("Log .warn").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
                 .pointerCursor()
-                Button { Log.error("Error test line from Debug tab", category: "DevTools") } label: {
+                Button { Log.error("Error test line from Debug tab", category: .devTools) } label: {
                     Text("Log .error").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -223,7 +225,7 @@ struct DebugLogsAndEventsCard: View {
             userInfo: userInfo.isEmpty ? nil : userInfo
         )
         postStatus = "Posted \(selectedNotification)"
-        Log.info("Posted notification \(selectedNotification) (dev)", category: "DevTools")
+        Log.info("Posted notification \(selectedNotification) (dev)", category: .devTools)
     }
 }
 

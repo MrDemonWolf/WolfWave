@@ -890,7 +890,7 @@ extension AppDelegate {
     @objc func copyWidgetURL() {
         let url = "http://localhost:\(Preferences.resolvedWidgetPort)"
         Pasteboard.copy(url)
-        Log.debug("AppDelegate: Widget URL copied to clipboard: \(url)", category: "App")
+        Log.debug("AppDelegate: Widget URL copied to clipboard: \(url)", category: .app)
     }
 }
 
@@ -926,7 +926,7 @@ extension AppDelegate {
         guard let song = currentSong else { return }
         let value = currentArtist.map { "\(song) · \($0)" } ?? song
         Pasteboard.copy(value)
-        Log.debug("AppDelegate: Copied current track: \(value)", category: "App")
+        Log.debug("AppDelegate: Copied current track: \(value)", category: .app)
     }
 
     /// Copies a multi-platform `song.link` URL for the currently-playing track
@@ -937,11 +937,11 @@ extension AppDelegate {
         guard let song = currentSong, let artist = currentArtist else { return }
         let links = ArtworkService.shared.cachedTrackLinks(track: song, artist: artist)
         guard let url = links.songLinkURL ?? links.trackViewURL else {
-            Log.debug("AppDelegate: Copy Song Link no-op: no URL cached for \(song) by \(artist)", category: "App")
+            Log.debug("AppDelegate: Copy Song Link no-op: no URL cached for \(song) by \(artist)", category: .app)
             return
         }
         Pasteboard.copy(url)
-        Log.debug("AppDelegate: Copied song link: \(url)", category: "App")
+        Log.debug("AppDelegate: Copied song link: \(url)", category: .app)
     }
 
     /// Sends the same `!song` reply a viewer would see, directly to chat.
@@ -951,7 +951,7 @@ extension AppDelegate {
         if let service = twitchService {
             Task { await service.sendMessage(message) }
         }
-        Log.debug("AppDelegate: Shared current track to Twitch chat", category: "App")
+        Log.debug("AppDelegate: Shared current track to Twitch chat", category: .app)
     }
 
     /// Copies a recently-played track label from the submenu. The full
@@ -987,22 +987,22 @@ extension AppDelegate {
                 guard await twitch.leaveChannel() else {
                     Log.warn(
                         "AppDelegate: Aborted Twitch restart because channel teardown was not safe",
-                        category: "App")
+                        category: .app)
                     return
                 }
-                Log.info("AppDelegate: Twitch left channel for restart", category: "App")
+                Log.info("AppDelegate: Twitch left channel for restart", category: .app)
                 guard let credential,
                       TwitchCredentialStore.shared.connectionSnapshot() == credential,
                       let channel = credential.channelID, !channel.isEmpty,
                       let clientID, !clientID.isEmpty else {
-                    Log.info("AppDelegate: Skipped Twitch rejoin (missing creds or channel)", category: "App")
+                    Log.info("AppDelegate: Skipped Twitch rejoin (missing creds or channel)", category: .app)
                     return
                 }
                 try? await Task.sleep(for: .milliseconds(250))
                 guard TwitchCredentialStore.shared.connectionSnapshot() == credential else {
                     Log.info(
                         "AppDelegate: Skipped stale Twitch rejoin after credentials changed",
-                        category: "App"
+                        category: .app
                     )
                     return
                 }
@@ -1013,9 +1013,9 @@ extension AppDelegate {
                         clientID: clientID,
                         expectedCredentialRevision: credential.revision
                     )
-                    Log.info("AppDelegate: Twitch rejoin requested for #\(channel)", category: "App")
+                    Log.info("AppDelegate: Twitch rejoin requested for #\(channel)", category: .app)
                 } catch {
-                    Log.warn("AppDelegate: Twitch rejoin failed: \(error.localizedDescription)", category: "App")
+                    Log.warn("AppDelegate: Twitch rejoin failed: \(error.localizedDescription)", category: .app)
                 }
             }
         }
@@ -1028,7 +1028,7 @@ extension AppDelegate {
                 await discord?.setEnabled(false)
                 try? await Task.sleep(for: .milliseconds(250))
                 await discord?.setEnabled(true)
-                Log.info("AppDelegate: Discord IPC cycled", category: "App")
+                Log.info("AppDelegate: Discord IPC cycled", category: .app)
             }
         }
 
@@ -1039,11 +1039,11 @@ extension AppDelegate {
                 await server?.setEnabled(false)
                 try? await Task.sleep(for: .milliseconds(250))
                 await server?.setEnabled(true)
-                Log.info("AppDelegate: Widget WebSocket server cycled", category: "App")
+                Log.info("AppDelegate: Widget WebSocket server cycled", category: .app)
             }
         }
 
-        Log.info("AppDelegate: Restart Integrations triggered from tray", category: "App")
+        Log.info("AppDelegate: Restart Integrations triggered from tray", category: .app)
     }
 }
 
