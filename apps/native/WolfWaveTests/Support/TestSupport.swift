@@ -13,21 +13,65 @@ import Testing
 
 @testable import WolfWave
 
-/// Serializes tests that touch the process-wide Twitch credential state:
-/// `KeychainService.backend` **and** `Preferences.twitchReauthNeeded`.
+/// Serializes tests that touch **any** process-wide mutable state the app reads
+/// through a global seam. Today that is three things:
+///
+/// - `KeychainService.backend`
+/// - `Preferences.twitchReauthNeeded`
+/// - every key in ``DefaultsStore/store``
 ///
 /// Holding this is required to *read* that state, not only to swap it. Swift
 /// Testing runs separate suites in parallel (`.serialized` only orders tests
-/// within one suite), so an unguarded suite that reaches the Keychain through a
-/// service still lands on whichever backend another suite currently has
-/// installed. That is exactly how `TwitchViewModel.clearCredentials()` came to
-/// delete the accounts `KeychainServiceTests` had just seeded into its own
-/// backend, and how its `reauthNeeded` writes flipped the shared default
-/// mid-assertion.
+/// within one suite) **and** overlaps them with XCTest in the same process, so
+/// an unguarded suite that reaches the Keychain through a service still lands on
+/// whichever backend another suite currently has installed. That is exactly how
+/// `TwitchViewModel.clearCredentials()` came to delete the accounts
+/// `KeychainServiceTests` had just seeded into its own backend, and how its
+/// `reauthNeeded` writes flipped the shared default mid-assertion.
 ///
-/// ponytail: one test semaphore; use task-local backends if parallelism matters.
-nonisolated enum KeychainBackendTestIsolation {
+/// `DefaultsStore.store` is the same bug wearing a different hat, which is why
+/// it moved under this lock rather than getting one of its own (two locks in one
+/// process is a deadlock waiting for the first suite that wants both).
+/// `DefaultsStore` gives the test host a private suite, but it is one suite for
+/// the whole *process*, shared by every concurrently running test.
+/// `SongRequestServiceTests` set `songRequestEnabled = true` in `setUp()` and
+/// asserted against it several `await`s later, while `TwitchChatServiceTests`,
+/// the setup-gate suites, and any `WolfWaveTestCase.resetAllSettings()` caller
+/// wrote or wiped that same key in parallel. It surfaced as
+/// `testRequestWhileMusicAppClosedBuffers` intermittently failing with
+/// `featureDisabled`, passing every time in isolation.
+///
+/// Acquire it by one of:
+///
+/// - subclassing ``WolfWaveTestCase`` (its `setUp` takes the lock and a teardown
+///   block always returns it), for XCTest;
+/// - the ``Trait/isolatedSharedTestState`` suite trait, for Swift Testing;
+/// - ``withIsolatedSharedState(isolation:_:)`` around a specific block.
+///
+/// ponytail: one test semaphore; use task-local seams if parallelism matters.
+nonisolated enum SharedTestStateIsolation {
     private static let semaphore = DispatchSemaphore(value: 1)
+
+    /// Whether the current task tree already owns the lock.
+    ///
+    /// The semaphore is not recursive, so a scope nested inside another scope
+    /// would wait on itself forever. That nesting is real: a suite trait wraps
+    /// the whole suite, and an individual test inside it may still want an
+    /// explicit `withIsolatedSharedState` block. Scopes propagate down a task
+    /// tree, which is exactly what a `@TaskLocal` tracks.
+    ///
+    /// Deliberately *not* consulted by `acquire()` / `release()`: those are the
+    /// XCTest path, where `setUp` and the test body run in different tasks, so a
+    /// task-local set in one is invisible to the other. XCTest suites never nest
+    /// scopes (verified: no `WolfWaveTestCase` subclass opens one), so plain
+    /// acquire/release is correct there.
+    @TaskLocal private static var isHeldByCurrentTask = false
+
+    /// Whether the calling task tree is inside a scope. Exposed so
+    /// `SharedTestStateIsolationTests` can prove the suite trait actually ran:
+    /// a trait that silently stopped applying would leave every suite carrying
+    /// it unprotected, and nothing else about the run would look different.
+    static var isInsideScope: Bool { isHeldByCurrentTask }
 
     static func acquire() { semaphore.wait() }
     static func release() { semaphore.signal() }
@@ -38,29 +82,47 @@ nonisolated enum KeychainBackendTestIsolation {
     /// waiter is sitting on it. Awaiting instead keeps the main actor free.
     static func acquireAsync() async { await acquireOffCooperativePool() }
 
-    /// Runs `body` with exclusive ownership of the shared credential state, on a
-    /// private in-memory backend, restoring the previous backend and reauth flag
-    /// on exit. Balanced by construction, unlike a hand-written acquire/release
-    /// pair.
+    /// Runs `body` with exclusive ownership of every shared global above: a
+    /// private in-memory Keychain backend and a settings store wiped clean of
+    /// the keys the app knows about, all restored on exit. Balanced by
+    /// construction, unlike a hand-written acquire/release pair.
+    ///
+    /// Re-entrant: if the current task tree already holds the lock, `body` runs
+    /// directly instead of deadlocking on a second acquisition.
     ///
     /// Inherits the caller's isolation so `@MainActor` suites can pass a plain
     /// closure, and waits off the cooperative pool so a blocked acquisition
     /// never starves the executor running the lock holder.
-    static func withIsolatedCredentialState<T>(
+    static func withIsolatedSharedState<T>(
         isolation: isolated (any Actor)? = #isolation,
         _ body: () async throws -> T
     ) async rethrows -> T {
+        if isHeldByCurrentTask { return try await body() }
         await acquireOffCooperativePool()
         let previousBackend = KeychainService.backend
         let previousReauthNeeded = Preferences.twitchReauthNeeded
         KeychainService.backend = InMemoryKeychainBackend()
         Preferences.setTwitchReauthNeeded(false)
+        resetAllKnownSettings()
         defer {
+            resetAllKnownSettings()
             Preferences.setTwitchReauthNeeded(previousReauthNeeded)
             KeychainService.backend = previousBackend
             release()
         }
-        return try await body()
+        return try await $isHeldByCurrentTask.withValue(true) { try await body() }
+    }
+
+    /// Removes every key in `AppConstants.UserDefaults.allKeys` from the test
+    /// suite, so a scope starts and ends on a clean slate.
+    ///
+    /// Safe as a mass delete only because it goes through ``DefaultsStore/store``
+    /// (an isolated suite under test) rather than the dev app's live domain.
+    static func resetAllKnownSettings() {
+        let defaults = DefaultsStore.store
+        for key in AppConstants.UserDefaults.allKeys {
+            defaults.removeObject(forKey: key)
+        }
     }
 
     private static func acquireOffCooperativePool() async {
@@ -71,6 +133,34 @@ nonisolated enum KeychainBackendTestIsolation {
             }
         }
     }
+}
+
+/// Gives a Swift Testing suite exclusive ownership of the shared global state
+/// described on ``SharedTestStateIsolation`` for the duration of the suite.
+///
+/// Attached to a suite (not recursive), so the lock is taken once around the
+/// whole suite rather than re-taken per test. Tests inside keep whatever
+/// parallelism they already had relative to each other; the exclusion that
+/// matters is against *other* suites.
+struct IsolatedSharedTestStateTrait: SuiteTrait, TestTrait, TestScoping {
+    var isRecursive: Bool { false }
+
+    func provideScope(
+        for test: Test,
+        testCase: Test.Case?,
+        performing function: @concurrent @Sendable () async throws -> Void
+    ) async throws {
+        try await SharedTestStateIsolation.withIsolatedSharedState {
+            try await function()
+        }
+    }
+}
+
+extension Trait where Self == IsolatedSharedTestStateTrait {
+    /// Applies ``IsolatedSharedTestStateTrait`` to a suite or test. Required on
+    /// any Swift Testing suite that writes `DefaultsStore.store`, swaps the
+    /// Keychain backend, or reads either expecting its own value back.
+    static var isolatedSharedTestState: Self { Self() }
 }
 
 /// Binds a task-scoped `KeychainService` backend around every test in the suite

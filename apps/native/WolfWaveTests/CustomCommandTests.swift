@@ -197,7 +197,7 @@ struct CustomBotCommandTests {
 
 // MARK: - Store
 
-@Suite("CustomCommandStore")
+@Suite("CustomCommandStore", .isolatedSharedTestState)
 @MainActor
 struct CustomCommandStoreTests {
 

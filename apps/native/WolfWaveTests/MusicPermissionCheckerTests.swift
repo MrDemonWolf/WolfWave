@@ -13,7 +13,7 @@ import XCTest
 /// Covers `MusicPermissionChecker.resolve`: the pure mapping from an
 /// `AEDeterminePermissionToAutomateTarget` status to a `MusicPermissionState`,
 /// including the closed-Music (`procNotFound`) fallback to the last known grant.
-final class MusicPermissionCheckerTests: XCTestCase {
+final class MusicPermissionCheckerTests: WolfWaveTestCase {
 
     private let key = AppConstants.UserDefaults.lastResolvedMusicPermission
 

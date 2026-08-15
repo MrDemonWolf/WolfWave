@@ -19,7 +19,7 @@ import XCTest
 /// `didReceive(_:)` callbacks are invoked directly off-main, the way MetricKit
 /// delivers them.
 @MainActor
-final class DiagnosticsServiceTests: XCTestCase {
+final class DiagnosticsServiceTests: WolfWaveTestCase {
 
     private var suiteName: String!
     private var defaults: UserDefaults!

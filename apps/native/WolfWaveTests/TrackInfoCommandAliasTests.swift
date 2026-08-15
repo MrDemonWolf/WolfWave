@@ -13,7 +13,7 @@ import XCTest
 /// trigger set of `!song`, `!last`, and `!stats` via the `BotCommand.allTriggers`
 /// computed property.
 @MainActor
-final class TrackInfoCommandAliasTests: XCTestCase {
+final class TrackInfoCommandAliasTests: WolfWaveTestCase {
 
     private let testKey = "TrackInfoCommandAliasTests.aliases"
 

@@ -14,7 +14,7 @@ import Testing
 /// unset/zero falls back to the default, and out-of-range stored values
 /// (a hand-edited plist or corrupted settings backup) clamp instead of
 /// trapping. Serialized because both tests mutate the same UserDefaults keys.
-@Suite("Preferences Resolved Ports", .serialized)
+@Suite("Preferences Resolved Ports", .serialized, .isolatedSharedTestState)
 struct PreferencesResolvedPortTests {
 
     /// Runs `body` with `value` stored under `key`, restoring the previous

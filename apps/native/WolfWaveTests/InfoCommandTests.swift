@@ -17,7 +17,7 @@ import XCTest
 /// `Preferences` and `allTriggers` read from) and clears them in tear-down. No
 /// Keychain access.
 @MainActor
-final class InfoCommandTests: XCTestCase {
+final class InfoCommandTests: WolfWaveTestCase {
 
     private let enabledKey = "test.infoCommand.enabled"
     private let aliasesKey = "test.infoCommand.aliases"

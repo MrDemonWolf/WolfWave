@@ -14,7 +14,7 @@ import Testing
 /// the fallback policy, and the one-time setup-gate migration. No network or
 /// Keychain access, so it stays fast and deterministic.
 @MainActor
-@Suite("Song request setup health")
+@Suite("Song request setup health", .isolatedSharedTestState)
 struct SongRequestSetupHealthTests {
 
     // MARK: - resolveHealth policy

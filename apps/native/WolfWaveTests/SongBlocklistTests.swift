@@ -10,7 +10,7 @@ import XCTest
 @testable import WolfWave
 
 @MainActor
-final class SongBlocklistTests: XCTestCase {
+final class SongBlocklistTests: WolfWaveTestCase {
 
     // MARK: - Empty Start
 
