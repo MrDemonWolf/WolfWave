@@ -13,7 +13,7 @@ import Testing
 /// Covers step navigation, the per-step "can I advance" gate, and that finishing
 /// setup records the gate flag, clears the health status, and enables the feature.
 @MainActor
-@Suite("SongRequestSetupViewModel")
+@Suite("SongRequestSetupViewModel", .isolatedSharedTestState)
 struct SongRequestSetupViewModelTests {
 
     @Test("opens at the requested step")

@@ -18,7 +18,7 @@ import XCTest
 /// overrides (those fight `@MainActor` isolation on an `XCTestCase` subclass);
 /// each test primes UserDefaults itself via `clearKeys()` / `enable(url:)`.
 @MainActor
-final class SongListCommandTests: XCTestCase {
+final class SongListCommandTests: WolfWaveTestCase {
 
     private let command = SongListCommand()
 

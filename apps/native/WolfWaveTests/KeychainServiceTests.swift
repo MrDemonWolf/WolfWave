@@ -24,14 +24,14 @@ final class KeychainServiceTests {
     private let previousBackend: KeychainBackend
 
     init() {
-        KeychainBackendTestIsolation.acquire()
+        SharedTestStateIsolation.acquire()
         previousBackend = KeychainService.backend
         KeychainService.backend = InMemoryKeychainBackend()
     }
 
     deinit {
         KeychainService.backend = previousBackend
-        KeychainBackendTestIsolation.release()
+        SharedTestStateIsolation.release()
     }
 
     @Test("Test hosts default to process-local credentials")

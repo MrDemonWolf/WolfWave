@@ -20,7 +20,7 @@ import Testing
 /// so each one is pinned here rather than only the happy path.
 ///
 /// Serialized because every case mutates a shared key.
-@Suite("Preferences Resolved Domains", .serialized)
+@Suite("Preferences Resolved Domains", .serialized, .isolatedSharedTestState)
 struct PreferencesResolvedDomainTests {
 
     /// Sets `value` for the duration of `body`, restoring whatever was there.

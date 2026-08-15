@@ -55,7 +55,7 @@ private actor PollSubscriptionGate {
 
 /// Comprehensive test suite for TwitchChatService
 @MainActor
-@Suite("Twitch Chat Service Tests", .serialized)
+@Suite("Twitch Chat Service Tests", .serialized, .isolatedSharedTestState)
 struct TwitchChatServiceTests {
 
     private let handlerStore = MockURLProtocol.HandlerStore()
@@ -1785,7 +1785,7 @@ struct TwitchChatServiceTests {
         // `twitchReauthNeeded` is a process-global default that parallel suites
         // also write, so the assertion below only holds under the shared
         // credential-state lock.
-        await KeychainBackendTestIsolation.withIsolatedCredentialState {
+        await SharedTestStateIsolation.withIsolatedSharedState {
             let defaults = DefaultsStore.store
             defer {
                 defaults.removeObject(forKey: AppConstants.UserDefaults.voteSkipEnabled)
