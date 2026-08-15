@@ -119,6 +119,9 @@ struct SettingsView: View {
     /// both alert exits.
     @State private var resetConfirmText = ""
 
+    /// Set when a factory reset aborts, so the user learns nothing was erased.
+    @State private var resetError: UserFacingError?
+
     /// The exact (case-sensitive) word the user must type to enable Reset.
     private let resetConfirmWord = "RESET"
 
@@ -234,6 +237,15 @@ struct SettingsView: View {
             .accessibilityIdentifier("resetSettingsConfirmButton")
         } message: {
             Text("This wipes everything: settings, Twitch and Discord sign-in, logs, listening history, and the artwork cache. WolfWave restarts as a fresh install. This can't be undone.\n\nType \(resetConfirmWord) to confirm.")
+        }
+        // A reset that stops partway has to say so. It used to write to a
+        // property no view rendered and then return, so the user was told
+        // nothing and could reasonably believe their data was erased.
+        .alert("Reset Stopped Partway", isPresented: .constant(resetError != nil)) {
+            Button("OK") { resetError = nil }
+                .accessibilityIdentifier("resetSettingsErrorDismiss")
+        } message: {
+            Text(resetError?.message ?? "")
         }
         // Clear on the source-of-truth lifecycle event so every dismissal path
         // (Cancel, Escape, click-away) starts the next attempt with an empty field.
@@ -432,8 +444,15 @@ struct SettingsView: View {
         do {
             try KeychainService.deleteAll()
         } catch {
-            twitchViewModel.statusMessage =
-                "⚠️ Factory reset could not clear saved credentials. Please try again."
+            resetError = UserFacingError(
+                id: "settings.resetAborted",
+                title: "Reset stopped partway",
+                cause: "Your saved Twitch and Discord sign-ins couldn't be removed, "
+                    + "so **nothing was erased**.",
+                fix: "Try again. If it keeps failing, restart your Mac and retry.",
+                severity: .error,
+                actions: [.retry, .reportBug]
+            )
             Log.error(
                 "SettingsView: Factory reset Keychain deletion failed - \(error.localizedDescription)",
                 category: "App")

@@ -195,7 +195,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         XCTAssertEqual(restarts.value, 1)
         XCTAssertEqual(KeychainService.loadTwitchCredentialGrant(), prior)
         XCTAssertEqual(viewModel.authState, .idle)
-        XCTAssertEqual(viewModel.statusMessage, "")
+        XCTAssertNil(viewModel.connectionError)
     }
 
     func testOnlyOwningWindowCloseCancelsOAuthAndRestoresValidation() async throws {
@@ -777,7 +777,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         XCTAssertEqual(committed.channelID, "old_channel")
         XCTAssertEqual(Preferences.pendingImportedTwitchChannelName, "missing_channel")
         XCTAssertEqual(viewModel.channelValidationState, .invalid)
-        XCTAssertTrue(viewModel.statusMessage.contains("not found"))
+        XCTAssertEqual(viewModel.connectionError?.id, "twitch.channelNotFound")
     }
 
     func testOAuthDoesNotPromotePendingChannelOnValidationOutage() async throws {
@@ -844,7 +844,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
             viewModel.channelValidationState,
             .error(TwitchViewModel.notPermittedMessage(status: 503))
         )
-        XCTAssertTrue(viewModel.statusMessage.contains("Twitch wouldn't answer"))
+        XCTAssertEqual(viewModel.connectionError?.id, "twitch.lookupRefused")
     }
 
     func testOAuthDoesNotPromoteChannelChangedDuringValidation() async throws {
@@ -990,7 +990,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         let finished = await waitUntil {
             await MainActor.run {
                 !viewModel.isConnecting
-                    && viewModel.statusMessage.contains("safely disconnect")
+                    && viewModel.connectionError?.id == "twitch.disconnectFailed"
             }
         }
 
@@ -1048,7 +1048,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         XCTAssertTrue(finished)
         XCTAssertEqual(teardownAttempts.value, 0)
         XCTAssertEqual(viewModel.channelValidationState, .invalid)
-        XCTAssertTrue(viewModel.statusMessage.contains("not found"))
+        XCTAssertEqual(viewModel.connectionError?.id, "twitch.channelNotFound")
         XCTAssertEqual(
             try KeychainService.loadTwitchCredentialGrantChecked().channelID,
             "old_channel"
@@ -1117,13 +1117,13 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         XCTAssertEqual(teardownAttempts.value, 0)
         XCTAssertEqual(restarts.value, 0)
         XCTAssertEqual(Preferences.pendingImportedTwitchChannelName, "pending_channel")
-        XCTAssertTrue(viewModel.statusMessage.contains("Finish or cancel"))
+        XCTAssertTrue(viewModel.progressMessage.contains("Finish or cancel"))
 
         viewModel.authState = .idle
         viewModel.joinChannel()
         let finished = await waitUntil(timeout: .seconds(4)) {
             await MainActor.run {
-                viewModel.statusMessage == "Waiting for connection..."
+                viewModel.progressMessage == "Waiting for connection..."
             }
         }
 

@@ -35,6 +35,11 @@ struct TwitchSettingsView: View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             headerView
 
+            connectionStatus
+                .animation(
+                    reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base),
+                    value: viewModel.connectionError)
+
             authCard
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
                 .animation(
@@ -149,6 +154,37 @@ struct TwitchSettingsView: View {
         }
     }
 
+    /// The modelled failure and in-flight progress, rendered above the auth
+    /// card so both are visible in every integration state.
+    ///
+    /// This is the surface the old `statusMessage` claimed to have and never
+    /// did: roughly forty failure messages were written to a property no view
+    /// read, so a failed join or a Keychain write error showed the user nothing.
+    @ViewBuilder
+    private var connectionStatus: some View {
+        if let error = viewModel.connectionError {
+            ErrorCallout(error: error) { action in
+                switch action {
+                case .reconnectTwitch:
+                    viewModel.connectionError = nil
+                    viewModel.startOAuth(owner: oauthOwner)
+                case .retry:
+                    viewModel.connectionError = nil
+                    viewModel.joinChannel()
+                case .reportBug:
+                    BugReportURL.openPrefilledIssue()
+                case .openDocs(let anchor):
+                    ExternalLink.open("\(AppConstants.URLs.docs)/docs/troubleshooting#\(anchor)")
+                default:
+                    viewModel.connectionError = nil
+                }
+            }
+        } else if !viewModel.progressMessage.isEmpty {
+            LoadingRow(text: viewModel.progressMessage)
+                .accessibilityIdentifier("twitch-settings.progress")
+        }
+    }
+
     /// Main card that switches content based on integration state.
     ///
     /// Shows one of: sign-in button, device-code flow, connected controls, or error retry.
@@ -243,7 +279,7 @@ struct TwitchSettingsView: View {
                 DeviceCodeView(
                     userCode: code, verificationURI: uri,
                     onCopy: {
-                        viewModel.statusMessage = "Code copied"
+                        viewModel.progressMessage = "Code copied"
                         hasStartedActivation = true
                     },
                     onActivate: {
@@ -729,7 +765,7 @@ private struct SignedInView: View {
         vm.channelID = "mrdemonwolf"
         vm.credentialsSaved = true
         vm.channelConnected = true
-        vm.statusMessage = "Connected to mrdemonwolf"
+        vm.progressMessage = "Connected to mrdemonwolf"
         return vm
     }()
     TwitchSettingsView(viewModel: mockViewModel, oauthOwner: .settings(UUID()))
