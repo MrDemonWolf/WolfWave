@@ -37,6 +37,25 @@ nonisolated enum SharedFormatters {
         return formatter
     }()
 
+    /// `2026-08-14-1403`, used to stamp exported diagnostics filenames so
+    /// successive exports do not overwrite each other.
+    static let exportStamp: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd-HHmm"
+        return formatter
+    }()
+
+    /// `Aug 14, 2026 at 2:03 PM`, used by the crash-recovery callout.
+    ///
+    /// User-facing, so it is locale-aware, unlike ``logTimestampISO``.
+    static let crashTimestamp: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter
+    }()
+
     /// `2026-08-14T14:03:22.481-05:00`, the leading field of every log line.
     ///
     /// Full ISO 8601 with millisecond precision and an explicit UTC offset, so a

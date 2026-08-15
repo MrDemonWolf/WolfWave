@@ -54,6 +54,11 @@ enum CrashReporter {
         )
         crashReporterMarkerPath = url.path.withCString { strdup($0) } // never freed: process lifetime
         crashReporterBuildLabelTable()
+        crashReporterBuildMarkerPrefix()
+        // Scratch for formatting the epoch stamp. Pre-allocated because the
+        // handler may not malloc; writing digits into memory that already exists
+        // is async-signal-safe.
+        crashReporterScratch = UnsafeMutablePointer<CChar>.allocate(capacity: crashReporterScratchCapacity)
 
         // SIGPIPE is special: this app holds long-lived sockets (Discord IPC,
         // WebSocket). A peer that drops mid-write would raise SIGPIPE, and a
@@ -94,6 +99,19 @@ enum CrashReporter {
         FileManager.default.fileExists(atPath: markerURL().path)
     }
 
+    /// Reads and parses the breadcrumb left by a previous run.
+    ///
+    /// Prefer this over ``didCrashLastLaunch()``: the marker carries the signal
+    /// name, timestamp, build, and (for exceptions) the backtrace, and the
+    /// caller is about to delete it, so an existence check throws all of that
+    /// away.
+    ///
+    /// - Returns: The parsed marker, or `nil` when absent or empty.
+    nonisolated static func readMarker() -> CrashMarker? {
+        guard let text = try? String(contentsOf: markerURL(), encoding: .utf8) else { return nil }
+        return CrashMarker.parse(text)
+    }
+
     /// Removes the breadcrumb. Call after a clean launch has read it, so the
     /// next launch is silent. No-op when absent.
     nonisolated static func clearMarker() {
@@ -131,6 +149,20 @@ enum CrashReporter {
         try? Data(body.utf8).write(to: url, options: .atomic)
     }
 
+    #if DEBUG
+    /// Composes exactly what the signal handler's three `write(2)` calls emit,
+    /// for the given signal slot and epoch.
+    ///
+    /// The real path cannot be exercised in a test: raising a fatal signal kills
+    /// the xctest host. This pins the concatenation against ``CrashMarker`` so
+    /// the writer and the reader cannot drift, which is the failure that would
+    /// otherwise only show up when someone actually crashed.
+    nonisolated static func composeSignalMarkerForTesting(slot: Int, epoch: Int) -> String {
+        let label = crashReporterSignalLabels[slot]
+        return crashReporterMarkerPrefixString() + label + "\(epoch)\n"
+    }
+    #endif
+
     // MARK: Private
 
     nonisolated private static let markerFileName = "last-crash.marker"
@@ -164,6 +196,18 @@ private nonisolated(unsafe) var crashReporterLabelTable: UnsafeMutablePointer<Un
 /// happen). malloc'd at install.
 private nonisolated(unsafe) var crashReporterUnknownLabel: UnsafePointer<CChar>?
 
+/// malloc'd, NUL-terminated fixed header written before the signal label.
+private nonisolated(unsafe) var crashReporterMarkerPrefix: UnsafePointer<CChar>?
+
+/// Pre-allocated digit buffer for the epoch stamp. 32 bytes is far more than the
+/// 19 digits a 64-bit `time_t` can need.
+private nonisolated(unsafe) var crashReporterScratch: UnsafeMutablePointer<CChar>?
+
+/// `nonisolated` like every other handler global: the module defaults to
+/// MainActor isolation and the signal handler is a `@convention(c)` function
+/// that cannot be actor-isolated.
+private nonisolated let crashReporterScratchCapacity = 32
+
 /// Saved prior `sigaction` for each trapped signal, in install order (indexed by
 /// `crashReporterSignalSlot`). malloc'd at install. The handler restores the
 /// entry for the firing signal so the previous handler (debugger, Swift runtime
@@ -175,9 +219,25 @@ private nonisolated(unsafe) var crashReporterPreviousActions: UnsafeMutablePoint
 /// Uncaught ObjC exception handler. Runs in a normal runtime (allocation OK).
 private nonisolated func crashReporterExceptionHandler(_ exception: NSException) {
     let name = Log.redact(exception.name.rawValue)
+    // Newlines are collapsed so `reason` stays one `key=value` line; the frames
+    // that follow each get their own line, which keeps the marker parseable.
     let reason = Log.redact(exception.reason ?? "")
-    let frames = exception.callStackSymbols.prefix(20).joined(separator: "\n")
-    CrashReporter.writeMarker("EXCEPTION \(name)\n\(reason)\n\(frames)\n")
+        .replacingOccurrences(of: "\n", with: " ")
+    let frames = exception.callStackSymbols.prefix(20)
+        .map { "frame=\(Log.redact($0))" }
+        .joined(separator: "\n")
+
+    CrashReporter.writeMarker("""
+        \(CrashMarker.header)
+        kind=exception
+        pid=\(ProcessInfo.processInfo.processIdentifier)
+        version=\(AppConstants.AppInfo.shortVersion)
+        build=\(AppConstants.AppInfo.buildNumber)
+        epoch=\(Int(Date().timeIntervalSince1970))
+        name=\(name)
+        reason=\(reason)
+        \(frames)
+        """)
     Log.error("CrashReporter: uncaught NSException \(name): \(reason)", category: .app)
     Log.flush() // belt-and-suspenders; Log.error already flushes
     crashReporterPreviousExceptionHandler?(exception) // chain, do not swallow
@@ -188,12 +248,20 @@ private nonisolated func crashReporterSignalHandler(_ signalNumber: Int32) {
     if let pathPtr = crashReporterMarkerPath {
         let fd = open(pathPtr, O_WRONLY | O_CREAT | O_TRUNC, 0o644)
         if fd >= 0 {
+            // Three writes, all async-signal-safe over memory allocated at
+            // install time: the pre-baked header (pid/version/build), the signal
+            // label, then the epoch digits. The marker used to be just the label,
+            // e.g. 8 bytes of "SIGSEGV\n", with no time, pid, or build at all.
+            if let prefix = crashReporterMarkerPrefix {
+                _ = write(fd, prefix, strlen(prefix))
+            }
             let slot = crashReporterSignalSlot(signalNumber)
             if slot >= 0, let table = crashReporterLabelTable, let label = table[slot] {
                 _ = write(fd, label, strlen(label))
             } else if let unknown = crashReporterUnknownLabel {
                 _ = write(fd, unknown, strlen(unknown))
             }
+            crashReporterWriteEpoch(fd)
             close(fd)
         }
     }
@@ -226,12 +294,73 @@ private nonisolated func crashReporterSignalSlot(_ sig: Int32) -> Int {
 }
 
 /// Builds the malloc'd label table on the main thread at install time.
+/// Signal labels, indexed by ``crashReporterSignalSlot``.
+///
+/// Each closes the `signal=` line and opens the `epoch=` one, so the handler
+/// emits the whole record in three writes with no formatting.
+nonisolated let crashReporterSignalLabels = [
+    "SIGABRT\nepoch=", "SIGILL\nepoch=", "SIGSEGV\nepoch=",
+    "SIGFPE\nepoch=", "SIGBUS\nepoch=", "SIGTRAP\nepoch="
+]
+
 private nonisolated func crashReporterBuildLabelTable() {
-    let labels = ["SIGABRT\n", "SIGILL\n", "SIGSEGV\n", "SIGFPE\n", "SIGBUS\n", "SIGTRAP\n"]
+    let labels = crashReporterSignalLabels
     let table = UnsafeMutablePointer<UnsafePointer<CChar>?>.allocate(capacity: labels.count)
     for (index, label) in labels.enumerated() {
         table[index] = label.withCString { UnsafePointer(strdup($0)) }
     }
     crashReporterLabelTable = table
-    crashReporterUnknownLabel = "SIGNAL\n".withCString { UnsafePointer(strdup($0)) }
+    crashReporterUnknownLabel = "SIGNAL\nepoch=".withCString { UnsafePointer(strdup($0)) }
+}
+
+/// Bakes the fixed part of the marker (schema, kind, pid, version, build) into a
+/// malloc'd C string at install time, when a normal runtime is available.
+private nonisolated func crashReporterBuildMarkerPrefix() {
+    crashReporterMarkerPrefix = crashReporterMarkerPrefixString()
+        .withCString { UnsafePointer(strdup($0)) }
+}
+
+/// The fixed part of a signal marker, as a Swift string.
+///
+/// Note the deliberate lack of a trailing newline after `signal=`: the signal
+/// label supplies the rest of that line.
+nonisolated func crashReporterMarkerPrefixString() -> String {
+    """
+    \(CrashMarker.header)
+    kind=signal
+    pid=\(ProcessInfo.processInfo.processIdentifier)
+    version=\(AppConstants.AppInfo.shortVersion)
+    build=\(AppConstants.AppInfo.buildNumber)
+    signal=
+    """
+}
+
+/// Writes the current epoch seconds followed by a newline.
+///
+/// `clock_gettime` is on POSIX's async-signal-safe list, and the digits are
+/// formatted by hand into a buffer allocated at install time, so this adds no
+/// allocation, no Foundation, and no locking to the handler.
+private nonisolated func crashReporterWriteEpoch(_ descriptor: Int32) {
+    guard let scratch = crashReporterScratch else { return }
+    var time = timespec()
+    guard clock_gettime(CLOCK_REALTIME, &time) == 0 else { return }
+
+    // Fill backwards from the end: newline first, then least-significant digit up.
+    var index = crashReporterScratchCapacity - 1
+    scratch[index] = 0x0A // "\n"
+    index -= 1
+
+    var value = time.tv_sec
+    if value <= 0 {
+        scratch[index] = 0x30 // "0"
+        index -= 1
+    } else {
+        while value > 0 && index >= 0 {
+            scratch[index] = CChar(0x30 + (value % 10))
+            value /= 10
+            index -= 1
+        }
+    }
+
+    _ = write(descriptor, scratch.advanced(by: index + 1), crashReporterScratchCapacity - index - 1)
 }

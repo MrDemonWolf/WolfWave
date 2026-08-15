@@ -12,6 +12,8 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Export Logs now exports everything, not just the newest file.** Settings → Advanced → Export Logs writes a single file containing your app version, macOS version, and install method, the details of the last crash if there was one, and every rotated log file rather than only the current one. Before, if the log had just rolled over you'd send us a nearly empty file while the lines about your problem sat in a backup we never saw. The file is named with the date and time so a second export doesn't overwrite the first, and Copy to Clipboard now includes the same version header.
+- **The crash notice says what actually crashed.** After an unexpected quit, the notice in Settings → Advanced now names the fault and when it happened instead of just saying something went wrong, and those details are written into your log so they're in the file you send us. WolfWave recorded this all along and then deleted it unread. "Report a Bug" also fills in the crash, your install method, and log size for you.
 - **Logs you can actually read.** Every line now carries a full date and timezone instead of just a clock time, so a log covering more than one day can be put in order. Each launch stamps the app version, build, and macOS version at the top, so a log you send us can be matched to the exact build that wrote it. Numbers that describe what happened (file sizes, timings, ports) are no longer scrubbed out as if they were account IDs, while tokens and account IDs are still removed.
 
 ### Fixed

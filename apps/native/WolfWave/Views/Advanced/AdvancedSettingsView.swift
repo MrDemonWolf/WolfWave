@@ -36,6 +36,7 @@ struct AdvancedSettingsView: View {
     /// `applicationDidFinishLaunching`). Drives the "Recovered from a crash"
     /// callout at the top of this pane.
     @AppStorage(AppConstants.UserDefaults.lastLaunchCrashed) private var lastLaunchCrashed = false
+    @AppStorage(AppConstants.UserDefaults.lastCrashSummary) private var lastCrashSummary: String?
 
     /// Mirrors the opt-in MetricKit diagnostics toggle so the crash callout can
     /// point the user at it without enabling anything on their behalf.
@@ -106,23 +107,47 @@ struct AdvancedSettingsView: View {
     private func exportLogs() {
         guard let logURL = requireLogFile(orWarn: "for export") else { return }
 
+        _ = logURL // presence already validated above
+
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = "wolfwave-logs.log"
+        panel.nameFieldStringValue = DiagnosticsBundle.suggestedFilename(date: Date())
         let logType = UTType(filenameExtension: "log") ?? .plainText
         panel.allowedContentTypes = [logType, .plainText]
         panel.canCreateDirectories = true
 
         let completion: (NSApplication.ModalResponse) -> Void = { response in
             guard response == .OK, let destination = panel.url else { return }
-            do {
-                if FileManager.default.fileExists(atPath: destination.path) {
-                    try FileManager.default.removeItem(at: destination)
+            // Composition reads every rotated log, so it happens off the main
+            // actor. A bare copyItem used to ship only the live file, which is
+            // nearly empty right after a rotation.
+            Task {
+                // Capture on the main actor (it reads Bundle + defaults), then
+                // do the file reading and joining off it.
+                let snapshot = DiagnosticSnapshot.capture(logSizeBytes: Log.logFileSize())
+                let crash = DefaultsStore.store.string(
+                    forKey: AppConstants.UserDefaults.lastCrashSummary)
+
+                let text = await Task.detached(priority: .userInitiated) {
+                    DiagnosticsBundle.compose(
+                        snapshot: snapshot,
+                        crash: crash,
+                        logs: DiagnosticsBundle.logFilesOldestFirst()
+                    )
+                }.value
+
+                do {
+                    try Data(text.utf8).write(to: destination, options: .atomic)
+                    Log.info(
+                        "Diagnostics exported",
+                        category: .app,
+                        fields: ["file": destination.lastPathComponent, "bytes": text.utf8.count])
+                    refreshLogStats()
+                } catch {
+                    Log.error(
+                        "Failed to export diagnostics",
+                        category: .app,
+                        fields: ["error": error.localizedDescription])
                 }
-                try FileManager.default.copyItem(at: logURL, to: destination)
-                Log.info("Logs exported to \(destination.lastPathComponent)", category: .app)
-                refreshLogStats()
-            } catch {
-                Log.error("Failed to export logs: \(error.localizedDescription)", category: .app)
             }
         }
 
@@ -157,7 +182,12 @@ struct AdvancedSettingsView: View {
                 trimmed = contents
             }
 
-            Pasteboard.copy(trimmed)
+            // Prepend the environment block. A pasted log tail with no version
+            // or OS cannot be attributed to a build, which is most of what makes
+            // it useful in an issue.
+            let header = DiagnosticSnapshot.capture(logSizeBytes: Int64(contents.utf8.count))
+                .exportHeader
+            Pasteboard.copy("\(header)\n\n\(trimmed)")
 
             withAnimation(reduceMotion ? nil : .default) { showingCopyFeedback = true }
             Task { @MainActor in

@@ -295,10 +295,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Record whether the previous run left a crash breadcrumb, mirror it to a
         // UserDefaults flag the Advanced pane reads, then clear the marker so the
         // callout shows exactly once (next clean launch is silent).
-        let crashedLastLaunch = CrashReporter.didCrashLastLaunch()
-        DefaultsStore.store.set(crashedLastLaunch, forKey: AppConstants.UserDefaults.lastLaunchCrashed)
-        if crashedLastLaunch {
-            Log.warn("AppDelegate: previous launch ended in a crash (breadcrumb found)", category: .app)
+        // Read the marker's CONTENTS before clearing it. This used to be an
+        // existence check followed by a delete, which destroyed the signal name
+        // and the 20-frame exception backtrace without them ever reaching the
+        // log, the UI, or a bug report.
+        let marker = CrashReporter.readMarker()
+        DefaultsStore.store.set(marker != nil, forKey: AppConstants.UserDefaults.lastLaunchCrashed)
+        if let marker {
+            // Into the log at .error so it lands in the file a user actually
+            // exports, and so the summary survives past this one launch.
+            Log.error(
+                "AppDelegate: previous launch ended in a crash\n\(marker.detail)",
+                category: .app,
+                fields: [
+                    "kind": marker.kind.rawValue,
+                    "signal": marker.signalName ?? "none",
+                    "frames": marker.frames.count
+                ])
+            DefaultsStore.store.set(
+                marker.summary, forKey: AppConstants.UserDefaults.lastCrashSummary)
+        } else {
+            DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.lastCrashSummary)
         }
         CrashReporter.clearMarker()
 
