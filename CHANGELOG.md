@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 - **Docs deploys are path-filtered.** A Swift-only push to `main` no longer rebuilds and republishes the site; `workflow_dispatch` forces one.
 - **Scheduled workflows skip forks.** Nightly, Update Sponsors, and Copyright Year now no-op outside `MrDemonWolf/wolfwave` instead of failing on secrets a fork can't have.
 - **CI builds get the real fork-branding URLs.** Every workflow wrote `DOCS_URL` and `COMMUNITY_DISCORD_URL` into `Config.xcconfig` without the `$()` escape, so xcconfig truncated both to `https:` and `AppConstants.validURL` silently fell back to the compiled-in defaults.
+- **Dropped the obsolete OG image generator.** `scripts/generate-og-image.mjs` predated the docs site's build-time Open Graph routes (`app/og/docs/[...slug]/route.tsx`, `app/opengraph-image.tsx`, `app/twitter-image.tsx`) and was referenced by nothing. Removing it also drops the root `satori` and `@resvg/resvg-js` devDependencies; the Stream Deck icon generator keeps its own `@resvg/resvg-js` in `apps/streamdeck/package.json`.
 
 ## [2.1.0] - 2026-08-14
 
