@@ -317,7 +317,12 @@ extension AppDelegate {
                 case .connecting: stateString = "connecting"
                 case .disconnected: stateString = "disconnected"
                 }
-                NotificationCenter.default.postDiscordState(stateString)
+                // Carry why it failed alongside the state. Read from the
+                // nonisolated snapshot so this stays a synchronous hop.
+                NotificationCenter.default.postDiscordState(
+                    stateString,
+                    failure: service.failureSnapshot.rawValue
+                )
             }
         }
 

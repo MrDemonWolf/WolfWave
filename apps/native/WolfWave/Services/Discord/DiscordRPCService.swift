@@ -136,6 +136,27 @@ actor DiscordRPCService {
         case connected
     }
 
+    /// Why the last connection attempt did not reach ``ConnectionState/connected``.
+    ///
+    /// Before this existed, every one of these rendered as "Discord not
+    /// running", which is asserted rather than observed and is often simply
+    /// false: a rejected handshake or a sandbox-blocked socket both happen with
+    /// Discord open on screen. The real reason was `Log.error` only.
+    enum ConnectionFailure: String, Sendable {
+        /// No attempt has failed, or a later attempt succeeded.
+        case none
+        /// No IPC socket exists in any candidate directory. Discord is closed.
+        case notRunning
+        /// A socket was found but Discord refused the handshake.
+        case handshakeRejected
+        /// The socket could not be reached at all: no temp directory resolved,
+        /// or the sandbox denied it. Not something the user can fix by
+        /// restarting Discord.
+        case socketUnavailable
+        /// This build shipped without a Discord Application ID.
+        case notConfigured
+    }
+
     /// Payload yielded by ``artworkResolutions`` when artwork resolves for a track.
     struct ArtworkResolution: Sendable, Equatable {
         let url: String
@@ -166,6 +187,31 @@ actor DiscordRPCService {
     /// Mirrors ``state``; updated whenever the actor mutates `state`.
     nonisolated var stateSnapshot: ConnectionState {
         _stateSnapshot.value
+    }
+
+    /// Lock-guarded mirror of ``lastFailure`` for nonisolated reads.
+    private nonisolated let _failureSnapshot = Atomic<ConnectionFailure>(.none)
+
+    /// Why the last attempt failed, safe to read synchronously from any thread.
+    nonisolated var failureSnapshot: ConnectionFailure {
+        _failureSnapshot.value
+    }
+
+    /// Why the last connection attempt failed. Cleared on a successful connect
+    /// so a stale reason cannot outlive the problem.
+    var lastFailure: ConnectionFailure = .none {
+        didSet {
+            guard oldValue != lastFailure else { return }
+            _failureSnapshot.set(lastFailure)
+        }
+    }
+
+    /// Records why a connection attempt failed, from outside the actor.
+    ///
+    /// The IPC extension assigns ``lastFailure`` directly since it shares this
+    /// actor; this is the entry point for callers that do not.
+    func recordFailure(_ failure: ConnectionFailure) {
+        lastFailure = failure
     }
 
     /// Current connection state. Publishes to ``stateChanges`` on each transition
