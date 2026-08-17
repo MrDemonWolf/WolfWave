@@ -52,11 +52,20 @@ queue view. The behavior is documented in
 
 ## Stream Widgets
 
-The OBS overlay: enable the WebSocket server, pick a theme and layout, copy the
-overlay URL, and manage separate read-only overlay and same-Mac Stream Deck
-control tokens (reveal, regenerate, edit). Sizes,
-themes, and the message contract are in the
-[widget guide](/docs/widget).
+The OBS overlay: turn the connection on, drop in the ready-made browser source,
+and style it. Cards run in the order you need them, so the raw WebSocket feed
+(port, read-only overlay token, and the two addresses) sits last, under **Build
+your own overlay**, because only a hand-written overlay needs it. Sizes, themes,
+and the message contract are in the [widget guide](/docs/widget).
+
+## Stream Deck
+
+The control side, on its own page. Holds the **Allow Stream Deck commands**
+switch, the same-Mac control token, and the setup steps. It is separate from
+Stream Widgets on purpose: the overlay token is read-only and reachable across
+your network, while the control token runs commands and is accepted only from
+this Mac. Turning commands off leaves your overlay running. Full walkthrough:
+[Stream Deck](/docs/streamdeck).
 
 ## History & Stats
 

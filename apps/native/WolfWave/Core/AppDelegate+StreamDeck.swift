@@ -19,6 +19,22 @@ extension AppDelegate {
     /// handler in `setupWebSocketServer`. On success, re-broadcasts the queue +
     /// health snapshot so the sending key updates immediately.
     func handleStreamDeckCommand(_ command: StreamDeckCommand) async -> CommandAck {
+        // The capability gate, checked before anything runs. Deliberately here in
+        // the router rather than in the transport: the server keeps serving
+        // overlays either way, so turning Stream Deck off has to disarm the
+        // commands without touching the socket that OBS is reading from.
+        //
+        // A refusal still acks, with a reason the plugin can render. Dropping the
+        // frame would leave a key spinning with no explanation, which reads as a
+        // broken connection rather than a setting the user chose.
+        guard FeatureFlags.streamDeckControlEnabled else {
+            Log.debug(
+                "StreamDeck: refused \(command.action.rawValue), control is turned off",
+                category: .websocket
+            )
+            return .failure(command.action.rawValue, "disabled")
+        }
+
         let ack = await performStreamDeckAction(command)
         if ack.ok { broadcastStreamDeckState() }
         return ack

@@ -22,6 +22,18 @@ nonisolated enum WebSocketAuthToken {
         case overlay
         case control
 
+        /// The role a credential must never collide with.
+        ///
+        /// The whole role separation rests on the two tokens being different, so
+        /// the "other" role is a property of the role itself rather than
+        /// something each call site works out (and can get wrong).
+        var counterpart: Role {
+            switch self {
+            case .overlay: return .control
+            case .control: return .overlay
+            }
+        }
+
         var subprotocolPrefix: String {
             switch self {
             case .overlay:
