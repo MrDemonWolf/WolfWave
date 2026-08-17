@@ -38,7 +38,19 @@ else
 LOCAL_SIGN = CODE_SIGN_IDENTITY="$(LOCAL_SIGN_ID)" CODE_SIGN_STYLE=Manual
 endif
 
-.PHONY: help build clean test test-verbose test-ci check-drift lint lint-baseline lint-crash-safety lint-headers update-deps open-xcode ci prod-build prod-install notarize verify-notarize sponsor-config widget
+# Signing for the UI tests, which differ from every other target in one way that
+# matters: XCUITest launches the product and attaches to it, and a wholly
+# unsigned app cannot be attached to. So the no-identity fallback here is ad-hoc
+# signing, NOT `CODE_SIGNING_ALLOWED=NO`. On a machine with a real identity this
+# is identical to LOCAL_SIGN, which keeps the app's TCC and Keychain grants
+# stable across rebuilds.
+ifeq ($(strip $(LOCAL_SIGN_ID)),)
+UI_SIGN = CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO
+else
+UI_SIGN = CODE_SIGN_IDENTITY="$(LOCAL_SIGN_ID)" CODE_SIGN_STYLE=Manual
+endif
+
+.PHONY: help build clean test test-verbose test-ui test-ci check-drift lint lint-baseline lint-crash-safety lint-headers update-deps open-xcode ci prod-build prod-install notarize verify-notarize sponsor-config widget
 
 help:
 	@echo "Available targets:"
@@ -57,6 +69,7 @@ help:
 	@echo "  open-xcode     Open the Xcode project"
 	@echo "  verify-notarize Verify notarization of builds/$(DMG_NAME)"
 	@echo "  test-verbose   Run tests with full output"
+	@echo "  test-ui        Run the XCUITest suite (launches the real app)"
 	@echo "  test-ci        Run tests exactly as CI does (no signing, result bundle)"
 	@echo "  check-drift    Regenerate widget/tokens/SponsorConfig and fail on drift"
 	@echo "  ci             Run CI test suite"
@@ -100,6 +113,22 @@ test-verbose: sponsor-config
 		-derivedDataPath '$(TEST_DERIVED_DATA)' \
 		-only-testing WolfWaveTests \
 		test 2>/dev/null | tee /dev/stderr | scripts/check-test-results.sh
+
+# XCUITests: launches the real app and drives its windows. Kept on its own
+# scheme and out of every `-only-testing WolfWaveTests` target above, so the
+# release path's `make test-ci` stays unit-only and is never gated on a UI run.
+#
+# Needs a real signing identity (an unsigned app cannot be launched and attached
+# to) and its own DerivedData, same as the unit targets, so the signed Debug app
+# Xcode installs is left alone. The app isolates itself once launched: see
+# `UITestMode` for the storage and service seams the launch environment trips.
+test-ui: sponsor-config
+	xcodebuild -project $(PROJECT) -scheme WolfWaveUITests \
+		-destination '$(DESTINATION)' -configuration Debug \
+		-derivedDataPath '$(TEST_DERIVED_DATA)' \
+		-parallel-testing-enabled NO \
+		$(UI_SIGN) \
+		test
 
 # The single test entry point for CI. All three workflows (CI, Release,
 # Nightly) run exactly this, so a green `make test-ci` locally means the same

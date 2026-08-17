@@ -182,7 +182,12 @@ extension AppDelegate {
             self?.dismissOnboarding()
         })
 
-        let hosting = NSHostingController(rootView: onboardingView)
+        // Same store redirect the Settings scene applies (see `WolfWaveApp.body`):
+        // onboarding writes real preferences, and under a test harness those must
+        // land in the isolated suite rather than the live domain.
+        let hosting = NSHostingController(
+            rootView: onboardingView.defaultAppStorage(DefaultsStore.store)
+        )
         let frame = CGRect(
             x: 0, y: 0,
             width: AppConstants.OnboardingUI.windowWidth,
@@ -202,6 +207,10 @@ extension AppDelegate {
         // broke both the unified titlebar look and List hit-testing.
         window.contentViewController = hosting
         window.title = "Welcome to WolfWave"
+        // Stable handle for the UI tests. The title is user-facing copy and the
+        // Settings window is already addressed by its scene id, so matching this
+        // one on its title would have made a copy edit break the suite.
+        window.identifier = NSUserInterfaceItemIdentifier(AppConstants.WindowID.onboarding)
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true

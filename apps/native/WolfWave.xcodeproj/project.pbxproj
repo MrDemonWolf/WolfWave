@@ -18,11 +18,19 @@
 			remoteGlobalIDString = D40965C92F0F906C00B292B6;
 			remoteInfo = WolfWave;
 		};
+		D4E2E70100000000000000A6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D40965C22F0F906C00B292B6 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D40965C92F0F906C00B292B6;
+			remoteInfo = WolfWave;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		D40965CA2F0F906C00B292B6 /* WolfWave Dev.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "WolfWave Dev.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D4A1B2012F0F906C00B292B6 /* WolfWaveTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WolfWaveTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D4E2E70100000000000000A1 /* WolfWaveUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WolfWaveUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D4CFGXCC00000000000000F1 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Config.xcconfig; path = WolfWave/Config.xcconfig; sourceTree = "<group>"; };
 		D4CFGXCC00000000000000F2 /* Config.Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Config.Debug.xcconfig; path = WolfWave/Config.Debug.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -53,6 +61,11 @@
 			path = WolfWaveTests;
 			sourceTree = "<group>";
 		};
+		D4E2E70100000000000000A2 /* WolfWaveUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = WolfWaveUITests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -71,6 +84,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D4E2E70100000000000000A3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -79,6 +99,7 @@
 			children = (
 				D40965CC2F0F906C00B292B6 /* WolfWave */,
 				D4A1B2022F0F906C00B292B6 /* WolfWaveTests */,
+				D4E2E70100000000000000A2 /* WolfWaveUITests */,
 				D40965CB2F0F906C00B292B6 /* Products */,
 				D4CFGXCC00000000000000F1 /* Config.xcconfig */,
 				D46E2E062F7F05E800089923 /* Recovered References */,
@@ -90,6 +111,7 @@
 			children = (
 				D40965CA2F0F906C00B292B6 /* WolfWave Dev.app */,
 				D4A1B2012F0F906C00B292B6 /* WolfWaveTests.xctest */,
+				D4E2E70100000000000000A1 /* WolfWaveUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -151,6 +173,29 @@
 			productReference = D4A1B2012F0F906C00B292B6 /* WolfWaveTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		D4E2E70100000000000000A8 /* WolfWaveUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D4E2E70100000000000000AB /* Build configuration list for PBXNativeTarget "WolfWaveUITests" */;
+			buildPhases = (
+				D4E2E70100000000000000A5 /* Sources */,
+				D4E2E70100000000000000A3 /* Frameworks */,
+				D4E2E70100000000000000A4 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D4E2E70100000000000000A7 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				D4E2E70100000000000000A2 /* WolfWaveUITests */,
+			);
+			name = WolfWaveUITests;
+			packageProductDependencies = (
+			);
+			productName = WolfWaveUITests;
+			productReference = D4E2E70100000000000000A1 /* WolfWaveUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -165,6 +210,10 @@
 						CreatedOnToolsVersion = 26.2;
 					};
 					D4A1B2082F0F906C00B292B6 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = D40965C92F0F906C00B292B6;
+					};
+					D4E2E70100000000000000A8 = {
 						CreatedOnToolsVersion = 26.2;
 						TestTargetID = D40965C92F0F906C00B292B6;
 					};
@@ -189,6 +238,7 @@
 			targets = (
 				D40965C92F0F906C00B292B6 /* WolfWave */,
 				D4A1B2082F0F906C00B292B6 /* WolfWaveTests */,
+				D4E2E70100000000000000A8 /* WolfWaveUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -202,6 +252,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		D4A1B2052F0F906C00B292B6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D4E2E70100000000000000A4 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -225,6 +282,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D4E2E70100000000000000A5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -232,6 +296,11 @@
 			isa = PBXTargetDependency;
 			target = D40965C92F0F906C00B292B6 /* WolfWave */;
 			targetProxy = D4A1B2062F0F906C00B292B6 /* PBXContainerItemProxy */;
+		};
+		D4E2E70100000000000000A7 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D40965C92F0F906C00B292B6 /* WolfWave */;
+			targetProxy = D4E2E70100000000000000A6 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -525,6 +594,48 @@
 			};
 			name = Release;
 		};
+		D4E2E70100000000000000A9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 9;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = HBB7T99U79;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 2.1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mrdemonwolf.wolfwave.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TEST_TARGET_NAME = WolfWave;
+			};
+			name = Debug;
+		};
+		D4E2E70100000000000000AA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 9;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = HBB7T99U79;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 2.1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mrdemonwolf.wolfwave.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TEST_TARGET_NAME = WolfWave;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -542,6 +653,15 @@
 			buildConfigurations = (
 				D40965D62F0F906D00B292B6 /* Debug */,
 				D40965D72F0F906D00B292B6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D4E2E70100000000000000AB /* Build configuration list for PBXNativeTarget "WolfWaveUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D4E2E70100000000000000A9 /* Debug */,
+				D4E2E70100000000000000AA /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

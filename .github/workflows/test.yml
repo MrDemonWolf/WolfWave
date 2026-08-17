@@ -3,8 +3,13 @@ name: CI
 on:
   push:
     branches: [main]
+  # Every pull request, whatever it targets. Deliberately NOT `branches: [main]`:
+  # that filter is on the BASE branch, so a stacked PR (one opened against
+  # another PR's branch rather than main) matched nothing and ran zero native
+  # jobs. It did not fail, it silently reported only the third-party checks,
+  # which is the worst version of this: a PR that looks reviewed and is
+  # completely untested. Push events below stay pinned to main.
   pull_request:
-    branches: [main]
 
 permissions:
   contents: read
@@ -135,6 +140,40 @@ jobs:
         with:
           name: TestResults
           path: TestResults.xcresult
+
+  # XCUITests, on their own job and their own scheme. Deliberately NOT folded
+  # into `test`: this one launches the real app and drives its windows, so it is
+  # minutes rather than seconds and fails for a different class of reason. The
+  # release and nightly workflows call `make test-ci`, which is unit-only, so a
+  # UI run never gates a release.
+  #
+  # The app isolates itself the moment the runner launches it: `UITestMode`
+  # routes UserDefaults and the Keychain to throwaway storage and keeps Music,
+  # Twitch, Discord, and Sparkle down, so this job needs no account, no network,
+  # and never raises the Automation prompt.
+  ui-test:
+    name: UI Tests
+    needs: changes
+    if: needs.changes.outputs.native == 'true'
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Select latest stable Xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
+        with:
+          xcode-version: latest-stable
+
+      - uses: ./.github/actions/setup-native-build
+
+      - name: UI Tests
+        env:
+          MallocNanoZone: "0"
+          WOLFWAVE_LOG_LEVEL: error
+        run: make test-ui
 
   docs:
     name: Docs Build

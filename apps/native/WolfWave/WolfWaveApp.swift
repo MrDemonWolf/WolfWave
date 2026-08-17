@@ -81,7 +81,13 @@ struct WolfWaveApp: App {
         // `.openSettingsRequested` to `SettingsSceneBridge`, which now runs the
         // public `openWindow(id:)` action.
         Window("WolfWave Settings", id: WolfWaveApp.settingsWindowID) {
+            // Points every `@AppStorage` below this scene at the same store the
+            // rest of the app writes through. In a normal launch that is
+            // `.standard`, so nothing changes; under a test harness it is the
+            // isolated suite, which is what keeps a UI test driving real toggles
+            // from editing the developer's live preference domain.
             SettingsView()
+                .defaultAppStorage(DefaultsStore.store)
         }
         .windowResizability(.contentSize)
         .windowToolbarStyle(.unified)
@@ -274,6 +280,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        // Seeds the UI test's requested starting state into the isolated suite.
+        // Ahead of every read below, and a no-op in a normal launch.
+        UITestMode.seedRequestedState()
+
         // Apply the stored appearance override before any UI is built so the
         // menu bar menu, status item, and onboarding adopt it from first paint.
         AppearanceController.applyStored()
@@ -282,12 +292,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // degrades instead of aborting the rest of launch. Order is preserved.
         guardedStart("StatusItem") { self.setupStatusItem() }
         guardedStart("Menu") { self.setupMenu() }
-        guardedStart("MusicMonitor") { self.setupMusicMonitor() }
-        guardedStart("Twitch") { self.setupTwitchService() }
-        guardedStart("Discord") { self.setupDiscordService() }
+        // Everything reaching off-process stays down under UI test, in place, so
+        // the surviving order is the shipping order. Music is ScriptingBridge, so
+        // starting it raises the TCC Automation prompt and parks a modal dialog
+        // in front of the runner; Twitch, Discord, and Sparkle need an account, a
+        // live IPC socket, and the network. The menu bar, windows, and every
+        // settings pane still run for real.
+        let offProcessOK = !UITestMode.isActive
+        if offProcessOK { guardedStart("MusicMonitor") { self.setupMusicMonitor() } }
+        if offProcessOK { guardedStart("Twitch") { self.setupTwitchService() } }
+        if offProcessOK { guardedStart("Discord") { self.setupDiscordService() } }
         guardedStart("WebSocket") { self.setupWebSocketServer() }
         guardedStart("PowerState") { self.setupPowerStateMonitor() }
-        guardedStart("Sparkle") { self.setupSparkleUpdater() }
+        if offProcessOK { guardedStart("Sparkle") { self.setupSparkleUpdater() } }
         guardedStart("SongRequest") { self.setupSongRequestService() }
         guardedStart("History") { self.setupHistoryService() }
         guardedStart("Diagnostics") { self.setupDiagnostics() }
@@ -326,9 +343,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Pre-warm the Apple Music permission probe off-main so the first open
         // of General and History & Stats settings doesn't pay the
         // tens-of-milliseconds Apple Events round-trip on the main thread.
-        Task.detached(priority: .utility) {
-            let state = MusicPermissionChecker.currentState()
-            await MainActor.run { MusicPermissionCache.write(state) }
+        // Skipped under UI test for the same reason `MusicMonitor` is: the probe
+        // is an Apple Events round-trip, and an ungranted one puts a TCC dialog
+        // over the runner.
+        if offProcessOK {
+            Task.detached(priority: .utility) {
+                let state = MusicPermissionChecker.currentState()
+                await MainActor.run { MusicPermissionCache.write(state) }
+            }
         }
 
         // Defer onboarding and What's New past the initial layout pass
@@ -340,11 +362,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
             if !OnboardingViewModel.hasCompletedOnboarding {
                 self?.showOnboarding()
-            } else {
+            } else if offProcessOK {
                 await self?.validateTwitchTokenOnBoot()
             }
 
-            self?.checkWhatsNew()
+            if !UITestMode.suppressesWhatsNew {
+                self?.checkWhatsNew()
+            }
         }
     }
 
