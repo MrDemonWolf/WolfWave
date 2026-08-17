@@ -31,6 +31,7 @@ final class SettingsUITests: WolfWaveUITestCase {
         "General",
         "Song Requests",
         "Stream Widgets",
+        "Stream Deck",
         "History & Stats",
         "Twitch",
         "Discord",

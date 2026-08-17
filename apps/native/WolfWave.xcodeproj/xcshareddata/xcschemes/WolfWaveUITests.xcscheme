@@ -15,7 +15,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "D40965C92F0F906C00B292B6"
-               BuildableName = "WolfWave Dev.app"
+               BuildableName = "WolfWave.app"
                BlueprintName = "WolfWave"
                ReferencedContainer = "container:WolfWave.xcodeproj">
             </BuildableReference>
@@ -56,13 +56,24 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D40965C92F0F906C00B292B6"
-            BuildableName = "WolfWave Dev.app"
+            BuildableName = "WolfWave.app"
             BlueprintName = "WolfWave"
             ReferencedContainer = "container:WolfWave.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
+   <ProfileAction
+      buildConfiguration = "Release"
+      shouldUseLaunchSchemeArgsEnv = "YES"
+      savedToolIdentifier = ""
+      useCustomWorkingDirectory = "NO"
+      debugDocumentVersioning = "YES">
+   </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">
    </AnalyzeAction>
+   <ArchiveAction
+      buildConfiguration = "Release"
+      revealArchiveInOrganizer = "YES">
+   </ArchiveAction>
 </Scheme>

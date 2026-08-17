@@ -64,12 +64,21 @@ Stream Deck app.
 
 Drag any WolfWave key onto a page and open its settings panel.
 
-1. In WolfWave, go to Settings → Stream Widgets and reveal **Stream Deck Control Token**.
+1. In WolfWave, go to Settings → Stream Deck and reveal **Stream Deck Control Token**.
 2. Paste it into the **Control token** field.
 3. Leave **Port** alone unless you changed the WebSocket port in WolfWave.
    The plugin always connects to WolfWave on this Mac.
 
+The Stream Deck pane also has an **Allow Stream Deck commands** switch. It is on
+by default. Turning it off makes WolfWave refuse every key press while leaving
+your overlay on the air, which is the switch to reach for if you want the
+now-playing box on stream but nothing able to drive playback.
+
 You only do this once. Every WolfWave key shares the same connection.
+
+Stream Deck and your overlay share one connection, so **Stream Widgets** has to
+be on for keys to reach WolfWave. The Stream Deck pane says so, with a button
+that takes you there, when it is off.
 If you used protocol v1, copy the new control token once after updating. The old
 shared access token is now the read-only overlay token and cannot run commands.
 

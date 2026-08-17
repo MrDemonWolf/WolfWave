@@ -34,6 +34,10 @@ extension AppConstants {
         /// Documentation changelog page URL (Fumadocs route).
         static let changelog = "\(docs)/docs/changelog"
 
+        /// Stream Deck plugin walkthrough (Guide group). Not `stream-deck`, which
+        /// is the developer-facing control API reference.
+        static let streamDeckGuide = "\(docs)/docs/streamdeck"
+
         /// GitHub repository owner. Lookup: `GITHUB_REPO_OWNER` Info.plist key
         /// → env var → `"mrdemonwolf"`.
         static let repoOwner = infoPlistString(

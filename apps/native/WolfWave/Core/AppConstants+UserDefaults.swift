@@ -51,6 +51,19 @@ extension AppConstants {
         /// Whether WebSocket integration is enabled (Bool, default: false)
         static let websocketEnabled = "websocketEnabled"
 
+        /// Whether the Stream Deck plugin may run commands (Bool, default: true).
+        ///
+        /// Separate from ``websocketEnabled`` on purpose: the two share one server
+        /// and one port but not one threat model. The overlay credential is
+        /// read-only and reachable across the LAN; the control credential runs
+        /// commands and is loopback-only. This gate lets a user disarm the
+        /// command half without taking their overlay off the air.
+        ///
+        /// Defaults to `true` because the capability already shipped, gated by the
+        /// control token. Defaulting it off would silently break every Stream Deck
+        /// already in use on the next launch.
+        static let streamDeckControlEnabled = "streamDeckControlEnabled"
+
         /// Whether "current song" bot command is enabled (Bool, default: false)
         static let currentSongCommandEnabled = "currentSongCommandEnabled"
 
@@ -462,6 +475,7 @@ extension AppConstants {
             twitchPendingImportedChannelName,
             selectedSettingsSection,
             websocketEnabled,
+            streamDeckControlEnabled,
             currentSongCommandEnabled,
             lastSongCommandEnabled,
             commandsLiveOnly,
@@ -725,6 +739,7 @@ extension AppConstants {
             portableBool(discordClearWhilePaused),
             // Stream widgets / WebSocket (local server; auth token auto-regenerates)
             portableBool(websocketEnabled),
+            portableBool(streamDeckControlEnabled),
             portablePort(websocketServerPort),
             portableBool(widgetHTTPEnabled),
             portablePort(widgetPort),
@@ -881,6 +896,7 @@ extension AppConstants {
             static let songRequestFairShare = true
             static let songRequestChannelPointsCost = 500
             static let songRequestBitsMinimum = 100
+            static let streamDeckControlEnabled = true
         }
     }
 }
