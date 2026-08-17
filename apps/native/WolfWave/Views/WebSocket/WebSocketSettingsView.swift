@@ -197,12 +197,20 @@ fileprivate struct WebSocketServerCard: View {
     }
 
     /// One sentence describing where the server can be reached right now.
+    ///
+    /// Streamer Mode masks the address, it does not change the reach. An earlier
+    /// version returned "Serving on this Mac" whenever masking was on, which told
+    /// the user the server was local-only while it was still bound on the LAN.
+    /// Masking a value must never restate the fact it is hiding.
     private var serverReachSummary: String {
         guard websocketEnabled else {
             return "Nothing is served while this is off. Your song data stays on this Mac."
         }
-        guard let ip = localNetworkIP, !streamerMode else {
+        guard let ip = localNetworkIP else {
             return "Serving on this Mac at port \(storedPort)."
+        }
+        guard !streamerMode else {
+            return "Serving on this Mac and on your local network, port \(storedPort)."
         }
         return "Serving on this Mac and to \(ip) on your local network, port \(storedPort)."
     }

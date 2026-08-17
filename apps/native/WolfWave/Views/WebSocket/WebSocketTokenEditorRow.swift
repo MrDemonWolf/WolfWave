@@ -206,7 +206,20 @@ struct WebSocketTokenEditorRow: View {
             tokenError = "Use exactly 64 hex characters (0-9, a-f)."
             return
         }
-        guard otherToken.isEmpty || !WebSocketAuthToken.constantTimeEquals(trimmed, otherToken) else {
+        // Read the counterpart from the Keychain rather than trusting the copy
+        // this view was handed. `otherToken` is loaded once by the parent's
+        // `.task` and never refreshed, and since the overlay and control editors
+        // now live in two different panes, each one's cached copy goes stale the
+        // moment the other pane rotates its token. Validating against that cache
+        // could accept a value equal to the live counterpart, and the entire role
+        // separation rests on those two being different: an OBS browser source
+        // holding a token equal to the control token would be a command channel.
+        //
+        // Falls back to the cached value only if the Keychain read fails, which
+        // keeps the guard strictly no weaker than before.
+        let counterpart = WebSocketAuthToken.currentOrCreate(for: role.counterpart)
+        let liveOther = counterpart.isEmpty ? otherToken : counterpart
+        guard liveOther.isEmpty || !WebSocketAuthToken.constantTimeEquals(trimmed, liveOther) else {
             tokenError = "Overlay and control tokens must be different."
             return
         }

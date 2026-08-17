@@ -44,12 +44,20 @@ struct WebSocketCustomOverlayCard: View {
 
     private let cardPadding = AppConstants.SettingsUI.cardPadding
 
-    private var connectionURL: String {
-        "ws://localhost:\(storedPort)/?token=\(currentToken)"
+    /// `nil` until the token is loaded.
+    ///
+    /// `currentToken` starts empty and is filled by `.task` after the view
+    /// appears, so on the first frame these rendered a URL ending in `?token=`.
+    /// Copying during that window hands OBS an address that authenticates as
+    /// nothing and fails silently, which is a far worse outcome than briefly
+    /// showing no address at all.
+    private var connectionURL: String? {
+        guard !currentToken.isEmpty else { return nil }
+        return "ws://localhost:\(storedPort)/?token=\(currentToken)"
     }
 
     private var networkConnectionURL: String? {
-        guard let ip = localNetworkIP else { return nil }
+        guard let ip = localNetworkIP, !currentToken.isEmpty else { return nil }
         return "ws://\(ip):\(storedPort)/?token=\(currentToken)"
     }
 
@@ -89,17 +97,23 @@ struct WebSocketCustomOverlayCard: View {
 
             Divider().padding(.leading, cardPadding)
 
-            CopyableURLRow(
-                label: "Local Address",
-                url: connectionURL,
-                subtitle: "For an overlay running on this Mac.",
-                isStreamerMode: streamerMode,
-                actionsDisabled: !websocketEnabled,
-                copyAccessibilityLabel: "Copy local connection URL",
-                copyAccessibilityIdentifier: "copyConnectionURLButton"
-            )
-            .padding(.horizontal, cardPadding)
-            .padding(.vertical, DSSpace.s4)
+            if let connectionURL {
+                CopyableURLRow(
+                    label: "Local Address",
+                    url: connectionURL,
+                    subtitle: "For an overlay running on this Mac.",
+                    isStreamerMode: streamerMode,
+                    actionsDisabled: !websocketEnabled,
+                    copyAccessibilityLabel: "Copy local connection URL",
+                    copyAccessibilityIdentifier: "copyConnectionURLButton"
+                )
+                .padding(.horizontal, cardPadding)
+                .padding(.vertical, DSSpace.s4)
+            } else {
+                LoadingRow(text: "Loading address\u{2026}")
+                    .padding(.horizontal, cardPadding)
+                    .padding(.vertical, DSSpace.s4)
+            }
 
             Group {
                 if let networkURL = networkConnectionURL {

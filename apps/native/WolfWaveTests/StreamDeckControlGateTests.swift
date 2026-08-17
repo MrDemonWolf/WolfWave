@@ -25,11 +25,15 @@ import Testing
 @Suite("Stream Deck Control Gate", .serialized, .isolatedSharedTestState)
 struct StreamDeckControlGateTests {
 
+    // MARK: - Properties
+
     private var store: UserDefaults { DefaultsStore.store }
 
     private func clear() {
         store.removeObject(forKey: AppConstants.UserDefaults.streamDeckControlEnabled)
     }
+
+    // MARK: - Tests
 
     @Test("An untouched install allows commands")
     func defaultsToEnabled() {
