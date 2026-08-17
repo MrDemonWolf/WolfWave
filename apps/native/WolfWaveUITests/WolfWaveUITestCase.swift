@@ -19,6 +19,7 @@ import XCTest
 ///
 /// Subclasses declare what they need through ``launchOptions`` and get a
 /// launched `app` in `setUp`.
+@MainActor
 class WolfWaveUITestCase: XCTestCase {
 
     /// Starting state a subclass wants. Defaults to a true first run.
@@ -36,15 +37,21 @@ class WolfWaveUITestCase: XCTestCase {
     /// One constant so no test invents its own number.
     static let timeout: TimeInterval = 20
 
-    private(set) var app: XCUIApplication!
+    /// Non-optional: `XCUIApplication` is a proxy, not the process, so building
+    /// it costs nothing and it is valid before `launch()`. Declaring it `!`
+    /// bought nothing and would trap on any access ordered before `setUp`.
+    let app = XCUIApplication()
 
-    override func setUp() {
-        super.setUp()
+    // `async` rather than the sync overload on purpose: this class is
+    // `@MainActor` (XCUITest drives the UI, and `XCUIApplication` is
+    // MainActor-isolated), and a MainActor-isolated sync `setUp()` cannot
+    // override XCTest's nonisolated one. The async overload can.
+    override func setUp() async throws {
+        try await super.setUp()
         // A UI test that keeps running after its first failed assertion just
         // produces a cascade of downstream noise around one real cause.
         continueAfterFailure = false
 
-        let app = XCUIApplication()
         var environment = [UITestEnvironment.enabled: "1"]
         if launchOptions.onboarded {
             environment[UITestEnvironment.onboarded] = "1"
@@ -59,13 +66,11 @@ class WolfWaveUITestCase: XCTestCase {
         // still findable, but nothing is `isHittable`. Activating here is what
         // makes clicks in the tests mean what they look like they mean.
         app.activate()
-        self.app = app
     }
 
-    override func tearDown() {
-        app?.terminate()
-        app = nil
-        super.tearDown()
+    override func tearDown() async throws {
+        app.terminate()
+        try await super.tearDown()
     }
 
     // MARK: - Helpers
@@ -96,4 +101,16 @@ enum UITestEnvironment {
     static let enabled = "WOLFWAVE_UI_TEST"
     static let onboarded = "WOLFWAVE_UI_TEST_ONBOARDED"
     static let suppressWhatsNew = "WOLFWAVE_UI_TEST_NO_WHATS_NEW"
+}
+
+/// Window identifiers, mirrored from the app for the same reason as the
+/// environment keys above: a UI test target links no app code.
+///
+/// These are identifiers, never titles. A window title is user-facing copy, so
+/// matching on it makes a wording change fail the suite for no real reason.
+/// `settings` is the SwiftUI scene id (`WolfWaveApp.settingsWindowID`);
+/// `onboarding` is set on the AppKit window from `AppConstants.WindowID`.
+enum UITestWindow {
+    static let settings = "wolfwave-settings"
+    static let onboarding = "onboarding"
 }

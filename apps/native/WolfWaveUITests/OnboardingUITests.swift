@@ -15,6 +15,7 @@ import XCTest
 /// the window opening, the buttons being hit-testable, and the flag actually
 /// closing the loop so the next launch skips it. That whole path is what breaks
 /// in practice, and only a real launch exercises it.
+@MainActor
 final class OnboardingUITests: WolfWaveUITestCase {
 
     /// Identifiers declared by the wizard's navigation bar. Behaviour, not
@@ -33,7 +34,7 @@ final class OnboardingUITests: WolfWaveUITestCase {
     private static let maxSteps = 20
 
     func testFirstLaunchOpensTheWizard() {
-        let window = app.windows["Welcome to WolfWave"]
+        let window = app.windows[UITestWindow.onboarding]
         expect(window, "the onboarding window on a first launch")
         expect(app.buttons[ID.next], "the wizard's Next button")
     }
@@ -60,7 +61,7 @@ final class OnboardingUITests: WolfWaveUITestCase {
 
         app.buttons[ID.finish].click()
         XCTAssertTrue(
-            app.windows["Welcome to WolfWave"].waitForNonExistence(timeout: Self.timeout),
+            app.windows[UITestWindow.onboarding].waitForNonExistence(timeout: Self.timeout),
             "The onboarding window stayed open after Finish"
         )
     }
@@ -89,7 +90,7 @@ final class OnboardingUITests: WolfWaveUITestCase {
         expect(skipAll, "the wizard's Skip All button")
         skipAll.click()
         XCTAssertTrue(
-            app.windows["Welcome to WolfWave"].waitForNonExistence(timeout: Self.timeout),
+            app.windows[UITestWindow.onboarding].waitForNonExistence(timeout: Self.timeout),
             "The onboarding window stayed open after Skip All"
         )
     }

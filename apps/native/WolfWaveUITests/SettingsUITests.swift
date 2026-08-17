@@ -16,6 +16,7 @@ import XCTest
 /// exactly that to Song Requests, and no unit test can see it because the crash
 /// happens in SwiftUI's layout, not in our code. Rendering each pane for real is
 /// the assertion.
+@MainActor
 final class SettingsUITests: WolfWaveUITestCase {
 
     /// Start past the wizard: this suite's subject is the settings window.
@@ -39,7 +40,7 @@ final class SettingsUITests: WolfWaveUITestCase {
         "About"
     ]
 
-    private static let settingsWindowTitle = "WolfWave Settings"
+    private static let settingsWindowTitle = UITestWindow.settings
 
     /// Opens Settings the way a user does, through the App menu's Cmd+,.
     ///

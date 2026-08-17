@@ -207,6 +207,10 @@ extension AppDelegate {
         // broke both the unified titlebar look and List hit-testing.
         window.contentViewController = hosting
         window.title = "Welcome to WolfWave"
+        // Stable handle for the UI tests. The title is user-facing copy and the
+        // Settings window is already addressed by its scene id, so matching this
+        // one on its title would have made a copy edit break the suite.
+        window.identifier = NSUserInterfaceItemIdentifier(AppConstants.WindowID.onboarding)
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
