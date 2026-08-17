@@ -182,7 +182,12 @@ extension AppDelegate {
             self?.dismissOnboarding()
         })
 
-        let hosting = NSHostingController(rootView: onboardingView)
+        // Same store redirect the Settings scene applies (see `WolfWaveApp.body`):
+        // onboarding writes real preferences, and under a test harness those must
+        // land in the isolated suite rather than the live domain.
+        let hosting = NSHostingController(
+            rootView: onboardingView.defaultAppStorage(DefaultsStore.store)
+        )
         let frame = CGRect(
             x: 0, y: 0,
             width: AppConstants.OnboardingUI.windowWidth,

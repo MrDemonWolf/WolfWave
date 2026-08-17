@@ -540,7 +540,7 @@ nonisolated enum KeychainService {
     /// Process-wide fallback used by the app and by XCTest suites, which have no
     /// task scope to bind.
     nonisolated(unsafe) private static var processBackend: KeychainBackend = makeDefaultBackend(
-        isRunningTests: WolfWaveApp.isRunningTests
+        isRunningTests: UITestMode.isUnderTestHarness
     )
 
     /// Raw storage backing every credential operation.

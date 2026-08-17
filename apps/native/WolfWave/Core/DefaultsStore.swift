@@ -43,8 +43,8 @@ nonisolated enum DefaultsStore {
     /// Resolved once on first touch and never reassigned, so unlike
     /// ``KeychainService/backend`` there is no swap to serialize.
     nonisolated(unsafe) static let store: UserDefaults = {
-        let resolved = makeDefaultStore(isRunningTests: WolfWaveApp.isRunningTests)
-        if WolfWaveApp.isRunningTests {
+        let resolved = makeDefaultStore(isRunningTests: UITestMode.isUnderTestHarness)
+        if UITestMode.isUnderTestHarness {
             // One wipe per test process: a clean slate, and it clears residue
             // from an aborted earlier run. Deliberately here and not in the
             // factory, so `makeDefaultStore` stays a pure branch the guard test
