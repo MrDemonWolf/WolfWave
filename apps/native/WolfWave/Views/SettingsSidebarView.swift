@@ -55,6 +55,10 @@ struct SettingsSidebarView: View {
         ForEach(sections) { section in
             SettingsSidebarRow(section: section)
                 .tag(section)
+                // Stable handle for the UI tests. The visible title is not one:
+                // several pane bodies repeat their own section's name, so a
+                // label query would match the sidebar row and the content both.
+                .accessibilityIdentifier("settings.sidebar.\(section.rawValue)")
         }
     }
 }

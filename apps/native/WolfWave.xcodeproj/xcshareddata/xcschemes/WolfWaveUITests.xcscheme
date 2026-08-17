@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
    LastUpgradeVersion = "2630"
-   version = "1.8">
+   version = "1.7">
    <BuildAction
       parallelizeBuildables = "YES"
-      buildImplicitDependencies = "YES"
-      buildArchitectures = "Automatic">
+      buildImplicitDependencies = "YES">
       <BuildActionEntries>
          <BuildActionEntry
             buildForTesting = "YES"
@@ -34,9 +33,9 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "D4A1B2082F0F906C00B292B6"
-               BuildableName = "WolfWaveTests.xctest"
-               BlueprintName = "WolfWaveTests"
+               BlueprintIdentifier = "D4E2E70100000000000000A8"
+               BuildableName = "WolfWaveUITests.xctest"
+               BlueprintName = "WolfWaveUITests"
                ReferencedContainer = "container:WolfWave.xcodeproj">
             </BuildableReference>
          </TestableReference>
@@ -51,8 +50,7 @@
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
-      allowLocationSimulation = "YES"
-      stopOnEveryMainThreadCheckerIssue = "YES">
+      allowLocationSimulation = "YES">
       <BuildableProductRunnable
          runnableDebuggingMode = "0">
          <BuildableReference
@@ -70,16 +68,6 @@
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"
       debugDocumentVersioning = "YES">
-      <BuildableProductRunnable
-         runnableDebuggingMode = "0">
-         <BuildableReference
-            BuildableIdentifier = "primary"
-            BlueprintIdentifier = "D40965C92F0F906C00B292B6"
-            BuildableName = "WolfWave.app"
-            BlueprintName = "WolfWave"
-            ReferencedContainer = "container:WolfWave.xcodeproj">
-         </BuildableReference>
-      </BuildableProductRunnable>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">

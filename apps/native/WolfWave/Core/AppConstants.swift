@@ -417,6 +417,16 @@ nonisolated enum AppConstants {
     /// Dimension values are sourced from `DSDimension.Settings` (generated from
     /// `design-system/tokens.json`). These wrappers keep the existing call sites
     /// stable while the design system stays the single source of truth.
+    /// Stable window identifiers.
+    ///
+    /// Exists so the UI tests address windows by something that is not
+    /// user-facing copy. The Settings window is already reachable by its SwiftUI
+    /// scene id (`WolfWaveApp.settingsWindowID`); AppKit-owned windows set theirs
+    /// from here. Mirrored in `WolfWaveUITests`, which cannot import the app.
+    enum WindowID {
+        static let onboarding = "onboarding"
+    }
+
     enum SettingsUI {
         /// Default application name shown in UI
         static let defaultAppName = "WolfWave"
