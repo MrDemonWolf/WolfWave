@@ -32,14 +32,6 @@ export const Palette = {
   dim: "#8E8E93",
   danger: "#FF453A",
   warning: "#FF9F0A",
-  twitch: "#9146FF",
-  discord: "#5865F2",
-  appleMusic: "#FA233B",
-  /** An unlit status dot. Visible on a black key without reading as "on". */
-  dotOff: "#2C2C2E",
-  dotOffLabel: "#6E6E73",
-  /** Ink on a light tile (the count badge disc). */
-  ink: "#0A0A0C",
 } as const;
 
 /**
@@ -71,19 +63,6 @@ export const ban: Glyph = (c, w = 1) =>
 export const monitor: Glyph = (c, w = 1) =>
   `<rect x="2.8" y="4.4" width="18.4" height="12.8" rx="2.2" fill="none" stroke="${c}" stroke-width="${round(2.2 * w)}"/>` +
   stroke("M8.6 20.4h6.8", c, 2.2 * w);
-export const bubble: Glyph = (c, w = 1) =>
-  `<path d="M3.6 7.2A2.6 2.6 0 0 1 6.2 4.6h11.6a2.6 2.6 0 0 1 2.6 2.6v6.4a2.6 2.6 0 0 1-2.6 2.6H11l-4.8 3.6v-3.6h-.2a2.6 2.6 0 0 1-2.4-2.6Z" fill="none" stroke="${c}" stroke-width="${round(2.2 * w)}" stroke-linejoin="round"/>` +
-  solid("M8.8 9.9a1.4 1.4 0 1 1 0 2.8 1.4 1.4 0 0 1 0-2.8Z", c) +
-  solid("M15.2 9.9a1.4 1.4 0 1 1 0 2.8 1.4 1.4 0 0 1 0-2.8Z", c);
-export const note: Glyph = (c, w = 1) =>
-  stroke("M10 16.8V5.2l8.4-1.6v11.2", c, 2.2 * w) +
-  `<ellipse cx="7.4" cy="17" rx="2.8" ry="2.4" fill="${c}"/>` +
-  `<ellipse cx="15.8" cy="14.8" rx="2.8" ry="2.4" fill="${c}"/>`;
-export const theme: Glyph = (c, w = 1) =>
-  `<circle cx="12" cy="12" r="8" fill="none" stroke="${c}" stroke-width="${round(2.2 * w)}"/>` +
-  `<path d="M12 4a8 8 0 0 1 0 16Z" fill="${c}"/>`;
-export const pulse: Glyph = (c, w = 1) =>
-  stroke("M2.6 12h4.2L9.6 5.6l4.4 12.8 2.6-6.4h4.8", c, 2.4 * w);
 /**
  * The queue keys draw a list, not bare transport bars. Hold used to reuse the
  * pause glyph, which put an identical pair of bars on two keys that do very
@@ -145,38 +124,6 @@ export function countKeyImage(
     (tile ? field(tile) : "") +
       place(glyph(ink, 1.1), 26, 19) +
       text(label, KEY_SIZE / 2, 61, label.length > 2 ? 26 : 34, ink),
-  );
-}
-
-/** The four service dots on the status key, in a 2x2 grid. */
-export interface StatusDots {
-  music: boolean;
-  twitch: boolean;
-  discord: boolean;
-  overlay: boolean;
-}
-
-/**
- * Status at a glance: which links are up, by service, using the whole key.
- * The single-letter labels are what make an unlit dot readable — a grid of grey
- * circles otherwise tells you nothing about *which* link dropped.
- */
-export function statusImage(health: StatusDots): string {
-  const dots: Array<[string, boolean, string, number, number]> = [
-    ["M", health.music, Palette.appleMusic, 21, 21],
-    ["T", health.twitch, Palette.twitch, 51, 21],
-    ["D", health.discord, Palette.discord, 21, 51],
-    ["O", health.overlay, Palette.tile, 51, 51],
-  ];
-  return svg(
-    KEY_SIZE,
-    dots
-      .map(
-        ([label, lit, color, cx, cy]) =>
-          `<circle cx="${cx}" cy="${cy}" r="14" fill="${lit ? color : Palette.dotOff}"/>` +
-          text(label, cx, cy + 5.5, 15, lit ? Palette.white : Palette.dotOffLabel),
-      )
-      .join(""),
   );
 }
 
