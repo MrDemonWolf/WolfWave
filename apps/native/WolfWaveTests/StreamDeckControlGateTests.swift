@@ -17,7 +17,12 @@ import Testing
 /// most worth pinning: it is `true` because the control token already shipped as
 /// the gate, and flipping it to `false` would silently disarm every Stream Deck
 /// in the field on the first launch after an update.
-@Suite("Stream Deck Control Gate", .isolatedSharedTestState)
+/// `.serialized` because these cases all write the same defaults key, and Swift
+/// Testing runs tests *within* a suite in parallel. Without it, the case that
+/// writes `false` races the one that writes `true` and whichever reads second
+/// sees the other's value. `.isolatedSharedTestState` only keeps other suites
+/// out; it does not order this suite against itself.
+@Suite("Stream Deck Control Gate", .serialized, .isolatedSharedTestState)
 struct StreamDeckControlGateTests {
 
     private var store: UserDefaults { DefaultsStore.store }
