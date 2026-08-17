@@ -81,7 +81,7 @@ final class SettingsUITests: WolfWaveUITestCase {
                 app.windows[Self.settingsWindowTitle].exists,
                 "The Settings window went away while rendering \(section)"
             )
-            XCTAssertEqual(app.state, .runningForeground, "The app died rendering \(section)")
+            assertStillRunning(rendering: section)
         }
     }
 
@@ -92,13 +92,41 @@ final class SettingsUITests: WolfWaveUITestCase {
 
         for _ in 0..<2 {
             for section in Self.sections {
+                // Re-activate each pass. Another app taking focus mid-run leaves
+                // the whole window tree reporting as disabled, and the click then
+                // fails with "Unable to find hit point", which looks like a
+                // layout bug and is not one.
+                app.activate()
                 let row = app.staticTexts["settings.sidebar.\(section)"]
                 expect(row, "the \(section) sidebar row")
                 row.click()
             }
         }
 
-        XCTAssertEqual(app.state, .runningForeground, "The app died revisiting the panes")
+        assertStillRunning(rendering: "the panes on a second pass")
         XCTAssertTrue(app.windows[Self.settingsWindowTitle].exists)
+    }
+
+    // MARK: - Helpers
+
+    /// Asserts the app is still alive.
+    ///
+    /// Deliberately *not* `state == .runningForeground`. What these tests are
+    /// checking is that rendering a pane did not take the process down, and
+    /// losing focus is not that: any other app activating (a notification, a
+    /// second copy of WolfWave Dev left over from Xcode) drops the app to
+    /// `.runningBackground` and would fail a foreground assertion for a reason
+    /// that has nothing to do with the pane.
+    private func assertStillRunning(
+        rendering section: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertNotEqual(
+            app.state, .notRunning,
+            "The app died rendering \(section)",
+            file: file,
+            line: line
+        )
     }
 }
