@@ -69,9 +69,7 @@ final class SettingsUITests: WolfWaveUITestCase {
         openSettings()
 
         for section in Self.sections {
-            let row = app.staticTexts["settings.sidebar.\(section)"]
-            expect(row, "the \(section) sidebar row")
-            row.click()
+            select(section)
 
             // The window surviving the click is the assertion. A pane that traps
             // during layout takes the process with it, so the next query fails
@@ -91,14 +89,7 @@ final class SettingsUITests: WolfWaveUITestCase {
 
         for _ in 0..<2 {
             for section in Self.sections {
-                // Re-activate each pass. Another app taking focus mid-run leaves
-                // the whole window tree reporting as disabled, and the click then
-                // fails with "Unable to find hit point", which looks like a
-                // layout bug and is not one.
-                app.activate()
-                let row = app.staticTexts["settings.sidebar.\(section)"]
-                expect(row, "the \(section) sidebar row")
-                row.click()
+                select(section)
             }
         }
 
@@ -107,6 +98,30 @@ final class SettingsUITests: WolfWaveUITestCase {
     }
 
     // MARK: - Helpers
+
+    /// Clicks one sidebar row, activating first.
+    ///
+    /// The activation is not decoration. An inactive macOS app reports its whole
+    /// window tree as disabled: the row is still *found*, so the query succeeds,
+    /// and the click then fails with "Not hittable" or "Unable to find hit
+    /// point". That reads as a layout bug and is not one, it just means
+    /// something else took focus, which anything from a notification to a second
+    /// copy of WolfWave Dev can do at any point in a multi-minute run.
+    private func select(
+        _ section: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        app.activate()
+        let row = app.staticTexts["settings.sidebar.\(section)"]
+        XCTAssertTrue(
+            row.waitForExistence(timeout: Self.timeout),
+            "Timed out waiting for the \(section) sidebar row",
+            file: file,
+            line: line
+        )
+        row.click()
+    }
 
     /// Asserts the app is still alive.
     ///
