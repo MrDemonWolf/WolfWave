@@ -7,6 +7,15 @@
  */
 
 import { action, type KeyAction } from "@elgato/streamdeck";
+import {
+  Palette,
+  check,
+  countKeyImage,
+  hold,
+  resume,
+  statusImage,
+  trash,
+} from "../keyart.js";
 import type { WolfWaveAction } from "../wolfwave/protocol.js";
 import type { WolfWaveState } from "../wolfwave/state.js";
 import { KeyState, WolfWaveKeyAction } from "./base.js";
@@ -62,7 +71,14 @@ export class QueueHoldAction extends WolfWaveKeyAction {
     key: KeyAction,
     state: WolfWaveState,
   ): Promise<void> {
-    await key.setTitle(state.queueCount > 0 ? String(state.queueCount) : "");
+    await key.setImage(
+      countKeyImage({
+        glyph: state.queueHeld ? resume : hold,
+        count: state.queueCount,
+        tile: state.queueHeld ? Palette.tile : undefined,
+      }),
+    );
+    await key.setTitle("");
     await key.setState(state.queueHeld ? KeyState.secondary : KeyState.primary);
   }
 }
@@ -77,11 +93,19 @@ export class ApproveNextAction extends WolfWaveKeyAction {
     key: KeyAction,
     state: WolfWaveState,
   ): Promise<void> {
-    // Pending is the whole point of this key — show it, or nothing.
-    await key.setTitle(state.queuePending > 0 ? String(state.queuePending) : "");
-    await key.setState(
-      state.queuePending > 0 ? KeyState.secondary : KeyState.primary,
+    // Pending is the whole point of this key. Amber rather than brand blue:
+    // this one is asking the streamer to do something, not reporting a state.
+    const pending = state.queuePending > 0;
+    await key.setImage(
+      countKeyImage({
+        glyph: check,
+        count: state.queuePending,
+        tile: pending ? Palette.warning : undefined,
+        tint: Palette.dim,
+      }),
     );
+    await key.setTitle("");
+    await key.setState(pending ? KeyState.secondary : KeyState.primary);
   }
 }
 
@@ -95,7 +119,14 @@ export class ClearQueueAction extends WolfWaveKeyAction {
     key: KeyAction,
     state: WolfWaveState,
   ): Promise<void> {
-    await key.setTitle(state.queueCount > 0 ? String(state.queueCount) : "");
+    await key.setImage(
+      countKeyImage({
+        glyph: trash,
+        count: state.queueCount,
+        tint: Palette.danger,
+      }),
+    );
+    await key.setTitle("");
   }
 }
 
@@ -190,14 +221,16 @@ export class StatusAction extends WolfWaveKeyAction {
     key: KeyAction,
     state: WolfWaveState,
   ): Promise<void> {
-    const up = [
-      state.health.music ? "Music" : null,
-      state.health.twitch ? "Twitch" : null,
-      state.health.discord ? "Discord" : null,
-    ].filter(Boolean);
-    await key.setTitle(up.length > 0 ? up.join("\n") : "No links");
+    // Four labelled dots, not a list of names in the title strip: a three-line
+    // title on a 72px key is unreadable, and it could only ever fit three of
+    // the four links.
+    const { music, twitch, discord, overlay } = state.health;
+    await key.setImage(statusImage(state.health));
+    await key.setTitle("");
     await key.setState(
-      up.length > 0 ? KeyState.secondary : KeyState.primary,
+      music || twitch || discord || overlay
+        ? KeyState.secondary
+        : KeyState.primary,
     );
   }
 }
