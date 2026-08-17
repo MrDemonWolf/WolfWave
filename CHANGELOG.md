@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Hiding the overlay no longer blanks your Stream Deck.** With the overlay cards turned off, WolfWave stopped telling the Stream Deck what was playing, so the Play/Pause key showed the track that happened to be on when you hid them, or nothing at all. Hiding the cards now only hides the cards. As a side effect, WolfWave also stops running its overlay progress timer when a Stream Deck is the only thing connected, since nothing is on screen to animate.
 - **Errors now tell you what broke and what to do about it.** Failures used to say things like "Couldn't check channel" with no explanation, and the real reason was only visible if you hovered for a tooltip. Messages now name the cause and come with a button that performs the fix.
 - **Twitch errors were invisible.** Around forty failure messages, including every failed channel join and every Keychain problem, were written to a status line that no screen ever displayed. They now appear in the Twitch pane.
 - **A missing permission no longer looks like an expired sign-in.** If your Twitch token was missing an optional permission, WolfWave said your session had expired and told you to reconnect, then quietly stopped re-checking the token. It now says exactly which permission is missing, and everything else keeps working.
