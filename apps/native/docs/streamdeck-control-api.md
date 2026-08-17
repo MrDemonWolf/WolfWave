@@ -1,6 +1,6 @@
 # Stream Deck Control API
 
-> Living reference. This is the current wire contract for protocol v2, not a plan.
+> Living reference. This is the current wire contract for protocol v3, not a plan.
 > It is enforced by `apps/streamdeck/tests/protocol.test.ts` and the `streamdeck` CI job.
 
 The WebSocket transport accepts role-authenticated command frames and pushes two
@@ -30,15 +30,15 @@ per-command token (`StreamDeckCommand.swift`).
 Text frame, JSON:
 
 ```json
-{ "type": "command", "action": "skip", "protocol": 2, "args": {} }
+{ "type": "command", "action": "skip", "protocol": 3, "args": {} }
 ```
 
 - `type` must be `"command"`; anything else is ignored (no ack).
-- `protocol` must equal `StreamDeckControl.protocolVersion` (currently `2`).
+- `protocol` must equal `StreamDeckControl.protocolVersion` (currently `3`).
   A mismatch is rejected with `error:"protocol"` so an out-of-date plugin can show
   an "update" state. Bump the version on any breaking envelope change.
 - `action` must be a known `StreamDeckAction`; unknown → `error:"unknown_action"`.
-- `args` is optional (unused by v2 actions; reserved for future parameters).
+- `args` is optional (unused by v3 actions; reserved for future parameters).
 
 Decoding is pure (`StreamDeckControl.parse`) and unit-tested
 (`StreamDeckCommandTests`).
@@ -52,7 +52,7 @@ Every command that runs (or is rejected) gets a reply on the same connection:
 { "type": "ack", "action": "skip", "ok": false, "error": "music" }
 ```
 
-## v2 actions
+## v3 actions
 
 | `action` | Effect | Fail `error` |
 |---|---|---|
@@ -63,12 +63,20 @@ Every command that runs (or is rejected) gets a reply on the same connection:
 | `clear_queue` | Clear the request queue | — |
 | `block_current` | Add current song title to the blocklist | `empty` |
 | `overlay_toggle` | Hide/show playback cards while keeping the control connection alive | — |
-| `discord_toggle` | Toggle Discord Rich Presence | — |
-| `music_sync_toggle` | Toggle music tracking | — |
-| `cycle_theme` | Advance the widget theme, wrapping | — |
+
+`clear_queue` is the one action the plugin gates behind a hold. The wire
+protocol is unchanged — the app runs whatever it receives — but the plugin will
+not send it on a tap. Any other client is free to send it outright.
+
+### Removed in v3
+
+`discord_toggle`, `music_sync_toggle`, and `cycle_theme` were dropped. All three
+flipped a set-once preference, and a deck slot is worth more than a key pressed
+twice a year. A v2 plugin sending one now gets `error: "unknown_action"`, and a
+v2 plugin at all gets `error: "protocol"` first.
 
 Actions without a clean existing service seam (announce, dial/volume) are
-deferred to Phase B.
+deferred.
 
 ## Outbound state broadcasts
 
@@ -111,6 +119,6 @@ The version gates the *inbound* command envelope only.
 With the server enabled and Music playing, connect from the same Mac using the
 `wolfwave.control.<hex>` subprotocol (copy the Stream Deck Control Token from
 Stream Widgets settings), send
-`{"type":"command","action":"skip","protocol":2}`, and confirm the ack frame
+`{"type":"command","action":"skip","protocol":3}`, and confirm the ack frame
 plus the track skipping. Watch for `queue_state` / `health` frames
 on request-queue and connection changes.

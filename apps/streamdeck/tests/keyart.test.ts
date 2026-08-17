@@ -14,7 +14,6 @@ import {
   hold,
   keyImage,
   play,
-  statusImage,
   trash,
 } from "../src/keyart.js";
 
@@ -96,49 +95,6 @@ describe("countKeyImage", () => {
     expect(svg).toContain(`fill="${Palette.warning}"`);
     expect(svg).toContain(`fill="${Palette.white}"`);
     expect(svg).not.toContain(Palette.dim);
-  });
-});
-
-describe("statusImage", () => {
-  const down = {
-    music: false,
-    twitch: false,
-    discord: false,
-    overlay: false,
-  };
-
-  test("labels all four links", () => {
-    expect(textNodes(statusImage(down))).toEqual(["M", "T", "D", "O"]);
-  });
-
-  test("lights only the links that are up", () => {
-    const svg = statusImage({ ...down, twitch: true });
-    expect(svg).toContain(Palette.twitch);
-    expect(svg).not.toContain(Palette.discord);
-    expect(svg).not.toContain(Palette.appleMusic);
-  });
-
-  test("every link down is still four readable dots, not a blank key", () => {
-    const svg = statusImage(down);
-    expect(svg.match(/<circle/g)).toHaveLength(4);
-    expect(svg).toContain(Palette.dotOff);
-  });
-
-  test("each service keeps its own colour", () => {
-    const svg = statusImage({
-      music: true,
-      twitch: true,
-      discord: true,
-      overlay: true,
-    });
-    for (const color of [
-      Palette.appleMusic,
-      Palette.twitch,
-      Palette.discord,
-      Palette.tile,
-    ]) {
-      expect(svg).toContain(color);
-    }
   });
 });
 

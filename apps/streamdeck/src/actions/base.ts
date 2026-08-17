@@ -12,9 +12,17 @@ import {
   type WillAppearEvent,
   type WillDisappearEvent,
 } from "@elgato/streamdeck";
+import { now } from "../clock.js";
 import type { WolfWaveClient } from "../wolfwave/client.js";
 import type { WolfWaveAction } from "../wolfwave/protocol.js";
 import type { WolfWaveState } from "../wolfwave/state.js";
+
+/** Narrows a raw SDK event to a key action, or `undefined` for a dial. */
+function asKeyAction(ev: { action: unknown }): KeyAction | undefined {
+  const action = ev.action as KeyAction;
+  if (typeof action?.isKey !== "function" || !action.isKey()) return undefined;
+  return action;
+}
 
 /** Key state indices; must match the `States` array order in `manifest.json`. */
 export const KeyState = {
@@ -36,11 +44,26 @@ export abstract class WolfWaveKeyAction extends SingletonAction {
     super();
   }
 
+  /** Press-start timestamps for keys that must be held. Keyed by action id. */
+  private readonly pressStarts = new Map<string, number>();
+
   /**
    * The command this key sends on press. Return `null` to make the key
-   * display-only (the status key does this).
+   * display-only.
    */
   protected abstract commandFor(state: WolfWaveState): WolfWaveAction | null;
+
+  /**
+   * Milliseconds this key must be held down before it fires. `0` (the default)
+   * fires on press, which is what every reversible key wants.
+   *
+   * A key that throws something away and cannot undo it is a different case: a
+   * deck is a grid of identical squares under a streamer's hand mid-broadcast,
+   * and one wrong square should not delete everyone's requests.
+   */
+  protected get holdToConfirmMs(): number {
+    return 0;
+  }
 
   /**
    * Renders the key for the current state. The base class handles the
@@ -77,9 +100,39 @@ export abstract class WolfWaveKeyAction extends SingletonAction {
   }
 
   override async onKeyDown(ev: { action: unknown }): Promise<void> {
-    const action = ev.action as KeyAction;
-    if (typeof action?.isKey !== "function" || !action.isKey()) return;
+    const action = asKeyAction(ev);
+    if (!action) return;
 
+    if (this.holdToConfirmMs > 0) {
+      // Nothing fires yet. The Stream Deck payload carries no press duration,
+      // so the plugin has to time the gap between down and up itself.
+      this.pressStarts.set(action.id, now());
+      return;
+    }
+    await this.send(action);
+  }
+
+  override async onKeyUp(ev: { action: unknown }): Promise<void> {
+    const action = asKeyAction(ev);
+    if (!action) return;
+
+    const startedAt = this.pressStarts.get(action.id);
+    if (startedAt === undefined) return;
+    this.pressStarts.delete(action.id);
+
+    if (now() - startedAt < this.holdToConfirmMs) {
+      // A tap on a hold key is the accident this exists to catch. Alert rather
+      // than stay silent, or the streamer walks away believing it worked.
+      await action.showAlert();
+      return;
+    }
+    await this.send(action);
+  }
+
+  // MARK: - Private helpers
+
+  /** Sends this key's command and shows the ack's outcome on the key. */
+  private async send(action: KeyAction): Promise<void> {
     const command = this.commandFor(this.client.currentState);
     if (!command) return;
 
@@ -90,8 +143,6 @@ export abstract class WolfWaveKeyAction extends SingletonAction {
       await action.showAlert();
     }
   }
-
-  // MARK: - Private helpers
 
   /**
    * Paints connection-level states centrally so no subclass can forget one —

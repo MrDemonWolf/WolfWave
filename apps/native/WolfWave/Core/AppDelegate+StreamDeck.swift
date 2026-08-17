@@ -94,35 +94,7 @@ extension AppDelegate {
             }
             _ = await websocketServer.toggleOverlayVisibility()
             return .success(action)
-
-        case .discordToggle:
-            let newValue = !FeatureFlags.discordEnabled
-            DefaultsStore.store.set(newValue, forKey: AppConstants.UserDefaults.discordPresenceEnabled)
-            NotificationCenter.default.postEnabled(.discordPresenceChanged, enabled: newValue)
-            return .success(action)
-
-        case .musicSyncToggle:
-            let newValue = !FeatureFlags.trackingEnabled
-            DefaultsStore.store.set(newValue, forKey: AppConstants.UserDefaults.trackingEnabled)
-            NotificationCenter.default.postEnabled(.trackingSettingChanged, enabled: newValue)
-            return .success(action)
-
-        case .cycleTheme:
-            cycleWidgetTheme()
-            await websocketServer?.broadcastWidgetConfig()
-            return .success(action)
         }
-    }
-
-    /// Advances the widget theme to the next in `AppConstants.Widget.themes`,
-    /// wrapping around. Persists so the settings picker stays in sync.
-    private func cycleWidgetTheme() {
-        let themes = AppConstants.Widget.themes
-        guard !themes.isEmpty else { return }
-        let key = AppConstants.UserDefaults.widgetTheme
-        let current = DefaultsStore.store.string(forKey: key) ?? themes[0]
-        let index = themes.firstIndex(of: current) ?? 0
-        DefaultsStore.store.set(themes[(index + 1) % themes.count], forKey: key)
     }
 
     /// Gathers current queue counts + connection health and pushes the Stream

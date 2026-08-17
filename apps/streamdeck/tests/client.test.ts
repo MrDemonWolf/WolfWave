@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import { describe, expect, test } from "bun:test";
 import WebSocket, { WebSocketServer, type RawData } from "ws";
 import { WolfWaveClient } from "../src/wolfwave/client.js";
+import { PROTOCOL_VERSION } from "../src/wolfwave/protocol.js";
 
 const HEX64 = "a".repeat(64);
 const settings = { port: 8765, token: HEX64 };
@@ -134,7 +135,7 @@ describe("configure / stop", () => {
       expect(JSON.parse(await command)).toEqual({
         type: "command",
         action: "skip",
-        protocol: 2,
+        protocol: PROTOCOL_VERSION,
       });
       expect(connections).toBe(1);
 

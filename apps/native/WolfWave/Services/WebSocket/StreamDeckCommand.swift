@@ -23,9 +23,6 @@ nonisolated enum StreamDeckAction: String, Codable, CaseIterable, Sendable {
     case clearQueue = "clear_queue"
     case blockCurrent = "block_current"
     case overlayToggle = "overlay_toggle"
-    case discordToggle = "discord_toggle"
-    case musicSyncToggle = "music_sync_toggle"
-    case cycleTheme = "cycle_theme"
 }
 
 // MARK: - StreamDeckCommand
@@ -72,7 +69,10 @@ nonisolated enum StreamDeckControl {
     /// Command protocol version. Bump on any breaking envelope change so an
     /// out-of-date plugin can detect the mismatch (ack `error:"protocol"`) and
     /// prompt for an update instead of silently misbehaving.
-    static let protocolVersion = 2
+    /// v3 dropped `discord_toggle`, `music_sync_toggle`, and `cycle_theme`:
+    /// set-once preferences that never earned a key on a deck where slots are
+    /// the scarce resource.
+    static let protocolVersion = 3
 
     /// Outcome of decoding one inbound WebSocket text frame.
     enum InboundFrame: Equatable {

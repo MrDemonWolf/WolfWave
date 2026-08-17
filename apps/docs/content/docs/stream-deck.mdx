@@ -1,12 +1,12 @@
 ---
 title: Stream Deck Control API
-description: Control WolfWave from a same-Mac Stream Deck client. Protocol v2 command envelope, 11 actions, acks, and live queue and health broadcasts.
+description: Control WolfWave from a same-Mac Stream Deck client. Protocol v3 command envelope, 8 actions, acks, and live queue and health broadcasts.
 ogTitle: WolfWave Stream Deck Control API
-ogDescription: Drive playback, the request queue, and toggles over a loopback-only control role. 11 actions, acks, live state broadcasts.
+ogDescription: Drive playback, the request queue, and toggles over a loopback-only control role. 8 actions, acks, live state broadcasts.
 ogEyebrow: Developers
 ogChips:
-  - Protocol v2
-  - 11 actions
+  - Protocol v3
+  - 8 actions
   - WebSocket
   - Live state
 keywords:
@@ -44,14 +44,14 @@ no per-command token. See [WebSocket security](/docs/security#websocket-server-s
 Text frame, JSON:
 
 ```json
-{ "type": "command", "action": "skip", "protocol": 2, "args": {} }
+{ "type": "command", "action": "skip", "protocol": 3, "args": {} }
 ```
 
 - `type` must be `"command"`; anything else is ignored (no ack).
-- `protocol` must be `2`. A mismatch is rejected with `error: "protocol"`, so an
+- `protocol` must be `3`. A mismatch is rejected with `error: "protocol"`, so an
   out-of-date client can show an "update me" state.
 - `action` must be one of the actions below; unknown actions get `error: "unknown_action"`.
-- `args` is optional and unused by v2 actions (reserved for future parameters).
+- `args` is optional and unused by v3 actions (reserved for future parameters).
 
 Every command gets an ack on the same connection:
 
@@ -72,9 +72,15 @@ Every command gets an ack on the same connection:
 | `clear_queue` | Clear the request queue | — |
 | `block_current` | Add the current song to the blocklist | `empty` |
 | `overlay_toggle` | Hide/show the overlay cards (connection stays alive) | — |
-| `discord_toggle` | Toggle Discord Rich Presence | — |
-| `music_sync_toggle` | Toggle music tracking | — |
-| `cycle_theme` | Advance the widget theme, wrapping around | — |
+
+`discord_toggle`, `music_sync_toggle`, and `cycle_theme` were removed in
+protocol v3. They flipped set-once preferences that never earned a key. A client
+still sending one gets `error: "unknown_action"` — and a v2 client gets
+`error: "protocol"` before that, since the version is checked first.
+
+The plugin refuses to send `clear_queue` unless its key is held. That is a
+plugin behaviour, not a protocol rule: the app runs the command whenever it
+arrives.
 
 ## Live state broadcasts
 
@@ -101,7 +107,7 @@ websocat --protocol "wolfwave.control.<your-control-token>" ws://127.0.0.1:8765
 Paste:
 
 ```json
-{"type":"command","action":"skip","protocol":2}
+{"type":"command","action":"skip","protocol":3}
 ```
 
 You should see the ack frame and hear the track skip. Leave the connection open
