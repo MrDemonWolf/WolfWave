@@ -123,6 +123,7 @@ test-verbose: sponsor-config
 # Xcode installs is left alone. The app isolates itself once launched: see
 # `UITestMode` for the storage and service seams the launch environment trips.
 test-ui: sponsor-config
+	@bash scripts/check-ui-test-preflight.sh
 	xcodebuild -project $(PROJECT) -scheme WolfWaveUITests \
 		-destination '$(DESTINATION)' -configuration Debug \
 		-derivedDataPath '$(TEST_DERIVED_DATA)' \

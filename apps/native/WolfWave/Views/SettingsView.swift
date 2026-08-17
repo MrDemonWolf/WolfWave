@@ -46,6 +46,7 @@ struct SettingsView: View {
         case general = "General"
         case songRequests = "Song Requests"
         case websocket = "Stream Widgets"
+        case streamDeck = "Stream Deck"
         case historyStats = "History & Stats"
         case twitchIntegration = "Twitch"
         case discord = "Discord"
@@ -61,7 +62,7 @@ struct SettingsView: View {
         /// Cases: `.debug` only present in DEBUG builds.
         static var allCases: [SettingsSection] {
             var cases: [SettingsSection] = [
-                .general, .songRequests, .websocket, .historyStats, .twitchIntegration, .discord, .softwareUpdate, .advanced, .about,
+                .general, .songRequests, .websocket, .streamDeck, .historyStats, .twitchIntegration, .discord, .softwareUpdate, .advanced, .about,
             ]
             #if DEBUG
             cases.append(.debug)
@@ -75,6 +76,7 @@ struct SettingsView: View {
             case .general: return "gear"
             case .songRequests: return "music.note.list"
             case .websocket: return "tv.badge.wifi"
+            case .streamDeck: return "square.grid.3x3.fill"
             case .historyStats: return "chart.bar.xaxis"
             case .twitchIntegration: return "message.badge.waveform"
             case .discord: return "headphones"
@@ -323,6 +325,8 @@ struct SettingsView: View {
             EmptyView()
         case .websocket:
             WebSocketSettingsView()
+        case .streamDeck:
+            StreamDeckSettingsView(openStreamWidgets: { selectedSection = .websocket })
         case .historyStats:
             // History & Stats owns a full-width scroll layout and is routed via
             // `detailPane`, bypassing this shared scroll wrapper. Kept here only
@@ -364,7 +368,7 @@ struct SettingsView: View {
         return [
             (nil, [.general]),
             ("Integrations", [.twitchIntegration, .discord]),
-            ("On Stream", [.websocket, .songRequests]),
+            ("On Stream", [.websocket, .streamDeck, .songRequests]),
             ("Insights", [.historyStats]),
             ("App", app),
         ]

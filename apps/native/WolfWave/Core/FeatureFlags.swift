@@ -26,6 +26,20 @@ nonisolated enum FeatureFlags {
         defaults.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
     }
 
+    /// Whether the Stream Deck plugin may run commands. Independent of
+    /// ``websocketEnabled``: the server keeps serving overlays when this is off,
+    /// it just refuses every command with `error:"disabled"`.
+    ///
+    /// Reads through the explicit default rather than `defaults.bool`, which
+    /// would report `false` for "never set" and disarm every Stream Deck already
+    /// in the field on the first launch after update.
+    static var streamDeckControlEnabled: Bool {
+        Preferences.bool(
+            AppConstants.UserDefaults.streamDeckControlEnabled,
+            default: AppConstants.UserDefaults.Defaults.streamDeckControlEnabled
+        )
+    }
+
     /// Show an "Idle" Discord activity when nothing is playing instead of
     /// clearing the profile. Defaults to `true` on first launch; once
     /// `discordShowIdleStatus` has been explicitly written it returns the

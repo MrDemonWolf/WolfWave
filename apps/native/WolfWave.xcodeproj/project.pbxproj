@@ -30,9 +30,9 @@
 /* Begin PBXFileReference section */
 		D40965CA2F0F906C00B292B6 /* WolfWave Dev.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "WolfWave Dev.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D4A1B2012F0F906C00B292B6 /* WolfWaveTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WolfWaveTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		D4E2E70100000000000000A1 /* WolfWaveUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WolfWaveUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D4CFGXCC00000000000000F1 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Config.xcconfig; path = WolfWave/Config.xcconfig; sourceTree = "<group>"; };
 		D4CFGXCC00000000000000F2 /* Config.Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Config.Debug.xcconfig; path = WolfWave/Config.Debug.xcconfig; sourceTree = "<group>"; };
+		D4E2E70100000000000000A1 /* WolfWaveUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WolfWaveUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -657,20 +657,20 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		D4E2E70100000000000000AB /* Build configuration list for PBXNativeTarget "WolfWaveUITests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				D4E2E70100000000000000A9 /* Debug */,
-				D4E2E70100000000000000AA /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		D4A1B20B2F0F906C00B292B6 /* Build configuration list for PBXNativeTarget "WolfWaveTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				D4A1B2092F0F906C00B292B6 /* Debug */,
 				D4A1B20A2F0F906C00B292B6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D4E2E70100000000000000AB /* Build configuration list for PBXNativeTarget "WolfWaveUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D4E2E70100000000000000A9 /* Debug */,
+				D4E2E70100000000000000AA /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

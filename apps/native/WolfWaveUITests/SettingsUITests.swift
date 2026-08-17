@@ -32,6 +32,7 @@ final class SettingsUITests: WolfWaveUITestCase {
         "General",
         "Song Requests",
         "Stream Widgets",
+        "Stream Deck",
         "History & Stats",
         "Twitch",
         "Discord",
@@ -69,9 +70,7 @@ final class SettingsUITests: WolfWaveUITestCase {
         openSettings()
 
         for section in Self.sections {
-            let row = app.staticTexts["settings.sidebar.\(section)"]
-            expect(row, "the \(section) sidebar row")
-            row.click()
+            select(section)
 
             // The window surviving the click is the assertion. A pane that traps
             // during layout takes the process with it, so the next query fails
@@ -80,7 +79,7 @@ final class SettingsUITests: WolfWaveUITestCase {
                 app.windows[Self.settingsWindowTitle].exists,
                 "The Settings window went away while rendering \(section)"
             )
-            XCTAssertEqual(app.state, .runningForeground, "The app died rendering \(section)")
+            assertStillRunning(rendering: section)
         }
     }
 
@@ -91,13 +90,58 @@ final class SettingsUITests: WolfWaveUITestCase {
 
         for _ in 0..<2 {
             for section in Self.sections {
-                let row = app.staticTexts["settings.sidebar.\(section)"]
-                expect(row, "the \(section) sidebar row")
-                row.click()
+                select(section)
             }
         }
 
-        XCTAssertEqual(app.state, .runningForeground, "The app died revisiting the panes")
+        assertStillRunning(rendering: "the panes on a second pass")
         XCTAssertTrue(app.windows[Self.settingsWindowTitle].exists)
+    }
+
+    // MARK: - Helpers
+
+    /// Clicks one sidebar row, activating first.
+    ///
+    /// The activation is not decoration. An inactive macOS app reports its whole
+    /// window tree as disabled: the row is still *found*, so the query succeeds,
+    /// and the click then fails with "Not hittable" or "Unable to find hit
+    /// point". That reads as a layout bug and is not one, it just means
+    /// something else took focus, which anything from a notification to a second
+    /// copy of WolfWave Dev can do at any point in a multi-minute run.
+    private func select(
+        _ section: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        app.activate()
+        let row = app.staticTexts["settings.sidebar.\(section)"]
+        XCTAssertTrue(
+            row.waitForExistence(timeout: Self.timeout),
+            "Timed out waiting for the \(section) sidebar row",
+            file: file,
+            line: line
+        )
+        row.click()
+    }
+
+    /// Asserts the app is still alive.
+    ///
+    /// Deliberately *not* `state == .runningForeground`. What these tests are
+    /// checking is that rendering a pane did not take the process down, and
+    /// losing focus is not that: any other app activating (a notification, a
+    /// second copy of WolfWave Dev left over from Xcode) drops the app to
+    /// `.runningBackground` and would fail a foreground assertion for a reason
+    /// that has nothing to do with the pane.
+    private func assertStillRunning(
+        rendering section: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertNotEqual(
+            app.state, .notRunning,
+            "The app died rendering \(section)",
+            file: file,
+            line: line
+        )
     }
 }
