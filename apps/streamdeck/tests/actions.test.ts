@@ -1,7 +1,14 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { setClock } from "../src/clock.js";
-import { ClearQueueAction, QueueHoldAction } from "../src/actions/index.js";
+import {
+  BlockRequesterAction,
+  ClearQueueAction,
+  CycleAudienceAction,
+  NowPlayingAction,
+  QueueHoldAction,
+} from "../src/actions/index.js";
 import { WolfWaveClient } from "../src/wolfwave/client.js";
+import { AUDIENCES } from "../src/wolfwave/protocol.js";
 import { initialState, type WolfWaveState } from "../src/wolfwave/state.js";
 
 /** Reaches the protected command selector without exercising a real key. */
@@ -142,6 +149,49 @@ describe("ClearQueueAction hold-to-confirm", () => {
     expect(client.sent).toEqual(["clear_queue"]);
     expect(first.feedback).toEqual(["ok"]);
     expect(second.feedback).toEqual(["alert"]);
+  });
+});
+
+describe("CycleAudienceAction", () => {
+  const key = new CycleAudienceAction(new WolfWaveClient());
+
+  test("always sends the same token — the app decides what is next", () => {
+    // The plugin must not compute the next audience itself: the audience is
+    // changeable in Settings, and a local guess inverts the moment it is.
+    for (const audience of AUDIENCES) {
+      expect(commandFor(key, { ...connected, requestAudience: audience })).toBe(
+        "cycle_audience",
+      );
+    }
+  });
+});
+
+describe("NowPlayingAction", () => {
+  test("sends nothing — it is display only", () => {
+    const key = new NowPlayingAction(new WolfWaveClient());
+    expect(commandFor(key, connected)).toBeNull();
+  });
+});
+
+describe("BlockRequesterAction", () => {
+  afterEach(() => setClock());
+
+  test("needs a hold, same as Clear Queue", async () => {
+    let time = 1_000;
+    setClock(() => time);
+    const client = recordingClient();
+    const key = new BlockRequesterAction(client);
+    const target = fakeKey();
+
+    await key.onKeyDown({ action: target });
+    time += 100;
+    await key.onKeyUp({ action: target });
+    expect(client.sent).toEqual([]);
+
+    await key.onKeyDown({ action: target });
+    time += 900;
+    await key.onKeyUp({ action: target });
+    expect(client.sent).toEqual(["block_requester"]);
   });
 });
 

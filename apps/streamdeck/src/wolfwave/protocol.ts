@@ -42,6 +42,10 @@ export const ACTIONS = [
   "clear_queue",
   "block_current",
   "overlay_toggle",
+  "announce_song",
+  "reject_current",
+  "block_requester",
+  "cycle_audience",
 ] as const;
 
 export type WolfWaveAction = (typeof ACTIONS)[number];
@@ -138,7 +142,34 @@ export interface QueueStateData {
    * optimistic guess.
    */
   held: boolean;
+  /**
+   * Who may request right now, as `RequestAudience`'s raw value. Authoritative
+   * for the same reason `held` is: the audience is changeable from Settings.
+   */
+  audience: RequestAudience;
 }
+
+/**
+ * The four request audiences, loosest to strictest. Mirrors the Swift
+ * `RequestAudience` enum's raw values and, critically, its declaration order:
+ * the cycle key walks this list, so a reorder here changes what the key does.
+ */
+export const AUDIENCES = [
+  "everyone",
+  "subscribers",
+  "vipsAndSubs",
+  "modsOnly",
+] as const;
+
+export type RequestAudience = (typeof AUDIENCES)[number];
+
+/** Short label for a 72px key. */
+export const AUDIENCE_LABELS: Record<RequestAudience, string> = {
+  everyone: "ALL",
+  subscribers: "SUB",
+  vipsAndSubs: "VIP",
+  modsOnly: "MOD",
+};
 
 export interface HealthData {
   music: boolean;
@@ -228,6 +259,7 @@ export function parseFrame(text: string): InboundFrame | null {
           // An older WolfWave omits `held`; false is the right read, since a
           // build without the field also can't have been put on hold by a key.
           held: bool(data.held),
+          audience: audience(data.audience),
         },
       };
 
@@ -274,4 +306,15 @@ function num(value: unknown): number {
 
 function bool(value: unknown): boolean {
   return value === true;
+}
+
+/**
+ * An older WolfWave omits `audience`, and a future one could add a case this
+ * build has never heard of. Both fall back to `everyone` — the key then shows
+ * the loosest state, which is the honest read of "this build cannot tell you".
+ */
+function audience(value: unknown): RequestAudience {
+  return (AUDIENCES as readonly string[]).includes(str(value))
+    ? (value as RequestAudience)
+    : "everyone";
 }

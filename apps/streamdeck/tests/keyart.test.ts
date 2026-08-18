@@ -13,6 +13,7 @@ import {
   countKeyImage,
   hold,
   keyImage,
+  labelKeyImage,
   play,
   trash,
 } from "../src/keyart.js";
@@ -98,6 +99,20 @@ describe("countKeyImage", () => {
   });
 });
 
+describe("labelKeyImage", () => {
+  test("bakes the word into the art, not the Elgato title", () => {
+    expect(textNodes(labelKeyImage({ glyph: check, label: "SUB" }))).toEqual([
+      "SUB",
+    ]);
+  });
+
+  test("shrinks the type past two characters so it stays on the key", () => {
+    const two = labelKeyImage({ glyph: check, label: "ALL" });
+    const short = labelKeyImage({ glyph: check, label: "ON" });
+    expect(fontSize(short)).toBeGreaterThan(fontSize(two));
+  });
+});
+
 describe("actionIcon", () => {
   test("is monochrome white at 20px, per Elgato's action-list spec", () => {
     const svg = actionIcon(check);
@@ -110,6 +125,12 @@ describe("actionIcon", () => {
     }
   });
 });
+
+/** The rendered font-size of the key's baked-in text. */
+function fontSize(svg: string): number {
+  const match = svg.match(/font-size="([\d.]+)"/);
+  return match ? Number(match[1]) : Number.NaN;
+}
 
 /** The y translate of the glyph group, i.e. how far down the key it sits. */
 function offsetY(svg: string): number {

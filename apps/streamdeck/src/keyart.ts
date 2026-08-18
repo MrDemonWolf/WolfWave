@@ -63,6 +63,36 @@ export const ban: Glyph = (c, w = 1) =>
 export const monitor: Glyph = (c, w = 1) =>
   `<rect x="2.8" y="4.4" width="18.4" height="12.8" rx="2.2" fill="none" stroke="${c}" stroke-width="${round(2.2 * w)}"/>` +
   stroke("M8.6 20.4h6.8", c, 2.2 * w);
+/** A pair of beamed notes. The fallback when album art can't be fetched. */
+export const note: Glyph = (c, w = 1) =>
+  stroke("M10 16.8V5.2l8.4-1.6v11.2", c, 2.2 * w) +
+  `<ellipse cx="7.4" cy="17" rx="2.8" ry="2.4" fill="${c}"/>` +
+  `<ellipse cx="15.8" cy="14.8" rx="2.8" ry="2.4" fill="${c}"/>`;
+
+/** Speech bubble with a note in it: say what's playing. */
+export const announce: Glyph = (c, w = 1) =>
+  `<path d="M3.2 6.6A2.6 2.6 0 0 1 5.8 4h12.4A2.6 2.6 0 0 1 20.8 6.6v7.2a2.6 2.6 0 0 1-2.6 2.6H10l-4.8 3.6v-3.6A2.6 2.6 0 0 1 3.2 13.8Z" fill="none" stroke="${c}" stroke-width="${round(2.2 * w)}" stroke-linejoin="round"/>` +
+  stroke("M11.4 13V7.4l4.4-.9v5", c, 1.9 * w) +
+  `<ellipse cx="9.7" cy="13.1" rx="1.8" ry="1.5" fill="${c}"/>` +
+  `<ellipse cx="14.1" cy="12.2" rx="1.8" ry="1.5" fill="${c}"/>`;
+
+/**
+ * A person struck through: block the requester, not the song.
+ *
+ * The slash crosses the whole figure rather than tucking into a corner. A short
+ * stroke beside the shoulder reads as part of the body, not as a negation.
+ */
+export const personBlock: Glyph = (c, w = 1) =>
+  `<circle cx="11" cy="7.4" r="3.5" fill="none" stroke="${c}" stroke-width="${round(2.1 * w)}"/>` +
+  stroke("M4.6 20c0-3.6 2.9-6.2 6.4-6.2s6.4 2.6 6.4 6.2", c, 2.1 * w) +
+  stroke("M3.4 21 20.6 3.8", c, 2.5 * w);
+
+/** A person with a chevron: who is allowed to request, cycling tighter. */
+export const audienceGate: Glyph = (c, w = 1) =>
+  `<circle cx="9.4" cy="7.4" r="3.4" fill="none" stroke="${c}" stroke-width="${round(2.1 * w)}"/>` +
+  stroke("M3 19.8c0-3.7 2.9-6.1 6.4-6.1 1.3 0 2.5.3 3.5.9", c, 2.1 * w) +
+  stroke("M16 10.6 20.4 15 16 19.4", c, 2.2 * w);
+
 /**
  * The queue keys draw a list, not bare transport bars. Hold used to reuse the
  * pause glyph, which put an identical pair of bars on two keys that do very
@@ -76,6 +106,17 @@ export const hold: Glyph = (c, w = 1) =>
   queueLines(c, w) + solid("M16 10.6h2.1v10.4H16Z", c) + solid("M19.4 10.6h2.1v10.4h-2.1Z", c);
 export const resume: Glyph = (c, w = 1) =>
   queueLines(c, w) + solid("M16 10.4 22.8 15.8 16 21.2Z", c);
+/**
+ * Queue list with an X: this request goes, the queue carries on.
+ *
+ * Its list is shorter than `queueLines` on purpose — the X needs its own column,
+ * and a full-width top line runs straight into it.
+ */
+export const rejectRequest: Glyph = (c, w = 1) =>
+  stroke("M3 6.4h11", c, 2.2 * w) +
+  stroke("M3 12h11", c, 2.2 * w) +
+  stroke("M3 17.6h7", c, 2.2 * w) +
+  stroke("M14.8 13.4 21.4 20M21.4 13.4l-6.6 6.6", c, 2.4 * w);
 
 // MARK: - Composers
 
@@ -114,15 +155,29 @@ export function keyImage({ glyph, tile, tint, titled }: KeyArtOptions): string {
 export function countKeyImage(
   options: KeyArtOptions & { count: number },
 ): string {
-  const { glyph, tile, tint, count } = options;
+  const { count } = options;
   if (count <= 0) return keyImage(options);
+  return labelKeyImage({ ...options, label: count > 99 ? "99+" : String(count) });
+}
 
-  const label = count > 99 ? "99+" : String(count);
+/**
+ * Glyph on top, short word underneath, both baked into the image.
+ *
+ * The word goes in the art rather than the Elgato title for the same reason the
+ * counts do: the title strip is the streamer's to label the key with, and it
+ * renders in whatever font and size they picked.
+ */
+export function labelKeyImage(
+  options: KeyArtOptions & { label: string },
+): string {
+  const { glyph, tile, tint, label } = options;
   const ink = tile ? Palette.white : (tint ?? Palette.white);
   return svg(
     KEY_SIZE,
     (tile ? field(tile) : "") +
       place(glyph(ink, 1.1), 26, 19) +
+      // Three characters is the widest that stays legible at this size, so the
+      // type shrinks past two rather than overrunning the key.
       text(label, KEY_SIZE / 2, 61, label.length > 2 ? 26 : 34, ink),
   );
 }

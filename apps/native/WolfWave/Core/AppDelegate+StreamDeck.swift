@@ -94,6 +94,51 @@ extension AppDelegate {
             }
             _ = await websocketServer.toggleOverlayVisibility()
             return .success(action)
+
+        case .announceSong:
+            // Same seam as the tray's "Share to Twitch": the message text is
+            // built once in `getCurrentSongInfo()` so a key and the menu item
+            // can never post differently-worded now-playing lines.
+            guard let service = twitchService, service.currentlyConnected else {
+                return .failure(action.rawValue, "twitch")
+            }
+            let message = getCurrentSongInfo()
+            guard !message.isEmpty else { return .failure(action.rawValue, "empty") }
+            await service.sendMessage(message)
+            return .success(action)
+
+        case .rejectCurrent:
+            guard let service = songRequestService else {
+                return .failure(action.rawValue, "unavailable")
+            }
+            guard await service.rejectCurrent() != nil else {
+                return .failure(action.rawValue, "empty")
+            }
+            return .success(action)
+
+        case .blockRequester:
+            // Blocks the person who requested what is playing, not whoever
+            // spoke last, so a busy chat cannot shift the target between the
+            // streamer deciding and the key landing.
+            guard let service = songRequestService,
+                  let current = service.queue.nowPlaying else {
+                return .failure(action.rawValue, "empty")
+            }
+            await service.blocklist.add(
+                BlocklistItem(value: current.requesterUsername, type: .requester)
+            )
+            return .success(action)
+
+        case .cycleAudience:
+            guard let service = songRequestService else {
+                return .failure(action.rawValue, "unavailable")
+            }
+            let next = service.chatAudience.next
+            DefaultsStore.store.set(
+                next.rawValue,
+                forKey: AppConstants.UserDefaults.songRequestChatAudience
+            )
+            return .success(action)
         }
     }
 
@@ -105,6 +150,7 @@ extension AppDelegate {
         let count = songRequestService?.queue.count ?? 0
         let pending = songRequestService?.pendingApprovalCount ?? 0
         let held = songRequestService?.isHoldEnabled ?? false
+        let audience = (songRequestService?.chatAudience ?? .everyone).rawValue
         let upcoming = (songRequestService?.queue.upcoming() ?? []).map {
             WebSocketServerService.QueueUpcomingItem(title: $0.title, requesterUsername: $0.requesterUsername)
         }
@@ -116,7 +162,8 @@ extension AppDelegate {
         let overlay = websocketServer?.state == .listening
             && websocketServer?.overlayVisible == true
         Task { [weak self] in
-            await self?.websocketServer?.broadcastQueueState(count: count, pending: pending, held: held)
+            await self?.websocketServer?.broadcastQueueState(
+                count: count, pending: pending, held: held, audience: audience)
             await self?.websocketServer?.broadcastQueueUpcoming(items: upcoming)
             await self?.websocketServer?.broadcastHealth(
                 music: music, twitch: twitch, discord: discord, overlay: overlay)

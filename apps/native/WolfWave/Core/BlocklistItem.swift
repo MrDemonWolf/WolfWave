@@ -8,17 +8,18 @@
 
 import Foundation
 
-/// A blocked song or artist entry.
+/// A blocked song, artist, or requester entry.
 ///
-/// Used to prevent specific songs or artists from being requested via chat commands.
+/// Used to prevent specific songs, artists, or people from being requested via
+/// chat commands.
 nonisolated struct BlocklistItem: Identifiable, Codable, Equatable, Hashable {
     /// Unique identifier for this blocklist entry.
     let id: UUID
 
-    /// The blocked value, either a song title or artist name.
+    /// The blocked value: a song title, an artist name, or a Twitch username.
     let value: String
 
-    /// Whether this entry blocks a specific song title or an entire artist.
+    /// What this entry blocks.
     let type: BlockType
 
     /// When the entry was added.
@@ -31,6 +32,21 @@ nonisolated struct BlocklistItem: Identifiable, Codable, Equatable, Hashable {
 
         /// Blocks all songs by a specific artist (case-insensitive match).
         case artist
+
+        /// Blocks a Twitch username from requesting anything at all
+        /// (case-insensitive match). Unlike `song` and `artist`, this is about
+        /// the person rather than the music, so it is checked before the
+        /// request is even resolved.
+        case requester
+
+        /// Label for the picker and the entry list.
+        var displayName: String {
+            switch self {
+            case .song: "Song"
+            case .artist: "Artist"
+            case .requester: "Requester"
+            }
+        }
     }
 
     init(value: String, type: BlockType) {

@@ -6,7 +6,12 @@
  * re-renders keys whenever `reduce` returns a changed object.
  */
 
-import type { AckFrame, HealthData, InboundFrame } from "./protocol.js";
+import type {
+  AckFrame,
+  HealthData,
+  InboundFrame,
+  RequestAudience,
+} from "./protocol.js";
 import { isProtocolMismatch } from "./protocol.js";
 
 /** How the plugin should render keys right now. */
@@ -33,6 +38,8 @@ export interface WolfWaveState {
   queuePending: number;
   /** Authoritative hold state from `queue_state`, not a local guess. */
   queueHeld: boolean;
+  /** Who may request right now. Authoritative, same as `queueHeld`. */
+  requestAudience: RequestAudience;
   health: HealthData;
 }
 
@@ -47,6 +54,7 @@ export const initialState: WolfWaveState = {
   queueCount: 0,
   queuePending: 0,
   queueHeld: false,
+  requestAudience: "everyone",
   health: { music: false, twitch: false, discord: false, overlay: false },
 };
 
@@ -90,6 +98,7 @@ export function reduce(
         queueCount: frame.data.count,
         queuePending: frame.data.pending,
         queueHeld: frame.data.held,
+        requestAudience: frame.data.audience,
       });
 
     case "health":

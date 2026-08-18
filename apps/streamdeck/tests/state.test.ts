@@ -71,7 +71,7 @@ describe("reduce", () => {
   test("queue_state folds counts and hold state", () => {
     const next = reduce(connected, {
       kind: "queue_state",
-      data: { count: 3, pending: 1, held: true },
+      data: { count: 3, pending: 1, held: true, audience: "everyone" },
     });
     expect(next.queueCount).toBe(3);
     expect(next.queuePending).toBe(1);
@@ -83,11 +83,11 @@ describe("reduce", () => {
     // from the tray, chat, or Settings — so the key follows without a press.
     const held = reduce(connected, {
       kind: "queue_state",
-      data: { count: 3, pending: 0, held: true },
+      data: { count: 3, pending: 0, held: true, audience: "everyone" },
     });
     const released = reduce(held, {
       kind: "queue_state",
-      data: { count: 3, pending: 0, held: false },
+      data: { count: 3, pending: 0, held: false, audience: "everyone" },
     });
     expect(released.queueHeld).toBe(false);
   });
@@ -131,11 +131,11 @@ describe("reference stability", () => {
     // repainting every visible key.
     const state = reduce(connected, {
       kind: "queue_state",
-      data: { count: 2, pending: 0, held: false },
+      data: { count: 2, pending: 0, held: false, audience: "everyone" },
     });
     const again = reduce(state, {
       kind: "queue_state",
-      data: { count: 2, pending: 0, held: false },
+      data: { count: 2, pending: 0, held: false, audience: "everyone" },
     });
     expect(again).toBe(state);
   });
