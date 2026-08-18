@@ -82,7 +82,7 @@ describe("every action renders without throwing", () => {
         key.painted.states.length > 0;
       expect(drew).toBe(true);
 
-      const scrollers = (instance as { scrollers?: Map<string, ReturnType<typeof setInterval>> })
+      const scrollers = (instance as unknown as { scrollers?: Map<string, ReturnType<typeof setInterval>> })
         .scrollers;
       if (scrollers) timers.push(...scrollers.values());
     });
@@ -98,7 +98,7 @@ describe("NowPlayingAction", () => {
     const key = fakeKey();
     await render(action, key, playing);
 
-    const scrollers = (action as { scrollers?: Map<string, ReturnType<typeof setInterval>> })
+    const scrollers = (action as unknown as { scrollers?: Map<string, ReturnType<typeof setInterval>> })
       .scrollers;
     if (scrollers) timers.push(...scrollers.values());
 
@@ -144,7 +144,7 @@ describe("willAppear wiring", () => {
     appear(action, key);
     await Bun.sleep(0);
 
-    const subs = (action as { subscriptions?: Map<string, unknown> }).subscriptions;
+    const subs = (action as unknown as { subscriptions?: Map<string, unknown> }).subscriptions;
     expect(subs?.size).toBe(1);
   });
 
@@ -155,7 +155,7 @@ describe("willAppear wiring", () => {
     appear(action, key);
     disappear(action, key);
 
-    const subs = (action as { subscriptions?: Map<string, unknown> }).subscriptions;
+    const subs = (action as unknown as { subscriptions?: Map<string, unknown> }).subscriptions;
     expect(subs?.size).toBe(0);
   });
 });
