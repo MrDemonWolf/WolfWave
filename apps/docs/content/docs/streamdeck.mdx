@@ -33,20 +33,27 @@ a glance tells you what's playing and how many requests are waiting.
 | Skip | Skips to the next track. |
 | Hold Queue | Holds or resumes the request queue. Shows the queue size as a big number. |
 | Approve Next | Approves the first request waiting for review. Turns amber with the pending count when requests are waiting. |
-| Clear Queue | Empties the request queue. Shows the queue size. |
+| Clear Queue | Empties the request queue. Shows the queue size. **Hold it** — see below. |
 | Block Song | Adds the current song to your blocklist. |
 | Overlay | Turns the stream overlay on or off. |
-| Discord Presence | Turns Discord Rich Presence on or off. |
-| Music Sync | Turns Apple Music tracking on or off. |
-| Cycle Theme | Switches the overlay to the next theme. |
-| Status | Four dots, one per link: **M**usic, **T**witch, **D**iscord, **O**verlay. Lit in the service's colour when it's up. Display only, pressing it does nothing. |
 
-A key you can press turns solid blue while it's on, so playing, held, and every
-toggle read from across the room. Clear Queue and Block Song are red because they
-throw something away.
+A key you can press turns solid blue while it's on, so playing, held, and the
+overlay read from across the room. Clear Queue and Block Song are red because
+they throw something away.
 
-Hold Queue, Approve Next, Clear Queue, and Status draw their own numbers and dots,
-so they leave the key title free — set your own label on them and it stays.
+Hold Queue, Approve Next, and Clear Queue draw their own numbers, so they leave
+the key title free — set your own label on them and it stays.
+
+<Callout type="warn">
+  **Clear Queue only fires if you hold it** for about a second. Tapping it does
+  nothing and flashes an alert. It deletes every request with no undo, and a deck
+  is a grid of identical squares under your hand mid-stream.
+</Callout>
+
+Three keys were removed in WolfWave 2.1.1: Discord Presence, Music Sync, and
+Cycle Theme. All three flipped a setting you set once, and a deck slot is worth
+more than that. Change them in Settings instead. **Update the plugin and WolfWave
+together** — a mismatch shows `Update` on every key.
 
 Approve Next only matters if you've turned on **Require My Approval** in
 Settings → Song Requests → Access. See [Song Requests](/docs/features#song-requests).

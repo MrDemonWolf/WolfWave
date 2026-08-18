@@ -16,7 +16,7 @@
  * the app. On a mismatch WolfWave replies with `error: "protocol"` rather than
  * running the command, which is what drives the plugin's "update" key state.
  */
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 
 /** Subprotocol prefix the app's handshake checks (`WebSocketAuthToken`). */
 export const TOKEN_SUBPROTOCOL_PREFIX = "wolfwave.control.";
@@ -27,7 +27,11 @@ export const DEFAULT_PORT = 8765;
 // MARK: - Actions
 
 /**
- * The v2 action set. Tokens match `StreamDeckAction`'s raw values exactly.
+ * The v3 action set. Tokens match `StreamDeckAction`'s raw values exactly.
+ *
+ * v3 dropped `discord_toggle`, `music_sync_toggle`, and `cycle_theme`. All
+ * three were set-once preferences, and a deck slot is worth more than a key
+ * pressed twice a year.
  */
 export const ACTIONS = [
   "play_pause",
@@ -38,9 +42,6 @@ export const ACTIONS = [
   "clear_queue",
   "block_current",
   "overlay_toggle",
-  "discord_toggle",
-  "music_sync_toggle",
-  "cycle_theme",
 ] as const;
 
 export type WolfWaveAction = (typeof ACTIONS)[number];

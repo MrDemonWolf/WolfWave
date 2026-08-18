@@ -1,5 +1,5 @@
 /**
- * The v2 key set. One class per manifest action.
+ * The v3 key set. One class per manifest action.
  *
  * Every UUID here must match an entry in
  * `com.mrdemonwolf.wolfwave.sdPlugin/manifest.json`; the SDK silently ignores a
@@ -13,7 +13,6 @@ import {
   countKeyImage,
   hold,
   resume,
-  statusImage,
   trash,
 } from "../keyart.js";
 import type { WolfWaveAction } from "../wolfwave/protocol.js";
@@ -109,8 +108,18 @@ export class ApproveNextAction extends WolfWaveKeyAction {
   }
 }
 
+/**
+ * The one key that destroys something with no undo, so it is the one key you
+ * have to hold. A stray press here throws away every request in the queue,
+ * which on a live stream is a mess of "where did my song go" in chat.
+ */
 @action({ UUID: `${PLUGIN_UUID}.clearqueue` })
 export class ClearQueueAction extends WolfWaveKeyAction {
+  /** Long enough to be deliberate, short enough not to feel broken. */
+  protected override get holdToConfirmMs(): number {
+    return 800;
+  }
+
   protected commandFor(): WolfWaveAction {
     return "clear_queue";
   }
@@ -160,81 +169,6 @@ export class OverlayToggleAction extends WolfWaveKeyAction {
   }
 }
 
-@action({ UUID: `${PLUGIN_UUID}.discordtoggle` })
-export class DiscordToggleAction extends WolfWaveKeyAction {
-  protected commandFor(): WolfWaveAction {
-    return "discord_toggle";
-  }
-
-  protected async render(
-    key: KeyAction,
-    state: WolfWaveState,
-  ): Promise<void> {
-    await key.setTitle("");
-    await key.setState(
-      state.health.discord ? KeyState.secondary : KeyState.primary,
-    );
-  }
-}
-
-@action({ UUID: `${PLUGIN_UUID}.musicsynctoggle` })
-export class MusicSyncToggleAction extends WolfWaveKeyAction {
-  protected commandFor(): WolfWaveAction {
-    return "music_sync_toggle";
-  }
-
-  protected async render(
-    key: KeyAction,
-    state: WolfWaveState,
-  ): Promise<void> {
-    await key.setTitle("");
-    await key.setState(
-      state.health.music ? KeyState.secondary : KeyState.primary,
-    );
-  }
-}
-
-@action({ UUID: `${PLUGIN_UUID}.cycletheme` })
-export class CycleThemeAction extends WolfWaveKeyAction {
-  protected commandFor(): WolfWaveAction {
-    return "cycle_theme";
-  }
-
-  protected async render(key: KeyAction): Promise<void> {
-    await key.setTitle("");
-  }
-}
-
-// MARK: - Status
-
-/**
- * Display-only key. Pressing it does nothing rather than firing a command the
- * streamer didn't intend mid-broadcast.
- */
-@action({ UUID: `${PLUGIN_UUID}.status` })
-export class StatusAction extends WolfWaveKeyAction {
-  protected commandFor(): null {
-    return null;
-  }
-
-  protected async render(
-    key: KeyAction,
-    state: WolfWaveState,
-  ): Promise<void> {
-    // Four labelled dots, not a list of names in the title strip: a three-line
-    // title on a 72px key is unreadable, and it could only ever fit three of
-    // the four links.
-    const { music, twitch, discord, overlay } = state.health;
-    await key.setImage(statusImage(state.health));
-    await key.setTitle("");
-    await key.setState(
-      music || twitch || discord || overlay
-        ? KeyState.secondary
-        : KeyState.primary,
-    );
-  }
-}
-
 // MARK: - Helpers
 
 /** Keeps a track title readable on a 72x72 key. */
@@ -252,8 +186,4 @@ export const ACTION_CLASSES = [
   ClearQueueAction,
   BlockCurrentAction,
   OverlayToggleAction,
-  DiscordToggleAction,
-  MusicSyncToggleAction,
-  CycleThemeAction,
-  StatusAction,
 ] as const;

@@ -108,7 +108,7 @@ describe("buildCommand", () => {
     const decoded = JSON.parse(encodeCommand("play_pause"));
     expect(decoded.type).toBe("command");
     expect(decoded.action).toBe("play_pause");
-    expect(decoded.protocol).toBe(2);
+    expect(decoded.protocol).toBe(PROTOCOL_VERSION);
   });
 });
 

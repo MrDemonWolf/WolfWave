@@ -30,7 +30,8 @@ struct StreamDeckCommandTests {
     }
 
     @Test func argsAreParsed() {
-        let text = #"{"type":"command","action":"skip","protocol":2,"args":{"reason":"boring"}}"#
+        let version = StreamDeckControl.protocolVersion
+        let text = #"{"type":"command","action":"skip","protocol":\#(version),"args":{"reason":"boring"}}"#
         let result = StreamDeckControl.parse(text)
         #expect(result == .command(StreamDeckCommand(action: .skip, args: ["reason": "boring"])))
     }
