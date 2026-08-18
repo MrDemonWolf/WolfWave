@@ -656,6 +656,14 @@ final class SongRequestService {
             }
         }
 
+        // A blocked person is blocked whatever they ask for and however they
+        // ask, so this runs before the audience-agnostic paths and before any
+        // MusicKit lookup is spent on them.
+        if await blocklist.isBlockedRequester(username) {
+            guard !Task.isCancelled else { return .cancelled }
+            return .blocked
+        }
+
         guard musicController.isAuthorized || musicController.authStatus == .notDetermined else {
             return .notAuthorized
         }
@@ -1002,6 +1010,26 @@ final class SongRequestService {
         guard let item = queue.takePending(id: id) else { return nil }
         sendChatMessage?("Request declined: \"\(item.title)\" (\(item.requesterUsername))")
         return item
+    }
+
+    /// Drops the request that is playing right now and moves on, telling chat
+    /// why so the requester isn't left wondering.
+    ///
+    /// Distinct from ``skip()``, which advances playback and says nothing: this
+    /// is the streamer rejecting *this request*, and a silent removal reads to
+    /// the requester like the bot ate their song.
+    ///
+    /// - Returns: The rejected item, or `nil` when no request is playing.
+    @discardableResult
+    func rejectCurrent() async -> SongRequestItem? {
+        guard let current = queue.nowPlaying else { return nil }
+        sendChatMessage?(
+            "Request removed: \"\(current.title)\" by \(current.artist) (\(current.requesterUsername))"
+        )
+        // Skip after announcing. Skipping first would start the replacement and
+        // its own "Now playing" line, putting the two messages out of order.
+        _ = await skip()
+        return current
     }
 
     /// Drop every held request without approving any. Returns the number removed.

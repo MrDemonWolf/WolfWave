@@ -134,8 +134,25 @@ actor SongBlocklist {
                 return entry.value.lowercased() == loweredTitle
             case .artist:
                 return entry.value.lowercased() == loweredArtist
+            case .requester:
+                // A person, not a song. Checked by `isBlockedRequester`.
+                return false
             }
         }
+    }
+
+    /// Whether this viewer is barred from requesting anything.
+    ///
+    /// Separate from ``isBlocked(title:artist:)`` because it answers a
+    /// different question at a different point: the requester is known before a
+    /// query is resolved, so a blocked person costs no MusicKit lookup.
+    ///
+    /// - Parameter username: Twitch username, matched case-insensitively.
+    /// - Returns: `true` when the username is on the blocklist.
+    func isBlockedRequester(_ username: String) -> Bool {
+        let lowered = username.lowercased()
+        guard !lowered.isEmpty else { return false }
+        return entries.contains { $0.type == .requester && $0.value.lowercased() == lowered }
     }
 
     /// Add a song or artist to the blocklist.

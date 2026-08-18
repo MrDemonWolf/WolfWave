@@ -145,6 +145,89 @@
           "TitleAlignment": "bottom"
         }
       ]
+    },
+    {
+      "Name": "Announce Song",
+      "UUID": "com.mrdemonwolf.wolfwave.announcesong",
+      "Icon": "imgs/actions/announcesong/icon",
+      "Tooltip": "Post the current track to your Twitch chat.",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/actions/announcesong/key",
+          "TitleAlignment": "bottom"
+        }
+      ]
+    },
+    {
+      "Name": "Reject Request",
+      "UUID": "com.mrdemonwolf.wolfwave.rejectcurrent",
+      "Icon": "imgs/actions/rejectcurrent/icon",
+      "Tooltip": "Drop the request that is playing and tell chat.",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/actions/rejectcurrent/key",
+          "TitleAlignment": "bottom"
+        }
+      ]
+    },
+    {
+      "Name": "Block Requester",
+      "UUID": "com.mrdemonwolf.wolfwave.blockrequester",
+      "Icon": "imgs/actions/blockrequester/icon",
+      "Tooltip": "Bar the person who requested the current song. Hold to confirm.",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/actions/blockrequester/key",
+          "TitleAlignment": "bottom"
+        }
+      ]
+    },
+    {
+      "Name": "Request Access",
+      "UUID": "com.mrdemonwolf.wolfwave.cycleaudience",
+      "Icon": "imgs/actions/cycleaudience/icon",
+      "Tooltip": "Cycle who may request: everyone, subs, VIPs and subs, mods.",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/actions/cycleaudience/key-open",
+          "TitleAlignment": "bottom"
+        },
+        {
+          "Image": "imgs/actions/cycleaudience/key-gated",
+          "TitleAlignment": "bottom"
+        }
+      ]
+    },
+    {
+      "Name": "Now Playing",
+      "UUID": "com.mrdemonwolf.wolfwave.nowplaying",
+      "Icon": "imgs/actions/nowplaying/icon",
+      "Tooltip": "Shows the current track over its album art. Display only.",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/actions/nowplaying/key-paused",
+          "TitleAlignment": "bottom"
+        },
+        {
+          "Image": "imgs/actions/nowplaying/key-playing",
+          "TitleAlignment": "bottom"
+        }
+      ]
     }
   ]
 }

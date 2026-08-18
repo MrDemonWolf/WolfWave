@@ -1,12 +1,12 @@
 ---
 title: Stream Deck Control API
-description: Control WolfWave from a same-Mac Stream Deck client. Protocol v3 command envelope, 8 actions, acks, and live queue and health broadcasts.
+description: Control WolfWave from a same-Mac Stream Deck client. Protocol v3 command envelope, 12 actions, acks, and live queue and health broadcasts.
 ogTitle: WolfWave Stream Deck Control API
-ogDescription: Drive playback, the request queue, and toggles over a loopback-only control role. 8 actions, acks, live state broadcasts.
+ogDescription: Drive playback, the request queue, and toggles over a loopback-only control role. 12 actions, acks, live state broadcasts.
 ogEyebrow: Developers
 ogChips:
   - Protocol v3
-  - 8 actions
+  - 12 actions
   - WebSocket
   - Live state
 keywords:
@@ -72,15 +72,19 @@ Every command gets an ack on the same connection:
 | `clear_queue` | Clear the request queue | — |
 | `block_current` | Add the current song to the blocklist | `empty` |
 | `overlay_toggle` | Hide/show the overlay cards (connection stays alive) | — |
+| `announce_song` | Post the current track to Twitch chat | `twitch` / `empty` |
+| `reject_current` | Drop the playing request and announce it | `unavailable` / `empty` |
+| `block_requester` | Blocklist whoever requested the playing song | `unavailable` / `empty` |
+| `cycle_audience` | Advance the request audience, wrapping | `unavailable` |
 
 `discord_toggle`, `music_sync_toggle`, and `cycle_theme` were removed in
 protocol v3. They flipped set-once preferences that never earned a key. A client
 still sending one gets `error: "unknown_action"` — and a v2 client gets
 `error: "protocol"` before that, since the version is checked first.
 
-The plugin refuses to send `clear_queue` unless its key is held. That is a
-plugin behaviour, not a protocol rule: the app runs the command whenever it
-arrives.
+The plugin refuses to send `clear_queue` or `block_requester` unless the key is
+held. That is a plugin behaviour, not a protocol rule: the app runs either
+command whenever it arrives.
 
 ## Live state broadcasts
 
@@ -88,7 +92,7 @@ WolfWave pushes two broadcast frames to every connected client, so counter and
 health keys render without polling:
 
 ```json
-{ "type": "queue_state", "data": { "count": 3, "pending": 1, "held": false } }
+{ "type": "queue_state", "data": { "count": 3, "pending": 1, "held": false, "audience": "everyone" } }
 { "type": "health", "data": { "music": true, "twitch": true, "discord": false, "overlay": true } }
 ```
 

@@ -443,10 +443,16 @@ actor WebSocketServerService {
     /// `held` exists so the hold key can show real state instead of guessing:
     /// without it a plugin has to track its own optimistic toggle, which drifts
     /// the moment hold is changed from the tray, chat (`!hold`), or Settings.
-    func broadcastQueueState(count: Int, pending: Int, held: Bool) {
+    ///
+    /// `audience` is the raw `RequestAudience` value. Same reasoning as `held`:
+    /// the audience is changeable from Settings and from a key, so the key has
+    /// to render what the app says rather than what it last sent.
+    func broadcastQueueState(count: Int, pending: Int, held: Bool, audience: String) {
         broadcastJSON([
             "type": "queue_state",
-            "data": ["count": count, "pending": pending, "held": held],
+            "data": [
+                "count": count, "pending": pending, "held": held, "audience": audience,
+            ],
         ])
     }
 

@@ -26,13 +26,19 @@ import { Resvg } from "@resvg/resvg-js";
 import {
   Palette,
   actionIcon,
+  announce,
+  audienceGate,
   ban,
   check,
   hold,
   keyImage,
+  labelKeyImage,
   monitor,
+  note,
   play,
   pause,
+  personBlock,
+  rejectRequest,
   resume,
   skip,
   trash,
@@ -54,6 +60,11 @@ const ACTION_ICONS: Array<[string, Glyph]> = [
   ["clearqueue", trash],
   ["blockcurrent", ban],
   ["overlaytoggle", monitor],
+  ["announcesong", announce],
+  ["rejectcurrent", rejectRequest],
+  ["blockrequester", personBlock],
+  ["cycleaudience", audienceGate],
+  ["nowplaying", note],
 ];
 
 /**
@@ -84,6 +95,25 @@ const KEY_IMAGES: Array<[string, string]> = [
   [
     "actions/overlaytoggle/key-on",
     keyImage({ glyph: monitor, tile: Palette.tile }),
+  ],
+  ["actions/announcesong/key", keyImage({ glyph: announce })],
+  ["actions/rejectcurrent/key", keyImage({ glyph: rejectRequest, tint: Palette.danger })],
+  ["actions/blockrequester/key", keyImage({ glyph: personBlock, tint: Palette.danger })],
+  // Repainted live with the current audience; these are the open and closed
+  // ends of that range, and what the action list shows.
+  [
+    "actions/cycleaudience/key-open",
+    labelKeyImage({ glyph: audienceGate, label: "ALL" }),
+  ],
+  [
+    "actions/cycleaudience/key-gated",
+    labelKeyImage({ glyph: audienceGate, label: "SUB", tile: Palette.tile }),
+  ],
+  // Replaced by album art whenever it can be fetched.
+  ["actions/nowplaying/key-paused", keyImage({ glyph: note, titled: true })],
+  [
+    "actions/nowplaying/key-playing",
+    keyImage({ glyph: note, tile: Palette.tile, titled: true }),
   ],
 ];
 

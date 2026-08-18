@@ -95,20 +95,37 @@ whole key rather than by the glyph alone:
 Brand **600** rather than 500 is deliberate: the default white Elgato title only
 clears 4.5:1 contrast on the darker blue.
 
-Four keys paint themselves at runtime with `setImage` instead of using their
-manifest state image, because no static file can carry a number:
+Some keys paint themselves at runtime with `setImage` instead of using their
+manifest state image, because no static file can carry a number, a word, or a
+cover:
 
 | Key | Live art |
 |---|---|
 | Hold Queue | queue glyph plus the queue depth as a large numeral, capped at `99+` |
 | Approve Next | check plus the pending count, amber tile when any are pending |
 | Clear Queue | red trash plus the queue depth |
-| Status | four labelled dots (**M**usic, **T**witch, **D**iscord, **O**verlay), each in its service colour when up |
+| Request Access | the gate glyph plus the current audience (`ALL` / `SUB` / `VIP` / `MOD`), tiled once it is narrower than everyone |
+| Now Playing | the track's album art, fetched and inlined as a data URI; falls back to the note glyph |
 
-Those four leave the Elgato title alone, so a user-set label survives. Play /
+Those leave the Elgato title alone, so a user-set label survives. Play /
 Pause still writes the track name into the title. Any key drops back to its
 manifest image when the connection goes away, so a stale count can never sit
 under an `Offline` title.
+
+### Hold to confirm
+
+`clear_queue` and `block_requester` do not fire on press. `WolfWaveKeyAction`
+exposes `holdToConfirmMs` (default `0` = fire on press); those two override it
+to 800ms, and the base class times the gap between `keyDown` and `keyUp`,
+because the Stream Deck payload carries no press duration. Timing goes through
+`src/clock.ts` so tests control elapsed time rather than sleeping.
+
+### Album art
+
+`src/artwork.ts` fetches `artworkURL` (an iTunes CDN URL from WolfWave) and
+inlines it as a data URI, since `setImage` takes no URLs. HTTPS only, bounded
+size, bounded timeout, cached by URL, and every failure path returns
+`undefined` so the key falls back to its glyph rather than throwing on air.
 
 ## Setup
 
@@ -156,5 +173,7 @@ this repo:
 - Marketplace submission. The packaged `.streamDeckPlugin` is one `bun run
   --filter streamdeck pack` away; submitting it needs an Elgato Maker account.
 
-Deferred initial-release actions from WW-45: announce song, and a now-playing dial with album
-art and rotation-bound volume. Both want app-side seams that don't exist yet.
+Announce song and the now-playing key both shipped in protocol v3. What is still
+deferred from WW-45 is the *dial* form of now playing: an encoder with album art
+and rotation-bound volume. That wants `setFeedback`/`setFeedbackLayout` and an
+app-side volume seam, neither of which exists yet.

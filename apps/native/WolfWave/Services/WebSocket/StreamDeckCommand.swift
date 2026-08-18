@@ -23,6 +23,10 @@ nonisolated enum StreamDeckAction: String, Codable, CaseIterable, Sendable {
     case clearQueue = "clear_queue"
     case blockCurrent = "block_current"
     case overlayToggle = "overlay_toggle"
+    case announceSong = "announce_song"
+    case rejectCurrent = "reject_current"
+    case blockRequester = "block_requester"
+    case cycleAudience = "cycle_audience"
 }
 
 // MARK: - StreamDeckCommand
