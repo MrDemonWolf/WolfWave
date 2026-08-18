@@ -27,19 +27,14 @@ import {
   Palette,
   actionIcon,
   ban,
-  bubble,
   check,
   hold,
   keyImage,
   monitor,
-  note,
   play,
   pause,
-  pulse,
   resume,
   skip,
-  statusImage,
-  theme,
   trash,
   type Glyph,
 } from "../src/keyart.js";
@@ -59,10 +54,6 @@ const ACTION_ICONS: Array<[string, Glyph]> = [
   ["clearqueue", trash],
   ["blockcurrent", ban],
   ["overlaytoggle", monitor],
-  ["discordtoggle", bubble],
-  ["musicsynctoggle", note],
-  ["cycletheme", theme],
-  ["status", pulse],
 ];
 
 /**
@@ -93,24 +84,6 @@ const KEY_IMAGES: Array<[string, string]> = [
   [
     "actions/overlaytoggle/key-on",
     keyImage({ glyph: monitor, tile: Palette.tile }),
-  ],
-  ["actions/discordtoggle/key-off", keyImage({ glyph: bubble })],
-  [
-    "actions/discordtoggle/key-on",
-    keyImage({ glyph: bubble, tile: Palette.tile }),
-  ],
-  ["actions/musicsynctoggle/key-off", keyImage({ glyph: note })],
-  ["actions/musicsynctoggle/key-on", keyImage({ glyph: note, tile: Palette.tile })],
-  ["actions/cycletheme/key", keyImage({ glyph: theme })],
-  // The status key is repainted live per service; these are the all-down and
-  // all-up ends of that range, and what the action list shows.
-  [
-    "actions/status/key-down",
-    statusImage({ music: false, twitch: false, discord: false, overlay: false }),
-  ],
-  [
-    "actions/status/key-up",
-    statusImage({ music: true, twitch: true, discord: true, overlay: true }),
   ],
 ];
 

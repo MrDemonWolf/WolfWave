@@ -141,7 +141,7 @@ The base class paints these centrally, so no individual key can forget one:
 `StreamDeckControl.protocolVersion` in the app. The action tokens in `ACTIONS`
 are the raw values of the Swift `StreamDeckAction` enum, so renaming one is a
 protocol change that requires bumping the version on both sides.
-`tests/protocol.test.ts` pins the full v2 action set; it fails when the two
+`tests/protocol.test.ts` pins the full v3 action set; it fails when the two
 drift.
 
 ## Not yet done
