@@ -31,15 +31,22 @@ a glance tells you what's playing and how many requests are waiting.
 |---|---|
 | Play / Pause | Plays or pauses Apple Music. Shows the current track. |
 | Skip | Skips to the next track. |
-| Hold Queue | Holds or resumes the request queue. Shows the queue size. |
-| Approve Next | Approves the first request waiting for review. Shows how many are pending. |
-| Clear Queue | Empties the request queue. |
+| Hold Queue | Holds or resumes the request queue. Shows the queue size as a big number. |
+| Approve Next | Approves the first request waiting for review. Turns amber with the pending count when requests are waiting. |
+| Clear Queue | Empties the request queue. Shows the queue size. |
 | Block Song | Adds the current song to your blocklist. |
 | Overlay | Turns the stream overlay on or off. |
 | Discord Presence | Turns Discord Rich Presence on or off. |
 | Music Sync | Turns Apple Music tracking on or off. |
 | Cycle Theme | Switches the overlay to the next theme. |
-| Status | Shows which connections are live. Display only, pressing it does nothing. |
+| Status | Four dots, one per link: **M**usic, **T**witch, **D**iscord, **O**verlay. Lit in the service's colour when it's up. Display only, pressing it does nothing. |
+
+A key you can press turns solid blue while it's on, so playing, held, and every
+toggle read from across the room. Clear Queue and Block Song are red because they
+throw something away.
+
+Hold Queue, Approve Next, Clear Queue, and Status draw their own numbers and dots,
+so they leave the key title free — set your own label on them and it stays.
 
 Approve Next only matters if you've turned on **Require My Approval** in
 Settings → Song Requests → Access. See [Song Requests](/docs/features#song-requests).

@@ -101,19 +101,29 @@ export abstract class WolfWaveKeyAction extends SingletonAction {
   private async paint(action: KeyAction, state: WolfWaveState): Promise<void> {
     switch (state.phase) {
       case "disconnected":
-        await action.setTitle("Offline");
-        await action.setState(KeyState.primary);
+        await this.reset(action, "Offline");
         return;
       case "unauthorized":
-        await action.setTitle("Token?");
-        await action.setState(KeyState.primary);
+        await this.reset(action, "Token?");
         return;
       case "outdated":
-        await action.setTitle("Update");
-        await action.setState(KeyState.primary);
+        await this.reset(action, "Update");
         return;
       case "connected":
         await this.render(action, state);
     }
+  }
+
+  /**
+   * Drops a key back to its manifest art and says why.
+   *
+   * The `setImage()` with no argument matters: the keys that paint live art
+   * would otherwise keep showing a queue count from before WolfWave quit,
+   * under an "Offline" title, which reads as a live queue.
+   */
+  private async reset(action: KeyAction, title: string): Promise<void> {
+    await action.setImage();
+    await action.setTitle(title);
+    await action.setState(KeyState.primary);
   }
 }
