@@ -105,6 +105,18 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
         return (session, task)
     }
 
+    /// A Stream Deck client: the control credential and its own subprotocol.
+    private func makeControlClient(port: UInt16) throws -> (URLSession, URLSessionWebSocketTask) {
+        let url = try XCTUnwrap(URL(string: "ws://127.0.0.1:\(port)/"))
+        let session = URLSession(configuration: .ephemeral)
+        let subprotocol = WebSocketAuthToken.expectedSubprotocol(
+            for: Self.controlToken,
+            role: .control
+        )
+        let task = session.webSocketTask(with: url, protocols: [subprotocol])
+        return (session, task)
+    }
+
     private nonisolated static func decode(_ message: URLSessionWebSocketTask.Message) throws -> Frame {
         let data: Data
         switch message {
@@ -155,6 +167,34 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
                 XCTFail("WebSocket receive failed: \(error)", file: file, line: line)
                 expectation.fulfill()
             }
+        }
+    }
+
+    /// Asserts on the *next* frame rather than skipping ahead to a type.
+    ///
+    /// `receiveFrame` recurses past anything it does not want, which is exactly
+    /// wrong for proving a frame was never sent: the leak it is meant to catch
+    /// would be silently skipped. Frames arrive in order on one connection, so
+    /// asserting the next one is a real assertion.
+    private nonisolated static func receiveNextFrame(
+        from task: URLSessionWebSocketTask,
+        fulfilling expectation: XCTestExpectation,
+        file: StaticString = #filePath,
+        line: UInt = #line,
+        asserting assertions: @escaping @Sendable (Frame) -> Void
+    ) {
+        task.receive { result in
+            switch result {
+            case .success(let message):
+                do {
+                    assertions(try decode(message))
+                } catch {
+                    XCTFail("Failed to decode WebSocket frame: \(error)", file: file, line: line)
+                }
+            case .failure(let error):
+                XCTFail("WebSocket receive failed: \(error)", file: file, line: line)
+            }
+            expectation.fulfill()
         }
     }
 
@@ -277,6 +317,133 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
             isPaused: true
         )
         await fulfillment(of: [received], timeout: 5)
+
+        close(session: session, task: task)
+        await service.setEnabled(false)
+    }
+
+    // MARK: - Hidden-Overlay Playback Tests
+
+    /// Hiding the overlay hides the browser-source card. It must not blind the
+    /// Stream Deck: a control client connecting while the cards are off still
+    /// needs the replay, or its Play/Pause key sits there with no track.
+    func testControlClientReceivesReplayWhileOverlayHidden() async throws {
+        let (service, port) = try await startListeningService()
+        let (session, task) = try makeControlClient(port: port)
+
+        await service.updateNowPlaying(
+            track: "Hidden Overlay Track",
+            artist: "Test Artist",
+            album: "Test Album",
+            duration: 200,
+            elapsed: 12,
+            artworkURL: nil
+        )
+        await service.setOverlayVisibility(false)
+
+        let received = expectation(description: "control client received now_playing replay")
+        task.resume()
+        Self.receiveFrame(type: "now_playing", from: task, fulfilling: received) { frame in
+            XCTAssertEqual(frame.data?.track, "Hidden Overlay Track")
+        }
+        await fulfillment(of: [received], timeout: 5)
+
+        close(session: session, task: task)
+        await service.setEnabled(false)
+    }
+
+    /// Track changes while the overlay is hidden must still reach a control
+    /// client, otherwise the Stream Deck shows whatever was playing when the
+    /// streamer hid the cards for the whole time they stay hidden.
+    func testControlClientReceivesTrackChangeWhileOverlayHidden() async throws {
+        let (service, port) = try await startListeningService()
+        let (session, task) = try makeControlClient(port: port)
+
+        let connected = expectation(description: "control client connected")
+        let connectionObserver = observe(service, fulfilling: connected) { _, count in
+            count == 1
+        }
+        task.resume()
+        await fulfillment(of: [connected], timeout: 5)
+        connectionObserver.cancel()
+
+        await service.setOverlayVisibility(false)
+
+        let received = expectation(description: "control client received live now_playing")
+        Self.receiveFrame(type: "now_playing", from: task, fulfilling: received) { frame in
+            XCTAssertEqual(frame.data?.track, "Track After Hiding")
+        }
+        await service.updateNowPlaying(
+            track: "Track After Hiding",
+            artist: "Test Artist",
+            album: "Test Album",
+            duration: 200,
+            elapsed: 0,
+            artworkURL: nil
+        )
+        await fulfillment(of: [received], timeout: 5)
+
+        close(session: session, task: task)
+        await service.setEnabled(false)
+    }
+
+    /// The other half of the same rule: an overlay client stays dark. It gets
+    /// the `overlay_visibility` frame and nothing else, so a browser source
+    /// cannot repaint a card the streamer turned off.
+    func testOverlayClientReceivesNoPlaybackWhileHidden() async throws {
+        let (service, port) = try await startListeningService()
+        let (session, task) = try makeClient(port: port)
+
+        let connected = expectation(description: "overlay client connected")
+        let connectionObserver = observe(service, fulfilling: connected) { _, count in
+            count == 1
+        }
+        task.resume()
+        await fulfillment(of: [connected], timeout: 5)
+        connectionObserver.cancel()
+
+        // Drain the connect burst first. It ends with `playback_state` (no track
+        // is set yet) and contains its own `overlay_visibility`, so waiting on
+        // that type instead would match the wrong frame and leave the burst
+        // sitting in front of the assertion below.
+        let drained = expectation(description: "connect burst drained")
+        Self.receiveFrame(type: "playback_state", from: task, fulfilling: drained) { _ in }
+        await fulfillment(of: [drained], timeout: 5)
+
+        // From here every frame is deliberate: hiding sends exactly one, and the
+        // next one after that must be the queue update rather than the track
+        // pushed while the cards are off.
+        let hidden = expectation(description: "overlay client told cards are hidden")
+        Self.receiveNextFrame(from: task, fulfilling: hidden) { frame in
+            XCTAssertEqual(frame.type, "overlay_visibility")
+        }
+        await service.setOverlayVisibility(false)
+        await fulfillment(of: [hidden], timeout: 5)
+
+        let sentinel = expectation(description: "overlay client received the sentinel frame")
+        Self.receiveNextFrame(from: task, fulfilling: sentinel) { frame in
+            XCTAssertEqual(
+                frame.type,
+                "queue_upcoming",
+                "A hidden overlay must not receive playback frames"
+            )
+            XCTAssertEqual(frame.data?.items?.first?.title, "Sentinel")
+        }
+        await service.updateNowPlaying(
+            track: "Should Not Reach The Overlay",
+            artist: "Test Artist",
+            album: "Test Album",
+            duration: 200,
+            elapsed: 0,
+            artworkURL: nil
+        )
+        await service.broadcastQueueUpcoming(items: [
+            WebSocketServerService.QueueUpcomingItem(
+                title: "Sentinel",
+                requesterUsername: "someviewer"
+            )
+        ])
+        await fulfillment(of: [sentinel], timeout: 5)
 
         close(session: session, task: task)
         await service.setEnabled(false)

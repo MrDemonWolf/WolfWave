@@ -129,6 +129,13 @@ actor WebSocketServerService {
     private var controlToken: String?
     private var listener: NWListener?
     private var connections: [NWConnection] = []
+    /// The authenticated role of each entry in ``connections``.
+    ///
+    /// Overlay and control clients want different things from the same server:
+    /// hiding the overlay cards must stop the browser source rendering, but a
+    /// Stream Deck still needs to know what is playing. Keeping the role lets
+    /// the playback fan-out address one audience without the other.
+    private var connectionRoles: [ObjectIdentifier: WebSocketAuthToken.Role] = [:]
     /// Accepted TCP peers that have not completed the authenticated WebSocket
     /// handshake. They are capped, timed out, and owned across listener stop.
     private var pendingConnections: [NWConnection] = []
@@ -792,6 +799,7 @@ actor WebSocketServerService {
                 return
             }
             connections.append(connection)
+            connectionRoles[ObjectIdentifier(connection)] = role
             let count = connections.count
             writeConnectionCountSnapshot(count)
             Log.info("WebSocketServerService: Client connected (\(count) total)", category: .websocket)
@@ -800,7 +808,7 @@ actor WebSocketServerService {
             sendWidgetConfig(to: connection)
             sendOverlayVisibility(to: connection)
             sendQueueUpcoming(to: connection)
-            sendCurrentState(to: connection)
+            sendCurrentState(to: connection, role: role)
             Self.receiveMessage(
                 from: connection,
                 role: role,
@@ -827,6 +835,7 @@ actor WebSocketServerService {
         handshakeTimeoutTasks.removeValue(forKey: ObjectIdentifier(connection))?.cancel()
         pendingConnections.removeAll { $0 === connection }
         connections.removeAll { $0 === connection }
+        connectionRoles.removeValue(forKey: ObjectIdentifier(connection))
         connection.stateUpdateHandler = nil
         let count = connections.count
         guard count != previousActiveCount else { return }
@@ -841,6 +850,7 @@ actor WebSocketServerService {
         let ownedConnections = connections + pendingConnections
         let timeoutTasks = Array(handshakeTimeoutTasks.values)
         connections.removeAll()
+        connectionRoles.removeAll()
         pendingConnections.removeAll()
         handshakeTimeoutTasks.removeAll()
         writeConnectionCountSnapshot(0)
@@ -1001,8 +1011,13 @@ actor WebSocketServerService {
     }
 
     /// Sends the full current playback snapshot to a newly connected client.
-    private func sendCurrentState(to connection: NWConnection) {
-        guard isOverlayVisible else { return }
+    ///
+    /// A hidden overlay withholds the replay from overlay clients so a browser
+    /// source cannot paint a card the streamer has turned off. Control clients
+    /// are exempt: hiding the overlay is not a reason for a Stream Deck to stop
+    /// knowing what is playing.
+    private func sendCurrentState(to connection: NWConnection, role: WebSocketAuthToken.Role) {
+        guard isOverlayVisible || role == .control else { return }
         guard let message = nowPlayingPayload(elapsed: estimatedElapsed()) else {
             Log.debug(
                 "WebSocketServerService: No playback state to replay on connect",
@@ -1026,10 +1041,28 @@ actor WebSocketServerService {
 
     /// Sends a `now_playing` snapshot (track/artist/album/timing/artwork) to
     /// every connected client. No-op when no track has been stored yet.
+    ///
+    /// While the overlay is hidden this narrows to control clients rather than
+    /// stopping: the browser source must not paint a hidden card, but a Stream
+    /// Deck that went silent on every track change for the whole time the
+    /// overlay was off would just be showing the streamer stale information.
     private func broadcastNowPlaying() {
-        guard isOverlayVisible else { return }
         guard let message = nowPlayingPayload(elapsed: currentElapsed) else { return }
-        broadcastJSON(message)
+        if isOverlayVisible {
+            broadcastJSON(message)
+        } else {
+            broadcastJSON(message, to: controlConnections())
+        }
+    }
+
+    /// The connected clients holding the control credential.
+    private func controlConnections() -> [NWConnection] {
+        connections.filter { connectionRoles[ObjectIdentifier($0)] == .control }
+    }
+
+    /// Count of clients rendering the overlay, i.e. everything except Stream Deck.
+    private func overlayConnectionCount() -> Int {
+        connections.count { connectionRoles[ObjectIdentifier($0)] != .control }
     }
 
     /// Sends a lightweight `playback_state` (play/pause) update to every
@@ -1056,7 +1089,7 @@ actor WebSocketServerService {
             isOverlayVisible: isOverlayVisible,
             isPlaying: isPlaying,
             duration: currentDuration,
-            connectionCount: connections.count
+            connectionCount: overlayConnectionCount()
         ) else { return }
         broadcastJSON([
             "type": "progress",
@@ -1095,14 +1128,14 @@ actor WebSocketServerService {
     /// Starts or stops the periodic task so disabled, hidden, paused, and
     /// client-free states have no timer wakeups at all.
     private func reconcileProgressTimer() {
-        // The auth protocol does not identify overlay vs. Stream Deck roles, so
-        // connectionCount currently includes control-only clients as well.
+        // Only overlay clients consume `progress`; a lone Stream Deck ignores
+        // the frame, so its presence must not keep the timer awake.
         let shouldRun = Self.shouldRunProgressTimer(
             isEnabled: isEnabled,
             isOverlayVisible: isOverlayVisible,
             isPlaying: isPlaying,
             duration: currentDuration,
-            connectionCount: connections.count)
+            connectionCount: overlayConnectionCount())
         if shouldRun {
             if progressTask == nil { startProgressTimer() }
         } else {
@@ -1119,7 +1152,7 @@ actor WebSocketServerService {
             isOverlayVisible: isOverlayVisible,
             isPlaying: isPlaying,
             duration: currentDuration,
-            connectionCount: connections.count
+            connectionCount: overlayConnectionCount()
         ) else { return }
 
         let interval = currentProgressInterval
@@ -1181,9 +1214,18 @@ actor WebSocketServerService {
     ///
     /// - Parameter dict: Top-level JSON object to serialize and broadcast.
     private func broadcastJSON(_ dict: [String: Any]) {
+        broadcastJSON(dict, to: connections)
+    }
+
+    /// Fan-outs to a subset of clients, encoding once for the whole set.
+    ///
+    /// - Parameters:
+    ///   - dict: Top-level JSON object to serialize and send.
+    ///   - targets: Connections to send to. Empty is a no-op.
+    private func broadcastJSON(_ dict: [String: Any], to targets: [NWConnection]) {
+        guard !targets.isEmpty else { return }
         guard let jsonData = JSONObjectSerialization.data(from: dict) else { return }
-        let conns = connections
-        for connection in conns { Self.sendJSONData(jsonData, to: connection) }
+        for connection in targets { Self.sendJSONData(jsonData, to: connection) }
     }
 
     // MARK: - State Notification
