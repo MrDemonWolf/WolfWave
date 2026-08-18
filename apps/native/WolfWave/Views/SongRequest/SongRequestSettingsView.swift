@@ -1264,6 +1264,22 @@ fileprivate struct SongRequestBlocklistCard: View {
     @State private var blocklist: [BlocklistItem] = []
     @State private var showClearAllAlert = false
 
+    private var blocklistPlaceholder: String {
+        switch blocklistType {
+        case .song: "Song title..."
+        case .artist: "Artist name..."
+        case .requester: "Twitch username..."
+        }
+    }
+
+    private static func blocklistSymbol(for type: BlocklistItem.BlockType) -> String {
+        switch type {
+        case .song: "music.note"
+        case .artist: "person.fill"
+        case .requester: "person.slash.fill"
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             HStack {
@@ -1283,7 +1299,7 @@ fileprivate struct SongRequestBlocklistCard: View {
                 .accessibilityIdentifier("blocklist.clearAll")
             }
 
-            Text("Block specific songs or artists from being requested.")
+            Text("Block specific songs, artists, or people from being requested.")
                 .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.tertiary)
 
@@ -1291,12 +1307,13 @@ fileprivate struct SongRequestBlocklistCard: View {
                 Picker("", selection: $blocklistType) {
                     Text("Song").tag(BlocklistItem.BlockType.song)
                     Text("Artist").tag(BlocklistItem.BlockType.artist)
+                    Text("Person").tag(BlocklistItem.BlockType.requester)
                 }
                 .accessibilityLabel("Blocklist entry type")
                 .pickerStyle(.segmented)
-                .frame(width: 120)
+                .frame(width: 180)
 
-                TextField(blocklistType == .song ? "Song title..." : "Artist name...", text: $blocklistText)
+                TextField(blocklistPlaceholder, text: $blocklistText)
                     .textFieldStyle(.roundedBorder)
                     .font(.system(size: DSFont.Size.body))
 
@@ -1320,14 +1337,14 @@ fileprivate struct SongRequestBlocklistCard: View {
                 VStack(alignment: .leading, spacing: DSSpace.s1) {
                     ForEach(blocklist) { item in
                         HStack {
-                            Image(systemName: item.type == .song ? "music.note" : "person.fill")
+                            Image(systemName: Self.blocklistSymbol(for: item.type))
                                 .font(.system(size: DSFont.Size.xs))
                                 .foregroundStyle(.secondary)
                                 .frame(width: 16)
 
                             Text(item.value).font(.system(size: DSFont.Size.body))
 
-                            Text(item.type == .song ? "Song" : "Artist")
+                            Text(item.type.displayName)
                                 .font(.system(size: DSFont.Size.xs))
                                 .foregroundStyle(.tertiary)
                                 .padding(.horizontal, DSSpace.s2)

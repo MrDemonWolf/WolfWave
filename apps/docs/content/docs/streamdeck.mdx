@@ -36,6 +36,11 @@ a glance tells you what's playing and how many requests are waiting.
 | Clear Queue | Empties the request queue. Shows the queue size. **Hold it** — see below. |
 | Block Song | Adds the current song to your blocklist. |
 | Overlay | Turns the stream overlay on or off. |
+| Announce Song | Posts what's playing to your Twitch chat, same wording as `!song`. |
+| Reject Request | Drops the request that's playing and tells chat it went, so the requester isn't left wondering. Different from Skip, which says nothing. |
+| Block Requester | Bars the person who requested the current song from requesting again. **Hold it.** |
+| Request Access | Cycles who may request: Everyone → Subscribers → VIPs & Subs → Mods, then back to Everyone. Shows the current setting on the key. |
+| Now Playing | The current track over its album art. Display only, pressing it does nothing. |
 
 A key you can press turns solid blue while it's on, so playing, held, and the
 overlay read from across the room. Clear Queue and Block Song are red because
@@ -45,10 +50,19 @@ Hold Queue, Approve Next, and Clear Queue draw their own numbers, so they leave
 the key title free — set your own label on them and it stays.
 
 <Callout type="warn">
-  **Clear Queue only fires if you hold it** for about a second. Tapping it does
-  nothing and flashes an alert. It deletes every request with no undo, and a deck
-  is a grid of identical squares under your hand mid-stream.
+  **Clear Queue and Block Requester only fire if you hold them** for about a
+  second. Tapping does nothing and flashes an alert. One deletes every request
+  with no undo, the other shuts a viewer out of your queue, and a deck is a grid
+  of identical squares under your hand mid-stream.
 </Callout>
+
+Block Requester targets whoever requested **the song that's playing**, not
+whoever spoke last, so a busy chat can't shift the target between you deciding
+and the key landing. Remove them again in Settings → Song Requests → Blocklist,
+which now takes people as well as songs and artists.
+
+Announce Song needs Twitch connected. Reject Request and Block Requester need a
+request actually playing — pressing them otherwise flashes an alert.
 
 Three keys were removed in WolfWave 2.1.1: Discord Presence, Music Sync, and
 Cycle Theme. All three flipped a setting you set once, and a deck slot is worth

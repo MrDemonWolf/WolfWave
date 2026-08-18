@@ -27,6 +27,18 @@ enum RequestAudience: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    /// The next audience in declaration order, wrapping at the end.
+    ///
+    /// Declaration order runs loosest to strictest, so cycling walks the gate
+    /// steadily tighter and then back open. That ordering is what lets a single
+    /// Stream Deck key stand in for a four-way picker.
+    var next: RequestAudience {
+        let all = Self.allCases
+        // `firstIndex` cannot miss: `self` is one of `allCases` by construction.
+        let index = all.firstIndex(of: self) ?? 0
+        return all[(index + 1) % all.count]
+    }
+
     /// Short human-readable label for pickers.
     var displayName: String {
         switch self {

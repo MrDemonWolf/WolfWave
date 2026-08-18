@@ -63,10 +63,14 @@ Every command that runs (or is rejected) gets a reply on the same connection:
 | `clear_queue` | Clear the request queue | — |
 | `block_current` | Add current song title to the blocklist | `empty` |
 | `overlay_toggle` | Hide/show playback cards while keeping the control connection alive | — |
+| `announce_song` | Post the current track to Twitch chat | `twitch` / `empty` |
+| `reject_current` | Drop the playing request and announce it | `unavailable` / `empty` |
+| `block_requester` | Blocklist whoever requested the playing song | `unavailable` / `empty` |
+| `cycle_audience` | Advance the request audience, wrapping | `unavailable` |
 
-`clear_queue` is the one action the plugin gates behind a hold. The wire
-protocol is unchanged — the app runs whatever it receives — but the plugin will
-not send it on a tap. Any other client is free to send it outright.
+`clear_queue` and `block_requester` are the actions the plugin gates behind a hold. The wire
+protocol is unchanged — the app runs whatever it receives — but the plugin
+will not send them on a tap. Any other client is free to send them outright.
 
 ### Removed in v3
 
@@ -75,17 +79,22 @@ flipped a set-once preference, and a deck slot is worth more than a key pressed
 twice a year. A v2 plugin sending one now gets `error: "unknown_action"`, and a
 v2 plugin at all gets `error: "protocol"` first.
 
-Actions without a clean existing service seam (announce, dial/volume) are
-deferred.
+Volume and other dial-shaped controls are still deferred: they want an encoder
+surface (`setFeedback`) rather than a key, which this contract does not model.
 
 ## Outbound state broadcasts
 
 Pushed to every connected client so counter/health keys render without polling:
 
 ```json
-{ "type": "queue_state", "data": { "count": 3, "pending": 1, "held": false } }
+{ "type": "queue_state", "data": { "count": 3, "pending": 1, "held": false, "audience": "everyone" } }
 { "type": "health", "data": { "music": true, "twitch": true, "discord": false, "overlay": true } }
 ```
+
+`audience` is the raw `RequestAudience` value (`everyone`, `subscribers`,
+`vipsAndSubs`, `modsOnly`), in that order — the cycle key walks the list, so the
+order is part of the contract. A client that doesn't recognise a value should
+fall back to `everyone`.
 
 `held` reflects real hold state (`SongRequestService.isHoldEnabled`), so a hold
 key renders from the app rather than tracking its own optimistic toggle — hold
@@ -112,7 +121,13 @@ The version gates the *inbound* command envelope only.
   service), `broadcastStreamDeckState`.
 - `Core/AppDelegate+Services.swift` — installs the handler, wires broadcast
   triggers.
+- `Services/SongRequest/SongBlocklist.swift` — `isBlockedRequester`, backing
+  `block_requester`; `Core/BlocklistItem.swift` carries the `.requester` type.
+- `Services/SongRequest/SongRequestAccess.swift` — `RequestAudience.next`,
+  backing `cycle_audience`.
 - `WolfWaveTests/StreamDeckCommandTests.swift` — parse + ack coverage.
+- `WolfWaveTests/RequesterBlocklistTests.swift` — requester blocking and the
+  audience cycle.
 
 ## Manual end-to-end check
 

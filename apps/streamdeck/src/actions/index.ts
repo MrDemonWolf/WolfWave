@@ -7,15 +7,20 @@
  */
 
 import { action, type KeyAction } from "@elgato/streamdeck";
+import { artworkDataURI } from "../artwork.js";
 import {
   Palette,
+  audienceGate,
   check,
   countKeyImage,
   hold,
+  keyImage,
+  labelKeyImage,
+  note,
   resume,
   trash,
 } from "../keyart.js";
-import type { WolfWaveAction } from "../wolfwave/protocol.js";
+import { AUDIENCE_LABELS, type WolfWaveAction } from "../wolfwave/protocol.js";
 import type { WolfWaveState } from "../wolfwave/state.js";
 import { KeyState, WolfWaveKeyAction } from "./base.js";
 
@@ -169,6 +174,119 @@ export class OverlayToggleAction extends WolfWaveKeyAction {
   }
 }
 
+// MARK: - Chat
+
+@action({ UUID: `${PLUGIN_UUID}.announcesong` })
+export class AnnounceSongAction extends WolfWaveKeyAction {
+  protected commandFor(): WolfWaveAction {
+    return "announce_song";
+  }
+
+  protected async render(key: KeyAction): Promise<void> {
+    await key.setTitle("");
+  }
+}
+
+/**
+ * Rejects the request that is playing and tells chat it went. Distinct from
+ * Skip, which advances playback and says nothing — a silent removal reads to
+ * the requester like the bot ate their song.
+ */
+@action({ UUID: `${PLUGIN_UUID}.rejectcurrent` })
+export class RejectCurrentAction extends WolfWaveKeyAction {
+  protected commandFor(): WolfWaveAction {
+    return "reject_current";
+  }
+
+  protected async render(key: KeyAction): Promise<void> {
+    await key.setTitle("");
+  }
+}
+
+/**
+ * Bars the person who requested what is playing. Held, like Clear Queue: it
+ * shuts someone out of the queue entirely, and the app has no undo beyond
+ * removing the entry in Settings.
+ */
+@action({ UUID: `${PLUGIN_UUID}.blockrequester` })
+export class BlockRequesterAction extends WolfWaveKeyAction {
+  protected override get holdToConfirmMs(): number {
+    return 800;
+  }
+
+  protected commandFor(): WolfWaveAction {
+    return "block_requester";
+  }
+
+  protected async render(key: KeyAction): Promise<void> {
+    await key.setTitle("");
+  }
+}
+
+/**
+ * Walks the request gate one step tighter each press and wraps back to open.
+ *
+ * Renders the audience it reads from the app rather than the one it last sent,
+ * so changing the audience in Settings moves the key too.
+ */
+@action({ UUID: `${PLUGIN_UUID}.cycleaudience` })
+export class CycleAudienceAction extends WolfWaveKeyAction {
+  protected commandFor(): WolfWaveAction {
+    return "cycle_audience";
+  }
+
+  protected async render(
+    key: KeyAction,
+    state: WolfWaveState,
+  ): Promise<void> {
+    const open = state.requestAudience === "everyone";
+    await key.setImage(
+      labelKeyImage({
+        glyph: audienceGate,
+        label: AUDIENCE_LABELS[state.requestAudience],
+        // Open is the resting state; anything narrower is a gate the streamer
+        // put up on purpose and should be able to see at a glance.
+        tile: open ? undefined : Palette.tile,
+      }),
+    );
+    await key.setTitle("");
+    await key.setState(open ? KeyState.primary : KeyState.secondary);
+  }
+}
+
+// MARK: - Display
+
+/**
+ * Display-only: what is playing, over its album art. Pressing it does nothing
+ * rather than firing a command the streamer didn't intend mid-broadcast.
+ */
+@action({ UUID: `${PLUGIN_UUID}.nowplaying` })
+export class NowPlayingAction extends WolfWaveKeyAction {
+  protected commandFor(): null {
+    return null;
+  }
+
+  protected async render(
+    key: KeyAction,
+    state: WolfWaveState,
+  ): Promise<void> {
+    // Art is fetched and inlined; a miss just draws the plain key. Deliberately
+    // not awaited before the title: the text should land immediately on a track
+    // change rather than waiting on a CDN.
+    await key.setTitle(truncate(state.track));
+    await key.setState(state.isPlaying ? KeyState.secondary : KeyState.primary);
+
+    const art = state.artworkURL
+      ? await artworkDataURI(state.artworkURL)
+      : undefined;
+    if (art) {
+      await key.setImage(art);
+    } else {
+      await key.setImage(keyImage({ glyph: note, titled: true }));
+    }
+  }
+}
+
 // MARK: - Helpers
 
 /** Keeps a track title readable on a 72x72 key. */
@@ -186,4 +304,9 @@ export const ACTION_CLASSES = [
   ClearQueueAction,
   BlockCurrentAction,
   OverlayToggleAction,
+  AnnounceSongAction,
+  RejectCurrentAction,
+  BlockRequesterAction,
+  CycleAudienceAction,
+  NowPlayingAction,
 ] as const;

@@ -82,7 +82,8 @@ describe("native control contract", () => {
 
   test("isAction narrows known tokens only", () => {
     expect(isAction("skip")).toBe(true);
-    expect(isAction("announce_song")).toBe(false);
+    expect(isAction("teleport")).toBe(false);
+    expect(isAction("cycle_theme")).toBe(false); // removed in v3
     expect(isAction("")).toBe(false);
   });
 });
@@ -205,11 +206,11 @@ describe("parseFrame", () => {
   test("decodes queue_state and health", () => {
     expect(
       parseFrame(
-        '{"type":"queue_state","data":{"count":3,"pending":1,"held":true}}',
+        '{"type":"queue_state","data":{"count":3,"pending":1,"held":true,"audience":"subscribers"}}',
       ),
     ).toEqual({
       kind: "queue_state",
-      data: { count: 3, pending: 1, held: true },
+      data: { count: 3, pending: 1, held: true, audience: "subscribers" },
     });
 
     expect(
@@ -241,7 +242,20 @@ describe("parseFrame", () => {
       parseFrame('{"type":"queue_state","data":{"count":1,"pending":0}}'),
     ).toEqual({
       kind: "queue_state",
-      data: { count: 1, pending: 0, held: false },
+      data: { count: 1, pending: 0, held: false, audience: "everyone" },
+    });
+  });
+
+  test("an unrecognised audience falls back to everyone", () => {
+    // A newer WolfWave could add a case this build has never heard of. Showing
+    // the loosest state is the honest read of "this build cannot tell you".
+    expect(
+      parseFrame(
+        '{"type":"queue_state","data":{"count":0,"pending":0,"audience":"nightbot-only"}}',
+      ),
+    ).toEqual({
+      kind: "queue_state",
+      data: { count: 0, pending: 0, held: false, audience: "everyone" },
     });
   });
 
