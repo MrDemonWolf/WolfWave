@@ -182,6 +182,74 @@ export function labelKeyImage(
   );
 }
 
+/**
+ * A key showing album art with the track scrolling across the bottom.
+ *
+ * The art is an `<image>` carrying its own data URI, because `setImage` takes
+ * one image and this key needs art *and* text. The text band is a solid strip
+ * rather than a gradient: it has to stay readable over whatever the cover art
+ * happens to be, including a white one.
+ *
+ * `offset` and `cycle` come from `marquee.ts`; the string is drawn twice, one
+ * cycle apart, so the tail is followed straight by the head.
+ */
+export function nowPlayingImage(options: {
+  art?: string;
+  label: string;
+  offset?: number;
+  cycle?: number;
+}): string {
+  const { art, label, offset = 0, cycle = 0 } = options;
+  const size = KEY_SIZE;
+  const bandHeight = 22;
+  const bandY = size - bandHeight;
+  const fontSize = 14;
+  const baseline = size - 6;
+
+  const background = art
+    ? `<image href="${art}" x="0" y="0" width="${size}" height="${size}" preserveAspectRatio="xMidYMid slice"/>`
+    : field("#000000") + place(note(Palette.white, 1.1), 34, 24);
+
+  const copies = cycle > 0
+    ? scrollingText(label, -offset, baseline, fontSize) +
+      scrollingText(label, -offset + cycle, baseline, fontSize)
+    : `<text x="${size / 2}" y="${round(baseline)}" fill="${Palette.white}" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="${fontSize}" font-weight="700" text-anchor="middle">${escapeText(label)}</text>`;
+
+  return svg(
+    size,
+    background +
+      `<rect x="0" y="${round(bandY)}" width="${size}" height="${bandHeight}" fill="#000000" fill-opacity="0.72"/>` +
+      `<svg x="0" y="${round(bandY)}" width="${size}" height="${bandHeight}" viewBox="0 0 ${size} ${bandHeight}">${copies}</svg>`,
+  );
+}
+
+/** One copy of the marquee string, positioned within the band's own viewport. */
+function scrollingText(
+  label: string,
+  x: number,
+  _baseline: number,
+  fontSize: number,
+): string {
+  return (
+    `<text x="${round(x)}" y="16" fill="${Palette.white}" font-family="Helvetica Neue, Helvetica, Arial, sans-serif"` +
+    ` font-size="${fontSize}" font-weight="700">${escapeText(label)}</text>`
+  );
+}
+
+/**
+ * Track titles are arbitrary text off the internet and land inside an SVG
+ * document, so the five XML metacharacters have to go. An unescaped `&` alone
+ * makes the whole image unparseable and the key renders blank.
+ */
+export function escapeText(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
 /** The action-list icon: monochrome white, no background, per Elgato's spec. */
 export function actionIcon(glyph: Glyph): string {
   const scale = (ACTION_ICON_SIZE - 2) / 24;
