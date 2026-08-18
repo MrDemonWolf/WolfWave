@@ -125,7 +125,7 @@ private struct MotionGallerySection: View {
 
         var color: Color {
             switch self {
-            case .off:        return .secondary
+            case .off:        return DSColor.neutral
             case .connecting: return DSColor.warning
             case .live:       return DSColor.success
             case .error:      return DSColor.error

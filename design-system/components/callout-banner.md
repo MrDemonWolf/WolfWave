@@ -30,7 +30,7 @@ CalloutBanner("These tools mutate live state. Use at your own risk.", strokeVisi
 | `.success` | `DSColor.success` | `checkmark.circle.fill` |
 | `.warning` | `DSColor.warning` | `exclamationmark.triangle.fill` |
 | `.error` | `DSColor.error` | `exclamationmark.octagon.fill` |
-| `.neutral` | `.secondary` | `info.circle.fill` |
+| `.neutral` | `DSColor.neutral` | `info.circle.fill` |
 
 ## Tokens used
 - `DSFont.Size.body` (13): message with no title, and the title line
@@ -39,7 +39,7 @@ CalloutBanner("These tools mutate live state. Use at your own risk.", strokeVisi
 - `DSSpace.s2` (8): vertical padding and icon/text gap
 - `DSSpace.s4` (12): horizontal padding
 - `AppConstants.SettingsUI.cardCornerRadius` (14): clip and stroke shape
-- `DSColor.info` / `.success` / `.warning` / `.error`: semantic tints
+- `DSColor.info` / `.success` / `.warning` / `.error` / `.neutral`: semantic tints
 
 ## Anatomy
 ```mermaid

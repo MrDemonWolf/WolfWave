@@ -133,7 +133,7 @@ size, bounded timeout, cached by URL, and every failure path returns
    `~/Library/Application Support/com.elgato.StreamDeck/Plugins/`.
 2. Restart the Stream Deck app.
 3. Drop a WolfWave key onto a page, open its Property Inspector, and paste the
-   **Stream Deck Control Token** from WolfWave: Settings → Stream Widgets.
+   **Stream Deck Control Token** from WolfWave: Settings → Stream Deck.
 4. Leave the port alone unless you changed it in WolfWave. The host is fixed to
    `127.0.0.1`; command transport is intentionally same-Mac only.
 

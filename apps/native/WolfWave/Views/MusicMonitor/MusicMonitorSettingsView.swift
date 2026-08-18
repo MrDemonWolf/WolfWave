@@ -313,7 +313,7 @@ struct MusicMonitorSettingsView: View {
     private var permissionIconColor: Color {
         switch permissionState {
         case .granted: return AppConstants.Brand.appleMusicGradientEnd
-        case .denied: return .red
+        case .denied: return DSColor.error
         case .unknown: return .accentColor
         }
     }

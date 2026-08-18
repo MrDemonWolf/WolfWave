@@ -26,6 +26,7 @@ nonisolated enum DSColor {
     static let warning = Color(red: 1.000, green: 0.624, blue: 0.039)
     static let error = Color(red: 1.000, green: 0.271, blue: 0.227)
     static let info = Color(red: 0.039, green: 0.518, blue: 1.000)
+    static let neutral = Color(red: 0.557, green: 0.557, blue: 0.576)
 
     // MARK: Surface (light)
     static let surfaceBaseLight = Color(red: 1.000, green: 1.000, blue: 1.000)
@@ -153,6 +154,7 @@ nonisolated enum DSDimension {
         static let sectionSpacing: CGFloat = 24
         static let cardPadding: CGFloat = 16
         static let cardCornerRadius: CGFloat = 14
+        static let stepNumberGutter: CGFloat = 18
     }
 
     enum Onboarding {

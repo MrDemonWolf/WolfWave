@@ -133,7 +133,7 @@ The version gates the *inbound* command envelope only.
 
 With the server enabled and Music playing, connect from the same Mac using the
 `wolfwave.control.<hex>` subprotocol (copy the Stream Deck Control Token from
-Stream Widgets settings), send
+Settings → Stream Deck), send
 `{"type":"command","action":"skip","protocol":3}`, and confirm the ack frame
 plus the track skipping. Watch for `queue_state` / `health` frames
 on request-queue and connection changes.

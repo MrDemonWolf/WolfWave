@@ -48,7 +48,7 @@ struct GeneralSettingsView: View {
             title: "General",
             subtitle: "Manage how WolfWave tracks your music and where it shows up.",
             statusText: trackingEnabled ? "Music on" : "Music off",
-            statusColor: trackingEnabled ? .green : .gray
+            statusColor: trackingEnabled ? DSColor.success : DSColor.neutral
         )
         .accessibilityIdentifier("generalSettings.header")
     }

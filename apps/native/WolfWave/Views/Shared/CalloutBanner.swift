@@ -48,7 +48,7 @@ struct CalloutBanner: View {
             case .success: return DSColor.success
             case .warning: return DSColor.warning
             case .error: return DSColor.error
-            case .neutral: return .secondary
+            case .neutral: return DSColor.neutral
             }
         }
 

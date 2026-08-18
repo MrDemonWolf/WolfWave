@@ -99,10 +99,10 @@ struct WebSocketSettingsView: View {
 
     private var serverStatusColor: Color {
         switch serverState {
-        case .listening: return .green
-        case .starting:  return .orange
-        case .error:     return .red
-        case .stopped:   return .gray
+        case .listening: return DSColor.success
+        case .starting:  return DSColor.warning
+        case .error:     return DSColor.error
+        case .stopped:   return DSColor.neutral
         }
     }
 

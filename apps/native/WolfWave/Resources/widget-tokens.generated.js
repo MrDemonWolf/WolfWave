@@ -25,7 +25,8 @@ window.WW_TOKENS = {
       "success": "#34C759",
       "warning": "#FF9F0A",
       "error": "#FF453A",
-      "info": "#0A84FF"
+      "info": "#0A84FF",
+      "neutral": "#8E8E93"
     },
     "surface": {
       "light": {
