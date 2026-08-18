@@ -14,9 +14,9 @@ import {
 import { artworkDataURI } from "../artwork.js";
 import {
   STEP_MS,
-  cycleWidth,
   offsetAt,
   overflows,
+  visibleSlice,
 } from "../marquee.js";
 import {
   KEY_SIZE,
@@ -310,17 +310,20 @@ export class NowPlayingAction extends WolfWaveKeyAction {
       await key.setImage(nowPlayingImage({ art, label }));
       return;
     }
-
-    const cycle = cycleWidth(label, MARQUEE_FONT_SIZE);
+    // Two copies end to end, so scrolling past the tail runs into the head
+    // rather than snapping back. Which characters are visible is worked out
+    // here, not by the renderer -- QtSvg has no clipPath.
+    const doubled = `${label}   ${label}`;
     let step = 0;
     const paint = () => {
+      const slice = visibleSlice(
+        doubled,
+        offsetAt(step, label, MARQUEE_FONT_SIZE),
+        MARQUEE_FONT_SIZE,
+        KEY_SIZE,
+      );
       void key.setImage(
-        nowPlayingImage({
-          art,
-          label,
-          offset: offsetAt(step, label, MARQUEE_FONT_SIZE),
-          cycle,
-        }),
+        nowPlayingImage({ art, label: slice.text, offset: slice.x }),
       );
       step += 1;
     };

@@ -60,3 +60,31 @@ export function offsetAt(step: number, text: string, fontSize: number): number {
 export function cycleWidth(text: string, fontSize: number): number {
   return textWidth(text, fontSize) + GAP;
 }
+
+/**
+ * The slice of `text` visible in a `width`-wide window at `offset`, plus the
+ * sub-character x position to draw it at.
+ *
+ * Clipping happens here rather than in SVG because the Stream Deck app renders
+ * through QtSvg, which implements SVG 1.2 Tiny and has no `<clipPath>`. Asking
+ * for one makes the renderer drop the entire image. Slicing the string needs no
+ * renderer features at all.
+ */
+export function visibleSlice(
+  text: string,
+  offset: number,
+  fontSize: number,
+  width: number,
+): { text: string; x: number } {
+  const advance = fontSize * ADVANCE;
+  if (advance <= 0) return { text, x: 0 };
+
+  const first = Math.max(0, Math.floor(offset / advance));
+  // One spare character each side so a half-scrolled glyph slides in and out
+  // instead of popping in whole.
+  const count = Math.ceil(width / advance) + 2;
+  return {
+    text: text.slice(first, first + count),
+    x: first * advance - offset,
+  };
+}

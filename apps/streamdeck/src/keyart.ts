@@ -197,43 +197,32 @@ export function nowPlayingImage(options: {
   art?: string;
   label: string;
   offset?: number;
-  cycle?: number;
 }): string {
-  const { art, label, offset = 0, cycle = 0 } = options;
+  const { art, label, offset = 0 } = options;
   const size = KEY_SIZE;
   const bandHeight = 22;
   const bandY = size - bandHeight;
   const fontSize = 14;
-  const baseline = size - 6;
+  const baseline = size - 7;
 
+  // SVG 1.2 Tiny only. The Stream Deck app is Qt, and QtSvg implements Tiny --
+  // no nested `<svg>`, no `<clipPath>`, no filters. Anything richer makes the
+  // renderer drop the whole image, leaving the key on its previous art, which
+  // is indistinguishable from the plugin not running. Clipping the marquee is
+  // therefore done in JS (`visibleSlice`) rather than asked of the renderer.
   const background = art
-    ? `<image href="${art}" x="0" y="0" width="${size}" height="${size}" preserveAspectRatio="xMidYMid slice"/>`
-    : field("#000000") + place(note(Palette.white, 1.1), 34, 24);
+    ? `<image xlink:href="${art}" x="0" y="0" width="${size}" height="${size}"/>`
+    : field("#101014") + place(note(Palette.white, 1.1), 30, 22);
 
-  const copies = cycle > 0
-    ? scrollingText(label, -offset, baseline, fontSize) +
-      scrollingText(label, -offset + cycle, baseline, fontSize)
-    : `<text x="${size / 2}" y="${round(baseline)}" fill="${Palette.white}" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="${fontSize}" font-weight="700" text-anchor="middle">${escapeText(label)}</text>`;
-
-  return svg(
-    size,
-    background +
-      `<rect x="0" y="${round(bandY)}" width="${size}" height="${bandHeight}" fill="#000000" fill-opacity="0.72"/>` +
-      `<svg x="0" y="${round(bandY)}" width="${size}" height="${bandHeight}" viewBox="0 0 ${size} ${bandHeight}">${copies}</svg>`,
-  );
-}
-
-/** One copy of the marquee string, positioned within the band's own viewport. */
-function scrollingText(
-  label: string,
-  x: number,
-  _baseline: number,
-  fontSize: number,
-): string {
-  return (
-    `<text x="${round(x)}" y="16" fill="${Palette.white}" font-family="Helvetica Neue, Helvetica, Arial, sans-serif"` +
-    ` font-size="${fontSize}" font-weight="700">${escapeText(label)}</text>`
-  );
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"`,
+    ` width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`,
+    background,
+    `<rect x="0" y="${round(bandY)}" width="${size}" height="${bandHeight}" fill="#000000"/>`,
+    `<text x="${round(offset)}" y="${round(baseline)}" fill="#FFFFFF"`,
+    ` font-family="Helvetica" font-size="${fontSize}" font-weight="bold">${escapeText(label)}</text>`,
+    `</svg>`,
+  ].join("");
 }
 
 /**

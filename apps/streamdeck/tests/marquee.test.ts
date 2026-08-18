@@ -74,7 +74,8 @@ describe("escapeText", () => {
 describe("nowPlayingImage", () => {
   test("embeds the album art when there is some", () => {
     const svg = nowPlayingImage({ art: "data:image/jpeg;base64,AAA", label: "x" });
-    expect(svg).toContain('<image href="data:image/jpeg;base64,AAA"');
+    // xlink:href, not href: SVG 1.2 Tiny predates the plain-href shorthand.
+    expect(svg).toContain('<image xlink:href="data:image/jpeg;base64,AAA"');
   });
 
   test("falls back to the note glyph with no art", () => {
@@ -83,15 +84,20 @@ describe("nowPlayingImage", () => {
     expect(svg).toContain("<path");
   });
 
-  test("draws the label twice while scrolling, so the wrap is seamless", () => {
-    const svg = nowPlayingImage({ label: "Long title here", offset: 10, cycle: 90 });
-    expect(svg.match(/<text/g)).toHaveLength(2);
+  test("draws one text run, positioned by the caller's offset", () => {
+    // Clipping and wrap-around are JS-side (`visibleSlice`); the renderer only
+    // ever sees one plain <text>, because QtSvg has no clipPath.
+    const svg = nowPlayingImage({ label: "Long title here", offset: -10 });
+    expect(svg.match(/<text/g)).toHaveLength(1);
+    expect(svg).toContain('x="-10"');
   });
 
-  test("draws it once, centred, when not scrolling", () => {
-    const svg = nowPlayingImage({ label: "Home" });
-    expect(svg.match(/<text/g)).toHaveLength(1);
-    expect(svg).toContain('text-anchor="middle"');
+  test("stays within SVG 1.2 Tiny", () => {
+    const svg = nowPlayingImage({ art: "data:image/jpeg;base64,AAA", label: "x" });
+    expect(svg).not.toContain("<clipPath");
+    expect(svg).not.toContain("clip-path");
+    expect(svg.match(/<svg/g)).toHaveLength(1);
+    expect(svg).toContain("xlink:href");
   });
 
   test("a hostile track title cannot break out of the SVG", () => {
