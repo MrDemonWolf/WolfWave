@@ -56,10 +56,14 @@ run leaves the tree clean.
 
 ## Icons
 
-`scripts/generate-icons.ts` emits every image the manifest points at, into
-`com.mrdemonwolf.wolfwave.sdPlugin/imgs/`. Unlike `bin/`, these **are**
-committed: they are inputs, not build output. Regenerate with
-`bun run --filter streamdeck icons` after changing the glyph table or the brand
+The art lives in `src/keyart.ts` — glyphs plus the composers that arrange them.
+`scripts/generate-icons.ts` bakes the static manifest images from it, and the
+actions import the same module to repaint keys live, so a key's live art and its
+manifest fallback can never disagree.
+
+Generated images land in `com.mrdemonwolf.wolfwave.sdPlugin/imgs/`. Unlike
+`bin/`, these **are** committed: they are inputs, not build output. Regenerate
+with `bun run --filter streamdeck icons` after changing `keyart.ts` or the brand
 mark, and commit the result. CI fails the PR on drift.
 
 Glyphs are authored once on a 24×24 grid and scaled per slot, so the action icon
@@ -73,9 +77,38 @@ and the key art can never disagree. Elgato's format rules drive the output:
 | `Icon` (plugin) | **PNG only** | 256×256, 512×512 (@2x) | free |
 
 Everything that accepts SVG ships as one SVG, so there is no @1x/@2x pair to keep
-in sync. The plugin icon is the only raster file, rendered through resvg. Key art
-uses brand blue for on/live states and grey for idle, which is the only state cue
-a key has besides its title.
+in sync. The plugin icon is the only raster file, rendered through resvg.
+
+### Reading a key
+
+A key is 72×72 and gets glanced at from across a room, so state is carried by the
+whole key rather than by the glyph alone:
+
+| Treatment | Means | Keys |
+|---|---|---|
+| Brand tile `#0066CC`, glyph knocked out white | On / live | the three toggles, playing, queue held, links up |
+| Amber tile `#FF9F0A` | Wants the streamer to act | Approve Next with requests pending |
+| Red glyph on black `#FF453A` | Destructive | Clear Queue, Block Song |
+| White glyph on black | Available, currently off | everything else |
+| Grey glyph `#8E8E93` | Nothing to act on | Approve Next with an empty queue |
+
+Brand **600** rather than 500 is deliberate: the default white Elgato title only
+clears 4.5:1 contrast on the darker blue.
+
+Four keys paint themselves at runtime with `setImage` instead of using their
+manifest state image, because no static file can carry a number:
+
+| Key | Live art |
+|---|---|
+| Hold Queue | queue glyph plus the queue depth as a large numeral, capped at `99+` |
+| Approve Next | check plus the pending count, amber tile when any are pending |
+| Clear Queue | red trash plus the queue depth |
+| Status | four labelled dots (**M**usic, **T**witch, **D**iscord, **O**verlay), each in its service colour when up |
+
+Those four leave the Elgato title alone, so a user-set label survives. Play /
+Pause still writes the track name into the title. Any key drops back to its
+manifest image when the connection goes away, so a stale count can never sit
+under an `Offline` title.
 
 ## Setup
 
