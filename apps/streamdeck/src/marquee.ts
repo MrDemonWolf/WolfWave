@@ -12,10 +12,16 @@
  * knobs; the defaults read as movement without being a video feed.
  */
 
-/** How often the text advances. */
-export const STEP_MS = 120;
+/**
+ * How often the text advances.
+ *
+ * Every frame re-sends the entire key image, album art included, so this is a
+ * bandwidth knob as much as a smoothness one. At 120ms with full-size art the
+ * plugin process was terminated outright.
+ */
+export const STEP_MS = 250;
 /** How far it advances each step, in the 72-unit key space. */
-export const STEP_PX = 2;
+export const STEP_PX = 4;
 /** Blank space between the end of the text and its repeat. */
 const GAP = 18;
 

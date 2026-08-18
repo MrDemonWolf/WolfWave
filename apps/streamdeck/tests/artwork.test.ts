@@ -26,6 +26,9 @@ function imageResponse(bytes = new Uint8Array([1, 2, 3]), type = "image/jpeg") {
 
 const URL_A = "https://is1-ssl.mzstatic.com/image/thumb/a/512x512bb.jpg";
 const URL_B = "https://is1-ssl.mzstatic.com/image/thumb/b/512x512bb.jpg";
+/** What the fetch actually asks for: a key never needs more than 144px. */
+const THUMB_A = "https://is1-ssl.mzstatic.com/image/thumb/a/144x144bb.jpg";
+const THUMB_B = "https://is1-ssl.mzstatic.com/image/thumb/b/144x144bb.jpg";
 
 afterEach(() => {
   globalThis.fetch = realFetch;
@@ -33,6 +36,14 @@ afterEach(() => {
 });
 
 describe("artworkDataURI", () => {
+  test("downscales the request, because every marquee frame re-sends the art", () => {
+    // A 512px cover is ~100KB base64; at several frames a second that got the
+    // plugin process terminated.
+    const calls = stubFetch(() => imageResponse());
+    void artworkDataURI(URL_A);
+    expect(calls[0]).toBe(THUMB_A);
+  });
+
   test("returns a data URI carrying the served mime type", async () => {
     stubFetch(() => imageResponse());
     const result = await artworkDataURI(URL_A);
@@ -46,7 +57,7 @@ describe("artworkDataURI", () => {
     await artworkDataURI(URL_A);
     await artworkDataURI(URL_B);
 
-    expect(calls).toEqual([URL_A, URL_B]);
+    expect(calls).toEqual([THUMB_A, THUMB_B]);
   });
 
   test("refuses anything that is not https", async () => {

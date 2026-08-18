@@ -29,6 +29,7 @@ const MAX_BYTES = 2 * 1024 * 1024;
 export async function artworkDataURI(url: string): Promise<string | undefined> {
   if (!isHTTPS(url)) return undefined;
 
+  url = thumbnail(url);
   const hit = cache.get(url);
   if (hit !== undefined) return hit;
 
@@ -73,6 +74,19 @@ function isHTTPS(url: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Rewrites an iTunes artwork URL to a key-sized thumbnail.
+ *
+ * WolfWave sends a 512x512 URL, which is ~100KB of base64 once inlined. Every
+ * marquee frame re-sends the whole image, so at full size that is roughly a
+ * megabyte a second over the plugin socket -- enough to get the plugin process
+ * terminated, which is exactly what happened. A 72px key never needed more
+ * than 144.
+ */
+function thumbnail(url: string): string {
+  return url.replace(/\/(\d+)x(\d+)((?:bb)?\.\w+)$/, "/144x144$3");
 }
 
 function remember(url: string, dataURI: string): void {
