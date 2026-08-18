@@ -38,7 +38,6 @@ struct SongRequestSetupView: View {
     /// not the same thing as playback being able to find it.
     @State private var playlistLocalVisibility: PlaylistLocalVisibility = .unknown
 
-    @State private var fetchingLink = false
     @State private var fetchStatus: String?
 
     @State private var navigationDirection: Edge = .trailing
@@ -246,9 +245,9 @@ struct SongRequestSetupView: View {
                                 "\(AppConstants.Music.requestsPlaylistName) was made in your Apple Music library, but Music on this Mac can't see it yet. Songs play out of Music, so turn on Sync Library in Music, Settings, General, then check again.",
                                 style: .warning
                             )
-                            Button("Check Again") { Task { await refreshPlaylistLocalVisibility() } }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
+                            AsyncActionButton(title: "Check Again", showsSuccess: false) {
+                                await refreshPlaylistLocalVisibility()
+                            }
                         } else {
                             CalloutBanner("\(AppConstants.Music.requestsPlaylistName) is ready.", style: .success)
                         }
@@ -260,9 +259,9 @@ struct SongRequestSetupView: View {
                     } else if let playlistError {
                         VStack(spacing: DSSpace.s3) {
                             CalloutBanner(playlistError, style: .warning)
-                            Button("Try Again") { Task { await ensurePlaylist() } }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
+                            AsyncActionButton(title: "Try Again", showsSuccess: false) {
+                                await ensurePlaylist()
+                            }
                         }
                     }
                 }
@@ -289,20 +288,19 @@ struct SongRequestSetupView: View {
                 VStack(alignment: .leading, spacing: DSSpace.s4) {
                     VStack(alignment: .leading, spacing: DSSpace.s3) {
                         setupStep(1, "Open your requests playlist") {
-                            Button("Open in Music") { Task { await openPlaylistInMusic() } }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
+                            AsyncActionButton(title: "Open in Music", showsSuccess: false) {
+                                await openPlaylistInMusic()
+                            }
                         }
                         setupStep(2, "In Music: tap Share, then Show on Profile") { EmptyView() }
                         setupStep(3, "Grab the link") {
-                            Button {
-                                Task { await fetchSongListLink() }
-                            } label: {
-                                if fetchingLink { ProgressView().controlSize(.small) } else { Text("Fetch link") }
+                            AsyncActionButton(
+                                title: "Fetch link",
+                                style: .borderedProminent,
+                                showsSuccess: false
+                            ) {
+                                await fetchSongListLink()
                             }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
-                            .disabled(fetchingLink)
                         }
                     }
                     .padding(DSSpace.s4)
@@ -538,9 +536,7 @@ struct SongRequestSetupView: View {
     /// and 2 first" message. Same flow that used to live in the Commands card.
     @MainActor
     private func fetchSongListLink() async {
-        fetchingLink = true
         fetchStatus = nil
-        defer { fetchingLink = false }
         do {
             if let url = try await libraryService.resolveRequestsPlaylistShareURL() {
                 songListURL = url
