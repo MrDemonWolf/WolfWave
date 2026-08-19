@@ -1317,20 +1317,21 @@ fileprivate struct SongRequestBlocklistCard: View {
                     .textFieldStyle(.roundedBorder)
                     .font(.system(size: DSFont.Size.body))
 
-                Button("Add") {
+                AsyncActionButton(
+                    title: "Add",
+                    style: .borderedProminent,
+                    isDisabled: blocklistText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                    showsSuccess: false,
+                    accessibilityIdentifier: "songRequests.blocklist.add"
+                ) {
                     let trimmed = blocklistText.trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !trimmed.isEmpty else { return }
                     let item = BlocklistItem(value: trimmed, type: blocklistType)
                     let provider = blocklistProvider()
                     blocklistText = ""
-                    Task {
-                        await provider?.add(item)
-                        blocklist = await provider?.allEntries ?? []
-                    }
+                    await provider?.add(item)
+                    blocklist = await provider?.allEntries ?? []
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                .disabled(blocklistText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
 
             if !blocklist.isEmpty {
