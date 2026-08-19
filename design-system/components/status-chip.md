@@ -89,7 +89,7 @@ graph LR
 ## Do / Don't
 - ✅ Use one chip per status concern (e.g. one for Twitch connection, one for WebSocket).
 - ✅ Pass `systemImage` (a `StatusChip.StateGlyph.*` value) for any connection-state chip so color isn't the only cue.
-- ❌ **No raw system colors for state.** `.green` / `.orange` / `.gray` / `Color.secondary` as a `color:` argument is a bug; use the token from the state tint vocabulary. Raw colors are fine only for a non-status category tag (the dot-fallback form), e.g. `.purple` for a platform label.
+- ❌ **No raw system colors for state.** `.green` / `.orange` / `.gray` / `Color.secondary` as a `color:` argument is a bug; use the token from the state tint vocabulary. Enforced by the `raw-status-color` rule in [`lint.ts`](../scripts/lint.ts) (`bun run ds:lint`). Raw colors are fine only for a non-status category tag (the dot-fallback form), e.g. `.purple` for a platform label.
 - ❌ Don't use `DSColor.neutral` on a fixed-color surface. On the Discord preview card (`partnerDiscordSurface`) it drops to 1.9:1; that card uses `Color.white.opacity(0.35)` on purpose.
 - ✅ Pair with `DSColor.success / warning / error / info`.
 - ❌ Don't put it inline with body copy; it's a section-level indicator.

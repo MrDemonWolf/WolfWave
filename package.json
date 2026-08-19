@@ -9,7 +9,8 @@
     "clean": "turbo clean",
     "tokens": "bun design-system/scripts/generate.ts",
     "ds:lint": "bun design-system/scripts/lint.ts",
-    "ds:schema": "bun design-system/scripts/validate-tokens.ts"
+    "ds:schema": "bun design-system/scripts/validate-tokens.ts",
+    "ds:test": "bun test design-system/scripts/lint.test.ts"
   },
   "packageManager": "bun@1.3.11",
   "devDependencies": {

@@ -38,6 +38,7 @@ bun run clean                            # Clean workspace build artifacts
 bun run tokens                           # Regenerate design tokens (root task //#tokens)
 bun run ds:lint                          # Design-system lint (root task //#ds:lint)
 bun run ds:schema                        # Validate tokens.json against tokens.schema.json
+bun run ds:test                          # Unit-test the design-system lint rules themselves
 bun run dev --filter docs                # Start docs dev server only
 bun run dev --filter wolfwave-announcement  # Open Remotion studio only
 bun run build --filter docs              # Build docs site
@@ -257,6 +258,8 @@ bun turbo build         # `tokens` is a build prerequisite; runs automatically
 | `//#tokens` | `bun run tokens` | `design-system/tokens.json`, `design-system/scripts/generate.ts`. Outputs the five generated files above. |
 | `//#ds:lint` | `bun run ds:lint` | `apps/native/WolfWave/Views/**/*.swift`, `design-system/scripts/lint.ts`, `design-system/lint-allowlist.txt` |
 
+`lint.ts` exports `RULES` and guards its own execution behind `import.meta.main`, so `lint.test.ts` can import the patterns without the import linting the tree and calling `process.exit`. A lint rule that silently stops matching is indistinguishable from a clean tree, which is what that suite exists to catch.
+
 Both `build` and `dev` `dependsOn` `//#tokens`, so it runs automatically. `//#ds:lint` is
 invoked on its own (locally, and as the `ds-lint` CI job).
 
@@ -276,7 +279,7 @@ These rules are enforced by [`design-system/scripts/lint.ts`](design-system/scri
 
 - **Never** use literal numbers in `font(.system(size:))`; use `DSFont.Size.*` (`xs=10`, `sm=11`, `body=12`, `base=13`, `md=14`, `lg=17`, `xl=20`, `x2xl=22`, `x3xl=26`). Heading ramp: `.paneTitle()` (22 bold, H1) → `.sectionHeader()` (17 semibold, H2) → `.sectionEyebrow()` (11 semibold secondary, H3); body via `.fieldSubtitle()` (13) / `.captionText()` (10). The old `.sectionSubHeader()` (15) was retired 2026-06-05 because it collided with the 17pt pane title; `x3xl` (26) is reserved for hero + the Monthly Wrap share card.
 - **Never** use literal numbers in `spacing:` or `.padding(N)`; use `DSSpace.*` (`s0=2`, `s1=4`, `s2=8`, `s3=10`, `s4=12`, `s5=14`, `s6=16`, `s7=20`, `s8=24`, `s9=28`, `s10=32`, `s11=44`). `DSSpace` is a *spacing* scale: for a `.frame(width:)` reach for `DSDimension.*` instead.
-- **Never** pass a raw system color as a `StatusChip` / `SectionHeaderWithStatus` state tint. Use `DSColor.success` / `.warning` / `.error` / `.info` / `.neutral`; the state-to-token table is in [`status-chip.md`](design-system/components/status-chip.md). `DSColor.neutral` is the off / disconnected state, and exists because `Color.secondary` is translucent, so the chip's own 10% background wash landed near-invisible beside opaque siblings. Not yet lint-enforced. Two deliberate exceptions carry a comment: `.accentColor` for Software Update's "update available" (follows the system accent) and `Color.white.opacity(0.35)` for the Discord preview off dot (fixed brand surface, where neutral reads 1.9:1).
+- **Never** pass a raw system color as a `StatusChip` / `SectionHeaderWithStatus` state tint. Use `DSColor.success` / `.warning` / `.error` / `.info` / `.neutral`; the state-to-token table is in [`status-chip.md`](design-system/components/status-chip.md). `DSColor.neutral` is the off / disconnected state, and exists because `Color.secondary` is translucent, so the chip's own 10% background wash landed near-invisible beside opaque siblings. Enforced by the `raw-status-color` lint rule, which is scoped to the `color:` / `statusColor:` argument labels (so `.foregroundStyle(.secondary)` on body text is untouched) and reaches across a ternary. Its one blind spot, pinned by a test: a bare `return .gray` carries no argument label, so a line-based rule cannot see it. Two deliberate exceptions are outside the banned set and carry a comment: `.accentColor` for Software Update's "update available" (follows the system accent) and `Color.white.opacity(0.35)` for the Discord preview off dot (fixed brand surface, where neutral reads 1.9:1).
 - For single-glyph bordered buttons, use [`DSIconButton`](apps/native/WolfWave/Views/Shared/DSIconButton.swift); do **not** hand-roll `Button { Image(...) } .buttonStyle(.bordered) .controlSize(.small)`. Hand-rolled icon-only buttons collapse to a narrower frame than text-label neighbors like `CopyButton`, causing visible drift.
 - When you touch a component under `Views/Shared/`, `Views/Onboarding/Components/`, or `Views/HistoryStats/`, update its catalog entry in [`design-system/components/`](design-system/components/) in the same change.
 
@@ -414,7 +417,7 @@ scripts, so a green run locally means the same thing it means on a runner.
   | `lint` | SwiftLint | SwiftLint against `swiftlint-baseline.json` |
   | `lint-crash-safety` | SwiftLint (crash-safety) | **Blocking.** No new force unwrap, `try!`, or `as!` |
   | `lint-headers` | Swift file headers | **Blocking.** File-header convention |
-  | `ds-lint` | Design-system lint | `bun run ds:lint` plus `bun run ds:schema`, which validates `tokens.json` against `tokens.schema.json` |
+  | `ds-lint` | Design-system lint | `bun run ds:test` (pins the lint regexes against known-good and known-bad lines), `bun run ds:lint`, plus `bun run ds:schema`, which validates `tokens.json` against `tokens.schema.json` |
 
 - `.github/workflows/build_release.yml` - Builds, signs, notarizes, and creates a GitHub Release on tag push (`v*`). Required secrets: `DEVELOPER_ID_CERT_P12`, `DEVELOPER_ID_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`, `TWITCH_CLIENT_ID`, `DISCORD_CLIENT_ID`, `SPARKLE_PRIVATE_KEY`.
 - `.github/workflows/docs.yml` - Builds and deploys the Fumadocs site to GitHub Pages. Path-filtered, so a Swift-only push to `main` doesn't burn a Pages deployment; use `workflow_dispatch` to force one.
