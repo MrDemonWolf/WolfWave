@@ -83,6 +83,41 @@ final class SettingsUITests: WolfWaveUITestCase {
         }
     }
 
+    /// Attaches a screenshot of every pane to the test result.
+    ///
+    /// Deliberately assertion-free. Layout is the half `testEveryPaneRenders`
+    /// cannot see: a pane whose cards disagree on width renders perfectly
+    /// happily and passes every assertion in this file, which is how the Stream
+    /// Deck pane shipped with a narrow "Setting it up" card. Short of a snapshot
+    /// suite this repo does not have, the fix for that class of bug is a person
+    /// looking, so this test exists to leave something behind to look at, in CI
+    /// and locally:
+    ///
+    ///     make test-ui
+    ///     xcrun xcresulttool export attachments \
+    ///       --path DerivedData/Tests/Logs/Test/<newest>.xcresult \
+    ///       --output-path /tmp/panes
+    ///
+    /// The exported files are named by UUID; `manifest.json` beside them maps
+    /// each one back to its pane.
+    ///
+    /// Writing the PNGs straight to a path instead would not work: the runner is
+    /// sandboxed into its own container, so anywhere a reader would think to
+    /// look is `Operation not permitted`. Attachments are the way out.
+    func testCapturesEveryPane() {
+        let window = openSettings()
+
+        for section in Self.sections {
+            select(section)
+            let shot = XCTAttachment(screenshot: window.screenshot())
+            shot.name = "Settings - \(section)"
+            // Without this, XCTest deletes the attachment on a passing test,
+            // and this test always passes.
+            shot.lifetime = .keepAlways
+            add(shot)
+        }
+    }
+
     /// Walks the panes twice. Several panes start observers or timers on appear,
     /// and a teardown that under-releases only shows up on the second visit.
     func testPanesSurviveRepeatedVisits() {
