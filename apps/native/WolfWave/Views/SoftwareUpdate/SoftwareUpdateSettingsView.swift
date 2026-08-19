@@ -83,11 +83,13 @@ struct SoftwareUpdateSettingsView: View {
 
     /// Header chip color matching `statusText`.
     private var statusColor: Color {
-        if isHomebrewInstall { return .gray }
-        if isCheckingForUpdates { return .orange }
+        if isHomebrewInstall { return DSColor.neutral }
+        if isCheckingForUpdates { return DSColor.warning }
+        // Stays .accentColor: an available update is the one state that should
+        // follow the user's system accent rather than a fixed brand blue.
         if updateAvailable { return .accentColor }
-        if latestVersion != nil { return .green }
-        return updateCheckEnabled ? .green : .gray
+        if latestVersion != nil { return DSColor.success }
+        return updateCheckEnabled ? DSColor.success : DSColor.neutral
     }
 
     // MARK: - Body

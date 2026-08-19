@@ -12,7 +12,7 @@ SectionHeaderWithStatus(
     subtitle: "Show your music on your Discord profile.",
     prominence: .pane,        // default: H1 pane title (22 bold)
     statusText: "Connected",
-    statusColor: .green
+    statusColor: DSColor.success
 )
 ```
 
@@ -22,7 +22,7 @@ SectionHeaderWithStatus(
 | `subtitle` | `String` | One-sentence purpose. Rendered via `.fieldSubtitle()` (13 secondary). Wraps vertically. |
 | `prominence` | `Prominence` | `.pane` (default) for the H1 at the top of a pane; `.section` for an H2 sub-section inside a pane (e.g. Discord "Preview"). Keeps a clear 22 → 17 step instead of two near-identical headings. |
 | `statusText` | `String?` | Drives the trailing chip. Nil → no chip rendered. |
-| `statusColor` | `Color?` | Required when `statusText` is non-nil. Use semantic tokens. |
+| `statusColor` | `Color?` | Required when `statusText` is non-nil. Use a semantic token (`DSColor.success` / `.warning` / `.error` / `.info` / `.neutral`), never a raw system color. See the state tint vocabulary in [status-chip.md](status-chip.md). |
 | `statusSymbol` | `String?` | Optional leading SF Symbol for the chip, passed straight through to `StatusChip(systemImage:)` so state isn't conveyed by color alone. Use a `StatusChip.StateGlyph.*` value. Applies to the **chip**, not the header title (headers stay text-only; see Do / Don't). |
 
 ## Tokens used

@@ -75,8 +75,12 @@ final class CalloutBannerTests: XCTestCase {
             CalloutBanner.Style.info.tint,
             CalloutBanner.Style.success.tint,
             CalloutBanner.Style.warning.tint,
-            CalloutBanner.Style.error.tint
+            CalloutBanner.Style.error.tint,
+            CalloutBanner.Style.neutral.tint
         ]
-        XCTAssertEqual(tints, [DSColor.info, DSColor.success, DSColor.warning, DSColor.error])
+        XCTAssertEqual(
+            tints,
+            [DSColor.info, DSColor.success, DSColor.warning, DSColor.error, DSColor.neutral]
+        )
     }
 }

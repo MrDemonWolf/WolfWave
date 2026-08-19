@@ -137,8 +137,11 @@ struct DiscordPreviewCard: View {
 
     private var dotColor: Color {
         switch mode {
-        case .playing:        return .green
-        case .paused:         return .orange
+        case .playing:        return DSColor.success
+        case .paused:         return DSColor.warning
+        // Not DSColor.neutral: this dot sits on the fixed Discord surface
+        // (`partnerDiscordSurface`), not an adaptive one, where the neutral gray
+        // is mud-on-mud at 1.9:1. A white wash is the legible off state there.
         case .stopped,
              .musicClosed,
              .discordOffline,

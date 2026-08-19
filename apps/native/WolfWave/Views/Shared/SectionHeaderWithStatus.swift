@@ -20,7 +20,7 @@ import SwiftUI
 ///     title: "Discord Status",
 ///     subtitle: "Show your music on your Discord profile.",
 ///     statusText: "Connected",
-///     statusColor: .green
+///     statusColor: DSColor.success
 /// )
 /// ```
 struct SectionHeaderWithStatus: View {
@@ -90,7 +90,7 @@ struct SectionHeaderWithStatus: View {
         title: "Discord Status",
         subtitle: "Show your music on your Discord profile.",
         statusText: "Connected",
-        statusColor: .green
+        statusColor: DSColor.success
     )
     .padding()
     .frame(width: 480)

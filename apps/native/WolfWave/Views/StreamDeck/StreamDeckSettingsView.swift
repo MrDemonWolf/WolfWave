@@ -45,9 +45,9 @@ struct StreamDeckSettingsView: View {
             SectionHeaderWithStatus(
                 title: "Stream Deck",
                 subtitle: "Run WolfWave from a Stream Deck key.",
-                statusText: statusText,
-                statusColor: statusColor,
-                statusSymbol: statusSymbol
+                statusText: status.text,
+                statusColor: status.color,
+                statusSymbol: status.symbol
             )
 
             controlCard
@@ -71,19 +71,13 @@ struct StreamDeckSettingsView: View {
 
     /// Reports the first thing standing between the user and a working key, so
     /// the chip is never a bare "Off" that leaves them hunting for which switch.
-    private var statusText: String {
-        if !websocketEnabled { return "Server off" }
-        return controlEnabled ? "Ready" : "Commands off"
-    }
-
-    private var statusColor: Color {
-        if !websocketEnabled { return .gray }
-        return controlEnabled ? .green : .orange
-    }
-
-    private var statusSymbol: String {
-        if !websocketEnabled { return StatusChip.StateGlyph.off }
-        return controlEnabled ? StatusChip.StateGlyph.on : StatusChip.StateGlyph.starting
+    /// Resolution lives in ``StreamDeckPaneStatus`` so the precedence rule is
+    /// testable without the view.
+    private var status: StreamDeckPaneStatus.Resolved {
+        StreamDeckPaneStatus.resolve(
+            controlEnabled: controlEnabled,
+            serverEnabled: websocketEnabled
+        )
     }
 
     // MARK: - Control Card
@@ -128,10 +122,12 @@ struct StreamDeckSettingsView: View {
                         .controlSize(.small)
                         .accessibilityIdentifier("streamDeckOpenStreamWidgetsButton")
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, cardPadding)
                 .padding(.bottom, DSSpace.s4)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyleUnpadded()
     }
 
@@ -143,15 +139,14 @@ struct StreamDeckSettingsView: View {
                 CardEyebrowHeader("Control token", systemImage: "key.fill")
                 Text("Paste this into the plugin's settings in the Stream Deck app. Treat it like a password: anything holding it can drive WolfWave from this Mac.")
                     .fieldSubtitle()
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, cardPadding)
             .padding(.top, DSSpace.s4)
-            .padding(.bottom, DSSpace.s3)
 
-            Divider().padding(.leading, cardPadding)
-
+            // No divider: the eyebrow above is this card's only header, and the
+            // row below carries its own field label. A rule between them read as
+            // two separate headed sections stacked in one card.
             WebSocketTokenEditorRow(
                 role: .control,
                 title: "Stream Deck Control Token",
@@ -161,6 +156,7 @@ struct StreamDeckSettingsView: View {
                 otherToken: currentOverlayToken
             )
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyleUnpadded()
     }
 
@@ -176,11 +172,16 @@ struct StreamDeckSettingsView: View {
                         Text(verbatim: "\(index + 1).")
                             .font(.system(size: DSFont.Size.sm, weight: .semibold))
                             .foregroundStyle(.secondary)
-                            .frame(width: DSSpace.s5, alignment: .trailing)
+                            .frame(
+                                width: DSDimension.Settings.stepNumberGutter,
+                                alignment: .trailing
+                            )
                         Text(step)
                             .fieldSubtitle()
-                            .fixedSize(horizontal: false, vertical: true)
                     }
+                    // Combined so VoiceOver announces "1. Build the plugin…" as
+                    // one item instead of reading the numeral on its own.
+                    .accessibilityElement(children: .combine)
                 }
             }
 
@@ -196,16 +197,22 @@ struct StreamDeckSettingsView: View {
                 accessibilityIdentifier: "streamDeckDocsButton"
             )
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(cardPadding)
         .cardStyleUnpadded()
     }
 
     /// Kept as plain data so the copy is reviewable in one place rather than
     /// scattered through the view builder.
+    ///
+    /// Step 1 says "build it" rather than naming the Elgato Marketplace: the
+    /// plugin is not listed there yet, and this pane was the only place in the
+    /// product claiming otherwise. Step 4 names the port alone because the
+    /// plugin pins the host to loopback and exposes no field for it.
     private static let setupSteps = [
-        "Install the WolfWave plugin from the Elgato Marketplace, or build it from the repo.",
+        "Build the plugin from the repo and double-click it to install. The guide below has the commands.",
         "Drag a WolfWave key onto a page in the Stream Deck app.",
         "Open the key's settings and paste the control token above.",
-        "Leave the host and port alone unless you changed the port in Stream Widgets."
+        "Leave the port alone unless you changed it in Stream Widgets."
     ]
 }
