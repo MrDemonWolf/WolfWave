@@ -19,6 +19,8 @@
  *  - Animation literal durations (.easeInOut(duration: N), .spring(response: N),
  *    .easeOut(duration: N), .easeIn(duration: N), .linear(duration: N))
  *                               → use DSMotion.Duration.* tokens
+ *  - Raw system colors in a `color:` / `statusColor:` argument
+ *                               → use DSColor.success/.warning/.error/.info/.neutral
  */
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -35,7 +37,7 @@ interface Violation {
   excerpt: string;
 }
 
-const RULES: Array<{ name: string; pattern: RegExp; appliesToOnboarding: boolean }> = [
+export const RULES: Array<{ name: string; pattern: RegExp; appliesToOnboarding: boolean }> = [
   {
     name: "raw-font-size",
     pattern: /\bfont\(\.system\(size:\s*\d+/,
@@ -60,6 +62,29 @@ const RULES: Array<{ name: string; pattern: RegExp; appliesToOnboarding: boolean
     // Onboarding is opted in; its visual rhythm differs but motion tokens unify.
     pattern:
       /\.(easeInOut|easeIn|easeOut|linear|spring|interpolatingSpring|interactiveSpring)\([^)]*\b(duration|response):\s*\d+\.?\d*/,
+    appliesToOnboarding: true,
+  },
+  {
+    name: "raw-status-color",
+    // A `StatusChip` / `SectionHeaderWithStatus` state tint must come from a
+    // token, so an "Off" pill renders the same wash in every pane. The gap that
+    // made this necessary: DSColor had no neutral until 2026-08, so 13 sites
+    // passed raw `.gray` / `Color.secondary`. `Color.secondary` is the worst of
+    // them, being translucent: the chip's own `color.opacity(0.1)` background
+    // then lands near-invisible beside opaque siblings.
+    //
+    // Scoped to the `color:` / `statusColor:` argument labels rather than to
+    // bare colors, because `.foregroundStyle(.secondary)` on body text is
+    // correct and must not be flagged. `[^,)]*` reaches across a ternary
+    // (`statusColor: on ? .green : .gray`) while stopping at the next argument.
+    //
+    // Not in the banned set, on purpose: `.black` / `.white` (shadows, and the
+    // Discord preview's off dot on its fixed brand surface, where DSColor.neutral
+    // reads at 1.9:1), `.purple` (a non-status category tag on the dot-fallback
+    // form), and `.accentColor` (Software Update's "update available", which
+    // should follow the user's system accent).
+    pattern:
+      /\b(?:color|statusColor):[^,)]*(?<![A-Za-z0-9_])(?:Color)?\.(green|orange|red|yellow|blue|gray|grey|secondary|mint|teal|cyan|indigo|pink|brown)\b/,
     appliesToOnboarding: true,
   },
 ];
@@ -121,19 +146,30 @@ function scan(): Violation[] {
   return violations;
 }
 
-const violations = scan();
-if (violations.length === 0) {
-  console.log("✓ design-system lint: clean");
-  process.exit(0);
+/// Runs the scan and reports. Split out of the module body so `lint.test.ts`
+/// can import `RULES` without the import itself linting and calling
+/// `process.exit`.
+function runLint(): never {
+  const violations = scan();
+  if (violations.length === 0) {
+    console.log("✓ design-system lint: clean");
+    process.exit(0);
+  }
+
+  console.error(`✘ design-system lint: ${violations.length} violation(s)`);
+  console.error("");
+  for (const v of violations) {
+    console.error(`  ${v.file}:${v.line}  [${v.rule}]  ${v.excerpt}`);
+  }
+  console.error("");
+  console.error(
+    "Fix: replace literals with DSFont.Size.* / DSSpace.* / DSMotion.Duration.* / DSColor.* tokens."
+  );
+  console.error("See: design-system/components/README.md");
+  console.error("Allowlist exceptions: design-system/lint-allowlist.txt");
+  process.exit(1);
 }
 
-console.error(`✘ design-system lint: ${violations.length} violation(s)`);
-console.error("");
-for (const v of violations) {
-  console.error(`  ${v.file}:${v.line}  [${v.rule}]  ${v.excerpt}`);
+if (import.meta.main) {
+  runLint();
 }
-console.error("");
-console.error("Fix: replace literals with DSFont.Size.* / DSSpace.* / DSMotion.Duration.* tokens.");
-console.error("See: design-system/components/README.md");
-console.error("Allowlist exceptions: design-system/lint-allowlist.txt");
-process.exit(1);
