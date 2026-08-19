@@ -13,6 +13,7 @@ import {
 } from "@elgato/streamdeck";
 import { artworkDataURI } from "../artwork.js";
 import {
+  REPEAT_SEPARATOR,
   STEP_MS,
   offsetAt,
   overflows,
@@ -311,21 +312,34 @@ export class NowPlayingAction extends WolfWaveKeyAction {
       return;
     }
     // Two copies end to end, so scrolling past the tail runs into the head
-    // rather than snapping back. Which characters are visible is worked out
-    // here, not by the renderer -- QtSvg has no clipPath.
-    const doubled = `${label}   ${label}`;
+    // rather than snapping back. The separator is shared with `offsetAt`'s wrap
+    // calculation; two notions of the gap drift and the wrap visibly jumps.
+    // Which characters are visible is worked out here, not by the renderer --
+    // QtSvg has no clipPath.
+    const doubled = `${label}${REPEAT_SEPARATOR}${label}`;
     let step = 0;
-    const paint = () => {
+    // One send at a time. `setInterval` does not wait, so a slow write would
+    // otherwise overlap the next tick and queue frames faster than they drain.
+    let inFlight = false;
+    const paint = (): void => {
+      if (inFlight) return;
       const slice = visibleSlice(
         doubled,
         offsetAt(step, label, MARQUEE_FONT_SIZE),
         MARQUEE_FONT_SIZE,
         KEY_SIZE,
       );
-      void key.setImage(
-        nowPlayingImage({ art, label: slice.text, offset: slice.x }),
-      );
       step += 1;
+      inFlight = true;
+      key
+        .setImage(nowPlayingImage({ art, label: slice.text, offset: slice.x }))
+        .catch(() => {
+          // A dropped frame is nothing; an unhandled rejection takes the whole
+          // plugin process down, and the key freezes on its last art.
+        })
+        .finally(() => {
+          inFlight = false;
+        });
     };
     paint();
     this.scrollers.set(key.id, setInterval(paint, STEP_MS));

@@ -211,7 +211,7 @@ export function nowPlayingImage(options: {
   // is indistinguishable from the plugin not running. Clipping the marquee is
   // therefore done in JS (`visibleSlice`) rather than asked of the renderer.
   const background = art
-    ? `<image xlink:href="${art}" x="0" y="0" width="${size}" height="${size}"/>`
+    ? `<image xlink:href="${escapeText(art)}" x="0" y="0" width="${size}" height="${size}"/>`
     : field("#101014") + place(note(Palette.white, 1.1), 30, 22);
 
   return [

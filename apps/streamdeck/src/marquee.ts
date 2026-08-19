@@ -22,8 +22,15 @@
 export const STEP_MS = 250;
 /** How far it advances each step, in the 72-unit key space. */
 export const STEP_PX = 4;
-/** Blank space between the end of the text and its repeat. */
-const GAP = 18;
+/**
+ * Sits between the end of the text and its repeat.
+ *
+ * Exported because the caller builds the doubled string and this module works
+ * out where it wraps. Two separate notions of the gap drift apart, and the
+ * symptom is a visible jump at the wrap: the offset rolls over before the
+ * second copy has reached the left edge.
+ */
+export const REPEAT_SEPARATOR = "   ";
 
 /**
  * Average glyph advance as a fraction of font size, for the sans-serif stack
@@ -57,14 +64,18 @@ export function overflows(text: string, fontSize: number, width: number): boolea
  * straight by the head with no visible jump.
  */
 export function offsetAt(step: number, text: string, fontSize: number): number {
-  const cycle = textWidth(text, fontSize) + GAP;
+  const cycle = cycleWidth(text, fontSize);
   if (cycle <= 0) return 0;
   return (step * STEP_PX) % cycle;
 }
 
-/** The distance between the two copies of the string. */
+/**
+ * The distance between the two copies of the string — the text plus exactly the
+ * separator the caller joins them with, so the wrap lands where the second copy
+ * actually starts.
+ */
 export function cycleWidth(text: string, fontSize: number): number {
-  return textWidth(text, fontSize) + GAP;
+  return textWidth(text + REPEAT_SEPARATOR, fontSize);
 }
 
 /**

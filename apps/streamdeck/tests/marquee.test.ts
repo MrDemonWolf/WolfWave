@@ -6,6 +6,7 @@
 
 import { describe, expect, test } from "bun:test";
 import {
+  REPEAT_SEPARATOR,
   STEP_PX,
   cycleWidth,
   offsetAt,
@@ -55,6 +56,14 @@ describe("offsetAt", () => {
 
   test("the cycle leaves a gap, so the tail is not flush against the head", () => {
     expect(cycleWidth(label, FONT)).toBeGreaterThan(textWidth(label, FONT));
+  });
+
+  test("the wrap matches the separator the caller actually joins with", () => {
+    // Two notions of the gap drift apart and the wrap visibly jumps: the offset
+    // rolls over before the second copy has reached the left edge.
+    expect(cycleWidth(label, FONT)).toBe(
+      textWidth(label + REPEAT_SEPARATOR, FONT),
+    );
   });
 });
 
