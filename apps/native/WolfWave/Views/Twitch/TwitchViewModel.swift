@@ -161,10 +161,10 @@ final class TwitchViewModel {
     /// Color appropriate for the integration state (UI should respect system semantic colors)
     var integrationColor: Color {
         switch integrationState {
-        case .connected: return .green
-        case .authorizing: return .orange
-        case .error: return .red
-        case .notConnected: return .secondary
+        case .connected: return DSColor.success
+        case .authorizing: return DSColor.warning
+        case .error: return DSColor.error
+        case .notConnected: return DSColor.neutral
         }
     }
 
@@ -406,12 +406,13 @@ final class TwitchViewModel {
 
     /// Status chip color based on current state
     var statusChipColor: Color {
-        if reauthNeeded { return .yellow }
-        if channelConnected { return .green }
-        // Use a blue tint when the app is signed in but not actively joined.
-        if credentialsSaved { return .blue }
-        // Not signed in: use a distinct, muted gray tint so it's visually different
-        return Color.gray.opacity(0.55)
+        if reauthNeeded { return DSColor.warning }
+        if channelConnected { return DSColor.success }
+        // Informational tint when the app is signed in but not actively joined.
+        if credentialsSaved { return DSColor.info }
+        // Not signed in. `StatusChip` already renders the tint at 10% for its
+        // background wash, so the token is used at full strength here.
+        return DSColor.neutral
     }
 
     // MARK: - Public Methods

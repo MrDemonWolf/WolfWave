@@ -8,7 +8,7 @@ export const tokens = {
   "$schema": "./tokens.schema.json",
   "meta": {
     "name": "WolfWave Design System",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Canonical design tokens for WolfWave. Source of truth; do not edit generated files."
   },
   "color": {
@@ -32,7 +32,8 @@ export const tokens = {
       "success": "#34C759",
       "warning": "#FF9F0A",
       "error": "#FF453A",
-      "info": "#0A84FF"
+      "info": "#0A84FF",
+      "neutral": "#8E8E93"
     },
     "surface": {
       "light": {
@@ -181,7 +182,8 @@ export const tokens = {
       "contentPaddingV": 22,
       "sectionSpacing": 24,
       "cardPadding": 16,
-      "cardCornerRadius": 14
+      "cardCornerRadius": 14,
+      "stepNumberGutter": 18
     },
     "onboarding": {
       "windowWidth": 680,

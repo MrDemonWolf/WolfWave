@@ -1232,7 +1232,7 @@ fileprivate struct SongRequestCommandsCard: View {
                     Spacer()
                     StatusChip(
                         text: songListURL.isEmpty ? "Needs setup" : "Ready",
-                        color: songListURL.isEmpty ? Color.secondary : .green,
+                        color: songListURL.isEmpty ? DSColor.neutral : DSColor.success,
                         systemImage: songListURL.isEmpty
                             ? StatusChip.StateGlyph.off
                             : StatusChip.StateGlyph.on

@@ -161,22 +161,22 @@ struct TwitchViewModelTests {
     func testIntegrationColor() async throws {
         let viewModel = TwitchViewModel()
         
-        // Not connected = secondary
-        #expect(viewModel.integrationColor == .secondary)
+        // Not connected = neutral
+        #expect(viewModel.integrationColor == DSColor.neutral)
         
-        // Authorizing = orange
+        // Authorizing = warning
         viewModel.authState = .requestingCode
-        #expect(viewModel.integrationColor == .orange)
+        #expect(viewModel.integrationColor == DSColor.warning)
         
-        // Connected = green
+        // Connected = success
         viewModel.authState = .idle
         viewModel.channelConnected = true
-        #expect(viewModel.integrationColor == .green)
+        #expect(viewModel.integrationColor == DSColor.success)
         
-        // Error = red
+        // Error = error
         viewModel.channelConnected = false
         viewModel.authState = .error("Test error")
-        #expect(viewModel.integrationColor == .red)
+        #expect(viewModel.integrationColor == DSColor.error)
     }
     
     // MARK: - Status Chip Tests
@@ -205,20 +205,20 @@ struct TwitchViewModelTests {
     func testStatusChipColor() async throws {
         let viewModel = TwitchViewModel()
         
-        // Not signed in = gray
-        #expect(viewModel.statusChipColor == Color.gray.opacity(0.55))
+        // Not signed in = neutral, at full strength (StatusChip washes it to 10%)
+        #expect(viewModel.statusChipColor == DSColor.neutral)
         
-        // Signed in = blue
+        // Signed in but not joined = info
         viewModel.credentialsSaved = true
-        #expect(viewModel.statusChipColor == .blue)
+        #expect(viewModel.statusChipColor == DSColor.info)
         
-        // Connected = green
+        // Connected = success
         viewModel.channelConnected = true
-        #expect(viewModel.statusChipColor == .green)
+        #expect(viewModel.statusChipColor == DSColor.success)
         
-        // Reauth needed = yellow (highest priority)
+        // Reauth needed = warning (highest priority)
         viewModel.reauthNeeded = true
-        #expect(viewModel.statusChipColor == .yellow)
+        #expect(viewModel.statusChipColor == DSColor.warning)
     }
     
     // MARK: - Channel Validation State Tests

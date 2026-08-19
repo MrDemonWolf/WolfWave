@@ -72,7 +72,7 @@
         },
         "semantic": {
           "type": "object",
-          "required": ["success", "warning", "error", "info"],
+          "required": ["success", "warning", "error", "info", "neutral"],
           "additionalProperties": { "$ref": "#/definitions/hex" }
         },
         "surface": {

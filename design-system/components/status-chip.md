@@ -8,7 +8,7 @@ Capsule-shaped status indicator (leading glyph + label) used in settings section
 ## API
 ```swift
 // Status chip: glyph + color carry the state together.
-StatusChip(text: "Connected", color: .green, systemImage: StatusChip.StateGlyph.on)
+StatusChip(text: "Connected", color: DSColor.success, systemImage: StatusChip.StateGlyph.on)
 
 // Category tag with no shared icon vocabulary: dot fallback.
 StatusChip(text: "Twitch", color: .purple)
@@ -21,7 +21,9 @@ StatusChip(text: "Twitch", color: .purple)
 | `systemImage` | `String?` | Optional leading SF Symbol. When set, replaces the colored dot so state reads through shape **and** color (WCAG 1.4.1). Use `StatusChip.StateGlyph.*` for the on / off / paused / error / starting vocabulary. `nil` (default) falls back to a colored dot. |
 
 ### StateGlyph vocabulary
-Shared SF Symbol names so connection state is consistent across panes:
+Shared SF Symbol names so connection state is consistent across panes. The enum is
+`nonisolated` (the module defaults to `MainActor`) so pure status resolvers such as
+`StreamDeckPaneStatus` can reference it from a unit-testable, non-view context.
 
 | Case | Symbol | Meaning |
 |---|---|---|
@@ -31,13 +33,32 @@ Shared SF Symbol names so connection state is consistent across panes:
 | `.error` | `exclamationmark.triangle.fill` | error state |
 | `.starting` | `ellipsis.circle` | transient starting / connecting |
 
+### State tint vocabulary
+Pair each glyph with its semantic token. Status chips take tokens, never raw system
+colors, so an "Off" pill renders the same wash everywhere:
+
+| State | Glyph | Tint |
+|---|---|---|
+| connected / live / on | `.on` | `DSColor.success` |
+| off / disconnected / stopped | `.off` | `DSColor.neutral` |
+| starting / connecting / degraded | `.starting` | `DSColor.warning` |
+| paused by system | `.paused` | `DSColor.warning` |
+| error | `.error` | `DSColor.error` |
+| signed in but not joined | `.off` | `DSColor.info` |
+
+`DSColor.neutral` (`#8E8E93`, Apple's `systemGray`) exists for the off state. It is the
+one system gray whose light and dark variants are identical, so a single flat token
+reads correctly in both. Do not fall back to `Color.secondary`: it is translucent, so
+the chip's own `color.opacity(0.1)` background lands near-invisible next to opaque
+sibling chips.
+
 ## Tokens used
 - `DSFont.Size.sm` (11) / `DSFont.Weight.semibold`
 - `DSSpace.s1h` (6) for the dot-to-label gap
 - `DSSpace.s3` (10) horizontal padding, `DSSpace.s2`-ish (5) vertical
 - `DSRadius.pill` (clipped to `Capsule`)
 - `DSMotion.Duration.base` (0.22): state-change animation, gated by `@Environment(\.accessibilityReduceMotion)`
-- Color: caller passes `DSColor.success` / `.warning` / `.error` / `.info` typically
+- Color: caller passes `DSColor.success` / `.warning` / `.error` / `.info` / `.neutral`. See the state tint vocabulary above.
 
 ## Motion
 
@@ -68,6 +89,8 @@ graph LR
 ## Do / Don't
 - ✅ Use one chip per status concern (e.g. one for Twitch connection, one for WebSocket).
 - ✅ Pass `systemImage` (a `StatusChip.StateGlyph.*` value) for any connection-state chip so color isn't the only cue.
+- ❌ **No raw system colors for state.** `.green` / `.orange` / `.gray` / `Color.secondary` as a `color:` argument is a bug; use the token from the state tint vocabulary. Raw colors are fine only for a non-status category tag (the dot-fallback form), e.g. `.purple` for a platform label.
+- ❌ Don't use `DSColor.neutral` on a fixed-color surface. On the Discord preview card (`partnerDiscordSurface`) it drops to 1.9:1; that card uses `Color.white.opacity(0.35)` on purpose.
 - ✅ Pair with `DSColor.success / warning / error / info`.
 - ❌ Don't put it inline with body copy; it's a section-level indicator.
 - ❌ Don't pass long strings; truncate or use a different component.

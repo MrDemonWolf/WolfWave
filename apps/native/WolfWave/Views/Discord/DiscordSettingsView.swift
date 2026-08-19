@@ -435,12 +435,12 @@ struct DiscordSettingsView: View {
 
     private var previewStatusColor: Color {
         switch previewMode {
-        case .playing:        return .green
-        case .paused:         return .orange
+        case .playing:        return DSColor.success
+        case .paused:         return DSColor.warning
         case .stopped,
              .musicClosed,
              .idleActivity,
-             .discordOffline: return .secondary
+             .discordOffline: return DSColor.neutral
         }
     }
 
@@ -513,9 +513,9 @@ struct DiscordSettingsView: View {
 
     private var statusChipColor: Color {
         switch connectionState {
-        case .connected:    return .green
-        case .connecting:   return .orange
-        case .disconnected: return .gray
+        case .connected:    return DSColor.success
+        case .connecting:   return DSColor.warning
+        case .disconnected: return DSColor.neutral
         }
     }
 

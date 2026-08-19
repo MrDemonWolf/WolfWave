@@ -74,7 +74,11 @@ extension StatusChip {
     /// Standard leading glyphs so connection state reads through shape as well
     /// as color (WCAG 1.4.1). Reused by the integration dashboard and any pane
     /// that shows an on / off / paused chip.
-    enum StateGlyph {
+    ///
+    /// `nonisolated` because this is a symbol-name vocabulary, not UI: the module
+    /// defaults to `MainActor`, which otherwise walls it off from the pure status
+    /// resolvers (``StreamDeckPaneStatus``) that exist to be unit-tested.
+    nonisolated enum StateGlyph {
         /// A connected / live / on state. Filled check.
         public static let on = "checkmark.circle.fill"
         /// An off / disconnected state. Hollow circle.
@@ -91,19 +95,19 @@ extension StatusChip {
 // MARK: - Previews
 
 #Preview("Live") {
-    StatusChip(text: "Live", color: .green, systemImage: StatusChip.StateGlyph.on)
+    StatusChip(text: "Live", color: DSColor.success, systemImage: StatusChip.StateGlyph.on)
         .padding()
         .frame(width: 360)
 }
 
 #Preview("Off") {
-    StatusChip(text: "Off", color: .gray, systemImage: StatusChip.StateGlyph.off)
+    StatusChip(text: "Off", color: DSColor.neutral, systemImage: StatusChip.StateGlyph.off)
         .padding()
         .frame(width: 360)
 }
 
 #Preview("Error") {
-    StatusChip(text: "Error", color: .red, systemImage: StatusChip.StateGlyph.error)
+    StatusChip(text: "Error", color: DSColor.error, systemImage: StatusChip.StateGlyph.error)
         .padding()
         .frame(width: 360)
 }

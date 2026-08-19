@@ -33,7 +33,7 @@ design-system/
 |---|---|---|
 | `color.brand.{50…900}` | Primary brand scale (Apple blue) | `brand500 = #0A84FF` |
 | `color.brandDark` | Brand overrides for dark mode | `brand600 = #409CFF` |
-| `color.semantic` | Status colors | `success`, `warning`, `error`, `info` |
+| `color.semantic` | Status colors | `success`, `warning`, `error`, `info`, `neutral` |
 | `color.surface.{light,dark}` | Backgrounds, elevation, dividers | `base`, `surface`, `elev`, `hairline` |
 | `color.text.{light,dark}` | Text hierarchy | `primary`, `secondary`, `muted` |
 | `color.partner` | Third-party brand colors | `twitch`, `discord`, `appleMusic*`, `obs*` |
