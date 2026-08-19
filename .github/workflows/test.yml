@@ -79,6 +79,7 @@ jobs:
             ds:
               - 'apps/native/WolfWave/Views/**'
               - 'design-system/scripts/lint.ts'
+              - 'design-system/scripts/lint.test.ts'
               - 'design-system/lint-allowlist.txt'
               - 'design-system/scripts/validate-tokens.ts'
               - 'design-system/tokens.json'
@@ -326,6 +327,12 @@ jobs:
       # ds:lint is dependency-free, but ds:schema needs ajv.
       - name: Install deps
         run: bun install --frozen-lockfile
+
+      # The lint rules are regexes over Swift source, so a rule that silently
+      # stops matching looks exactly like a clean tree. These pin the patterns
+      # against known-good and known-bad lines.
+      - name: Test design-system lint rules
+        run: bun run ds:test
 
       - name: Run design-system lint
         run: bun run ds:lint

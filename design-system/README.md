@@ -11,6 +11,7 @@ design-system/
   lint-allowlist.txt   # grandfathered literal spacing/font sites, ratchet-only
   scripts/generate.ts  # bun script that emits per-platform outputs
   scripts/lint.ts      # design-system lint (bun run ds:lint)
+  scripts/lint.test.ts # tests for the lint rules themselves (bun run ds:test)
   README.md            # this file
   components/          # markdown catalog (one .md per shared component)
 ```
