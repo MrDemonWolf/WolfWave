@@ -25,6 +25,7 @@ in `MonthlyWrapView.swift`). They are grouped by the directory they belong to.
 | AlbumArtView | [album-art-view.md](album-art-view.md) |
 | IntegrationDashboardView | [integration-dashboard-view.md](integration-dashboard-view.md) |
 | MusicPermissionBanner | [music-permission-banner.md](music-permission-banner.md) |
+| AsyncActionButton | [async-action-button.md](async-action-button.md) |
 | CopyButton | [copy-button.md](copy-button.md) |
 | CopyableURLRow | [copyable-url-row.md](copyable-url-row.md) |
 | OpenInBrowserButton | [open-in-browser-button.md](open-in-browser-button.md) |

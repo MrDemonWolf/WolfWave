@@ -156,15 +156,16 @@ struct DebugServiceControlsCard: View {
                 .font(.system(size: DSFont.Size.xs))
                 .foregroundStyle(.secondary)
 
-            Button {
-                Task { await runMusicAccessSelfTest() }
-            } label: {
-                Label("Run Music Access Self-Test", systemImage: "stethoscope")
-                    .frame(maxWidth: .infinity)
+            AsyncActionButton(
+                title: "Run Music Access Self-Test",
+                systemImage: "stethoscope",
+                size: .regular,
+                isDisabled: musicSelfTestRunning,
+                fillsWidth: true,
+                showsSuccess: false
+            ) {
+                await runMusicAccessSelfTest()
             }
-            .buttonStyle(.bordered)
-            .pointerCursor()
-            .disabled(musicSelfTestRunning)
 
             if !musicSelfTestReport.isEmpty {
                 Text(musicSelfTestReport)
@@ -221,28 +222,24 @@ struct DebugServiceControlsCard: View {
                 .font(.system(size: DSFont.Size.xs))
                 .foregroundStyle(.secondary)
             HStack {
-                Button {
-                    if let service = appDelegate?.twitchService {
-                        Task { await service.leaveChannel() }
-                    }
-                } label: {
-                    Label("Force Disconnect", systemImage: "wifi.slash")
-                        .frame(maxWidth: .infinity)
+                AsyncActionButton(
+                    title: "Force Disconnect",
+                    systemImage: "wifi.slash",
+                    size: .regular,
+                    fillsWidth: true
+                ) {
+                    await appDelegate?.twitchService?.leaveChannel()
                 }
-                .buttonStyle(.bordered)
-                .pointerCursor()
 
-                Button {
-                    if let service = appDelegate?.twitchService {
-                        Task { await service.sendMessage("WolfWave debug ping: \(Date())") }
-                    }
-                } label: {
-                    Label("Send Test Chat", systemImage: "paperplane")
-                        .frame(maxWidth: .infinity)
+                AsyncActionButton(
+                    title: "Send Test Chat",
+                    systemImage: "paperplane",
+                    size: .regular,
+                    isDisabled: !twitchConnected,
+                    fillsWidth: true
+                ) {
+                    await appDelegate?.twitchService?.sendMessage("WolfWave debug ping: \(Date())")
                 }
-                .buttonStyle(.bordered)
-                .pointerCursor()
-                .disabled(!twitchConnected)
             }
         }
     }
@@ -256,32 +253,27 @@ struct DebugServiceControlsCard: View {
                 .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.secondary)
             HStack {
-                Button {
-                    if let service = appDelegate?.discordService {
-                        Task { await service.clearPresence() }
-                    }
-                } label: {
-                    Label("Clear Presence", systemImage: "xmark.circle")
-                        .frame(maxWidth: .infinity)
+                AsyncActionButton(
+                    title: "Clear Presence",
+                    systemImage: "xmark.circle",
+                    size: .regular,
+                    fillsWidth: true
+                ) {
+                    await appDelegate?.discordService?.clearPresence()
                 }
-                .buttonStyle(.bordered)
-                .pointerCursor()
 
-                Button {
+                AsyncActionButton(
+                    title: "Force Reconnect",
+                    systemImage: "arrow.clockwise",
+                    size: .regular,
+                    fillsWidth: true
+                ) {
                     // Disable + re-enable cycle = full reconnect
-                    if let service = appDelegate?.discordService {
-                        Task {
-                            await service.setEnabled(false)
-                            try? await Task.sleep(for: .milliseconds(500))
-                            await service.setEnabled(true)
-                        }
-                    }
-                } label: {
-                    Label("Force Reconnect", systemImage: "arrow.clockwise")
-                        .frame(maxWidth: .infinity)
+                    guard let service = appDelegate?.discordService else { return }
+                    await service.setEnabled(false)
+                    try? await Task.sleep(for: .milliseconds(500))
+                    await service.setEnabled(true)
                 }
-                .buttonStyle(.bordered)
-                .pointerCursor()
             }
         }
     }
@@ -294,35 +286,29 @@ struct DebugServiceControlsCard: View {
             TextField("Track title", text: $wsTestTitle).textFieldStyle(.roundedBorder)
             TextField("Artist", text: $wsTestArtist).textFieldStyle(.roundedBorder)
             HStack {
-                Button {
-                    let server = appDelegate?.websocketServer
-                    let title = wsTestTitle
-                    let artist = wsTestArtist
-                    Task {
-                        await server?.updateNowPlaying(
-                            track: title,
-                            artist: artist,
-                            album: "Debug",
-                            duration: 180,
-                            elapsed: 0
-                        )
-                    }
-                } label: {
-                    Label("Broadcast Test", systemImage: "antenna.radiowaves.left.and.right")
-                        .frame(maxWidth: .infinity)
+                AsyncActionButton(
+                    title: "Broadcast Test",
+                    systemImage: "antenna.radiowaves.left.and.right",
+                    size: .regular,
+                    fillsWidth: true
+                ) {
+                    await appDelegate?.websocketServer?.updateNowPlaying(
+                        track: wsTestTitle,
+                        artist: wsTestArtist,
+                        album: "Debug",
+                        duration: 180,
+                        elapsed: 0
+                    )
                 }
-                .buttonStyle(.bordered)
-                .pointerCursor()
 
-                Button {
-                    let server = appDelegate?.websocketServer
-                    Task { await server?.clearNowPlaying() }
-                } label: {
-                    Label("Clear", systemImage: "xmark")
-                        .frame(maxWidth: .infinity)
+                AsyncActionButton(
+                    title: "Clear",
+                    systemImage: "xmark",
+                    size: .regular,
+                    fillsWidth: true
+                ) {
+                    await appDelegate?.websocketServer?.clearNowPlaying()
                 }
-                .buttonStyle(.bordered)
-                .pointerCursor()
             }
         }
     }
@@ -387,31 +373,29 @@ struct DebugServiceControlsCard: View {
                 .buttonStyle(.bordered)
                 .pointerCursor()
 
-                Button {
-                    Task {
-                        _ = await appDelegate?.songRequestService?.clearQueue()
-                    }
-                } label: {
-                    Label("Clear Queue", systemImage: "trash")
-                        .frame(maxWidth: .infinity)
+                AsyncActionButton(
+                    title: "Clear Queue",
+                    systemImage: "trash",
+                    size: .regular,
+                    fillsWidth: true
+                ) {
+                    _ = await appDelegate?.songRequestService?.clearQueue()
                 }
-                .buttonStyle(.bordered)
-                .pointerCursor()
             }
 
-            Button {
+            AsyncActionButton(
+                title: "Toggle Hold Mode",
+                systemImage: "pause.circle",
+                size: .regular,
+                fillsWidth: true
+            ) {
                 let current = FeatureFlags.songRequestHoldEnabled
                 // `setHold` already writes `songRequestHoldEnabled` and posts
                 // `.songRequestHoldChanged`. Writing it again here fired a second
                 // `didChangeNotification`, which cost DebugInspectorsCard another
                 // six Keychain reads for nothing.
-                Task { await appDelegate?.songRequestService?.setHold(!current) }
-            } label: {
-                Label("Toggle Hold Mode", systemImage: "pause.circle")
-                    .frame(maxWidth: .infinity)
+                await appDelegate?.songRequestService?.setHold(!current)
             }
-            .buttonStyle(.bordered)
-            .pointerCursor()
         }
     }
 

@@ -194,15 +194,17 @@ struct SongRequestQueueView: View {
 
                     Spacer()
 
-                    Button {
-                        Task { _ = await service?.approve(id: item.id); refreshState() }
-                    } label: {
-                        Label("Approve", systemImage: "checkmark")
-                            .font(.system(size: DSFont.Size.sm))
+                    AsyncActionButton(
+                        title: "Approve",
+                        systemImage: "checkmark",
+                        tint: .green,
+                        labelSize: DSFont.Size.sm,
+                        showsSuccess: false,
+                        accessibilityIdentifier: "songRequestQueue.approve"
+                    ) {
+                        _ = await service?.approve(id: item.id)
+                        refreshState()
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .tint(.green)
                     .accessibilityLabel("Approve \(item.title)")
 
                     Button {
@@ -298,31 +300,29 @@ struct SongRequestQueueView: View {
 
     private var actionButtons: some View {
         HStack(spacing: DSSpace.s2) {
-            Button {
-                Task {
-                    _ = await service?.skip()
-                    refreshState()
-                }
-            } label: {
-                Label("Skip", systemImage: "forward.fill")
-                    .font(.system(size: DSFont.Size.sm))
+            AsyncActionButton(
+                title: "Skip",
+                systemImage: "forward.fill",
+                isDisabled: nowPlaying == nil,
+                labelSize: DSFont.Size.sm,
+                showsSuccess: false,
+                accessibilityIdentifier: "songRequestQueue.skip"
+            ) {
+                _ = await service?.skip()
+                refreshState()
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .disabled(nowPlaying == nil)
 
-            Button {
-                Task {
-                    await service?.setHold(!isHeld)
-                    refreshState()
-                }
-            } label: {
-                Label(isHeld ? "Resume" : "Hold", systemImage: isHeld ? "play.fill" : "pause.fill")
-                    .font(.system(size: DSFont.Size.sm))
+            AsyncActionButton(
+                title: isHeld ? "Resume" : "Hold",
+                systemImage: isHeld ? "play.fill" : "pause.fill",
+                tint: isHeld ? .green : .orange,
+                labelSize: DSFont.Size.sm,
+                showsSuccess: false,
+                accessibilityIdentifier: "songRequestQueue.hold"
+            ) {
+                await service?.setHold(!isHeld)
+                refreshState()
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .tint(isHeld ? .green : .orange)
 
             Button {
                 showingClearConfirm = true
