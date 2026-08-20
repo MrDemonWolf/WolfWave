@@ -157,6 +157,24 @@ final class SettingsUITests: WolfWaveUITestCase {
             line: line
         )
         row.click()
+
+        // The click is asynchronous. Waiting on the row proves only that the row
+        // exists, so without this every caller races the pane it just asked for:
+        // `testEveryPaneRenders` could assert against the outgoing pane, and
+        // `testCapturesEveryPane` could screenshot it. The detail pane carries an
+        // identifier naming whichever section is on screen, so waiting for the
+        // one we asked for is the navigation-finished signal.
+        //
+        // Queried across every element type on purpose: SwiftUI decides what
+        // kind of accessibility element the pane becomes, and it is not a
+        // `group`, so `app.groups[...]` finds nothing and times out.
+        let pane = app.descendants(matching: .any)["settings.pane.\(section)"]
+        XCTAssertTrue(
+            pane.waitForExistence(timeout: Self.timeout),
+            "Timed out waiting for the \(section) pane to come on screen",
+            file: file,
+            line: line
+        )
     }
 
     /// Asserts the app is still alive.
