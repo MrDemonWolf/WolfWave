@@ -54,6 +54,7 @@ jobs:
               - 'design-system/scripts/generate.ts'
               - '.github/FUNDING.yml'
               - 'scripts/generate-sponsor-config.sh'
+              - 'scripts/generate-app-icons.ts'
               - 'scripts/check-generated-drift.sh'
               # The script that decides whether the test run passed. Without
               # this, editing the gate skips the very job it gates.
