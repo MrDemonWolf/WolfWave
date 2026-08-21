@@ -155,6 +155,15 @@ struct SettingsView: View {
                 .toolbar(removing: .sidebarToggle)
         } detail: {
             detailPane
+            // Names the pane that is actually on screen, which is the only
+            // signal a UI test has that a sidebar click finished. The row click
+            // is asynchronous, so without this a test can only assert the row it
+            // clicked exists, and a screenshot taken right after would sometimes
+            // catch the previous pane. `.contain` is what makes the identifier
+            // resolve to a real accessibility element; an identifier on a bare
+            // container does not.
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("settings.pane.\(selectedSection.rawValue)")
             .scrollEdgeEffectStyle(.hard, for: .top)
             .transaction(value: selectedSection) { $0.disablesAnimations = true }
             .onChange(of: selectedSection) { _, newSection in
