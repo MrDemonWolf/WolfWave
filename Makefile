@@ -50,12 +50,13 @@ else
 UI_SIGN = CODE_SIGN_IDENTITY="$(LOCAL_SIGN_ID)" CODE_SIGN_STYLE=Manual
 endif
 
-.PHONY: help build clean test test-verbose test-ui test-ci check-drift lint lint-baseline lint-crash-safety lint-headers update-deps open-xcode ci prod-build prod-install notarize verify-notarize sponsor-config widget
+.PHONY: help build clean test test-verbose test-ui test-ci check-drift lint lint-baseline lint-crash-safety lint-headers update-deps open-xcode ci prod-build prod-install notarize verify-notarize sponsor-config widget icons
 
 help:
 	@echo "Available targets:"
 	@echo "  build          Debug build"
 	@echo "  widget         Rebuild the OBS overlay widget (apps/widget -> Resources/widget.html)"
+	@echo "  icons          Regenerate the Debug app icon (AppIcon.icon -> AppIcon-Dev.icon)"
 	@echo "  clean          Clean build artifacts"
 	@echo "  test           Run tests"
 	@echo "  lint           Run pinned SwiftLint in Docker"
@@ -71,7 +72,7 @@ help:
 	@echo "  test-verbose   Run tests with full output"
 	@echo "  test-ui        Run the XCUITest suite (launches the real app)"
 	@echo "  test-ci        Run tests exactly as CI does (no signing, result bundle)"
-	@echo "  check-drift    Regenerate widget/tokens/SponsorConfig and fail on drift"
+	@echo "  check-drift    Regenerate widget/tokens/SponsorConfig/app icon and fail on drift"
 	@echo "  ci             Run CI test suite"
 
 # ---------------------------------------------------------------------------
@@ -93,6 +94,12 @@ sponsor-config:
 # file under apps/widget/. The output is committed; CI fails on drift.
 widget:
 	bun run --filter widget build
+
+# Derive apps/native/WolfWave/Resources/AppIcon-Dev.icon from AppIcon.icon (same
+# blue mark, plus a DEV ribbon). Run this after editing the Release icon bundle.
+# The output is committed; CI fails on drift.
+icons:
+	@bun run icons
 
 clean:
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
@@ -154,8 +161,8 @@ test-ci: sponsor-config
 
 # Regenerate every committed generated artifact, then fail if any of them moved.
 # Mirrors the CI drift gate; run it before pushing a change to tokens.json,
-# apps/widget/, or FUNDING.yml.
-check-drift: sponsor-config
+# apps/widget/, FUNDING.yml, or AppIcon.icon.
+check-drift: sponsor-config icons
 	@bun turbo run build --filter=widget
 	@bash scripts/check-generated-drift.sh
 
