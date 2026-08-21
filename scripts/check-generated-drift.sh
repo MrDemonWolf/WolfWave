@@ -41,6 +41,9 @@ check 'bun run tokens' \
 check 'make sponsor-config' \
   apps/native/WolfWave/Core/SponsorConfig.generated.swift
 
+check 'make icons' \
+  apps/native/WolfWave/Resources/AppIcon-Dev.icon
+
 if [ "$failed" -eq 0 ]; then
   echo "✅ Generated artifacts are in sync with their sources."
 fi

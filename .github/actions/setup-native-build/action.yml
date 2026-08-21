@@ -59,6 +59,12 @@ runs:
       shell: bash
       run: bash scripts/generate-sponsor-config.sh
 
+    # Derives AppIcon-Dev.icon from AppIcon.icon. Pure JSON/SVG assembly, so the
+    # output is byte-identical on macOS and Linux and the drift gate is stable.
+    - name: Regenerate the Debug app icon
+      shell: bash
+      run: bun run icons
+
     - name: Cache SwiftPM packages
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:

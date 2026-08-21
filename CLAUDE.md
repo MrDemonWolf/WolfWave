@@ -93,7 +93,8 @@ make update-deps    # Resolve SwiftPM dependencies
 make open-xcode     # Open Xcode project
 make ci             # CI-friendly build (alias for test-ci)
 make widget         # Rebuild the OBS widget into Resources/widget.html
-make check-drift    # Regenerate widget/tokens/SponsorConfig and fail on drift (mirrors CI)
+make icons          # Regenerate the Debug app icon (AppIcon.icon -> AppIcon-Dev.icon)
+make check-drift    # Regenerate widget/tokens/SponsorConfig/app icon and fail on drift (mirrors CI)
 make sponsor-config # Regenerate SponsorConfig.generated.swift from FUNDING.yml
 make prod-build     # Release build → DMG in builds/
 make prod-install   # Release build → install to /Applications
@@ -115,12 +116,21 @@ Xcode project is at `apps/native/WolfWave.xcodeproj` with scheme `WolfWave`. Bui
 
 Debug and Release also ship **different app icons**, so the two are distinguishable in the Dock, the app switcher, and Spotlight when both are installed. Both are Icon Composer bundles under `WolfWave/Resources/`:
 
-| Config | `ASSETCATALOG_COMPILER_APPICON_NAME` | Bundle | Background |
+| Config | `ASSETCATALOG_COMPILER_APPICON_NAME` | Bundle | Artwork |
 |---|---|---|---|
-| Debug | `AppIcon-Dev` | `AppIcon-Dev.icon` | `#FF9F0A` (the `semantic.warning` token) |
+| Debug | `AppIcon-Dev` | `AppIcon-Dev.icon` | brand blue + a bottom-centre `DEV` badge |
 | Release | `AppIcon` | `AppIcon.icon` | brand blue |
 
-The two bundles share the same `Assets/logo.svg` wolf mark and differ only in `icon.json`: the Dev variant swaps the background fill and pins the glyph to white in both light and dark, since the dark-mode brand blue would clash on orange. **When the mark changes, update both `Assets/logo.svg` copies.** `Resources/` is a `PBXFileSystemSynchronizedRootGroup`, so a new `.icon` bundle is picked up without editing the project file.
+The icon is **always the blue WolfWave icon**; the only thing Debug adds is the badge. `AppIcon.icon` is the hand-authored source of truth, and **`AppIcon-Dev.icon` is a generated artifact** derived from it by [`scripts/generate-app-icons.ts`](scripts/generate-app-icons.ts): same background fill, the same `logo` layer (light/dark `fill-specializations`, scale, group shadow and translucency all carried through verbatim), plus an `iconwolf-development-badge.svg` layer in its own group.
+
+The badge follows the [iconwolf](https://github.com/mrdemonwolf/iconwolf) development-badge convention already shipping in ConPaws (`apps/native/assets/images/ConPaws-development.icon`): a fixed bottom-centre pill at `304,724,416x176,rx44`, lettering drawn as a grid of 16pt squares from a 5x7 pixel font. Two rules that are easy to undo by accident:
+
+- **The lettering is rectangles, not SVG `<text>`.** A text node depends on a font being installed and resolving identically wherever the icon is compiled; rectangles render the same everywhere. Adding a letter means adding a glyph to `GLYPHS`.
+- **The badge group is emitted first.** Icon Composer draws the first group on top, and the wolf fills the canvas, so a badge appended last renders behind the mark with the lettering struck through by the waveform leg.
+
+Generation is pure string assembly with no rasterisation, so the output is byte-identical on every host and CI can diff it.
+
+**Do not hand-edit `AppIcon-Dev.icon`.** When the mark changes, update `AppIcon.icon/Assets/logo.svg` and run `make icons`. `Resources/` is a `PBXFileSystemSynchronizedRootGroup`, so a new `.icon` bundle is picked up without editing the project file.
 
 All `make test*` targets use the ignored `DerivedData/Tests` directory. This keeps their unsigned test host from replacing the signed Debug app in Xcode's normal DerivedData. Test hosts also default `KeychainService` to process-local storage before any suite setup, so tests must never read, write, or prompt for the user's real dev Keychain.
 
@@ -399,7 +409,7 @@ scripts, so a green run locally means the same thing it means on a runner.
 |---|---|---|
 | `.github/actions/setup-native-build` | CI `test`, Release ×2, Nightly ×2 | Bun + caches, `bun install`, design tokens + widget build, `Config.xcconfig`, `SponsorConfig`, SwiftPM cache. Takes `twitch-client-id` / `discord-client-id` inputs (default `placeholder` for test builds). |
 | `make test-ci` | CI, Release, Nightly | The single `xcodebuild test` invocation. Do not inline a different one in a workflow. |
-| `scripts/check-generated-drift.sh` | CI `test`, `make check-drift` | Fails on drift in `widget.html`, the five generated token outputs, or `SponsorConfig.generated.swift`, naming the fix command per group. |
+| `scripts/check-generated-drift.sh` | CI `test`, `make check-drift` | Fails on drift in `widget.html`, the five generated token outputs, `SponsorConfig.generated.swift`, or `AppIcon-Dev.icon`, naming the fix command per group. |
 | `scripts/import-signing-cert.sh` | Release, Nightly | Developer ID `.p12` into a throwaway keychain. |
 | `scripts/codesign-app.sh` | Release, Nightly | Inside-out app signing (never `--deep`; see the comments in the script before touching it). |
 | `scripts/notarize-dmg.sh` | Release, Nightly, `make notarize` | Sign + notarize + staple, dumping the notary log on rejection. |
