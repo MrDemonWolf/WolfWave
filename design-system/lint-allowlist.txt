@@ -1,4 +1,4 @@
 # Design-system lint allowlist.
-# Legacy spacing literals. Migrate file-by-file in follow-up PRs.
+# Empty on purpose: the tree passes every rule. Fix the source instead of adding a line.
 # Format: path:line  # optional reason
 #

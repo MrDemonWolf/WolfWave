@@ -98,36 +98,59 @@ function generateSwift(): string {
     "",
     "/// Generated color tokens. Use these instead of hardcoded `Color(red:…)` literals.",
     "nonisolated enum DSColor {",
-    "    // MARK: Brand",
   ];
-  for (const [k, v] of Object.entries(tokens.color.brand)) {
-    lines.push(`    static let brand${k} = ${swiftColor(v as string)}`);
+
+  // Every ordered `all` / `groups` list below references the named `static let`
+  // emitted just above it (not a second literal), so the list cannot disagree
+  // with the constant. These lists exist for the Debug design-system gallery,
+  // which iterates them so it cannot drift from tokens.json.
+  const ORDERED_DOC =
+    "/// Every token above, in source order. Drives the Debug design-system gallery.";
+
+  const named = (obj: Record<string, unknown>, name: (k: string) => string) =>
+    Object.entries(obj).map(([k, v]) => ({ name: name(k), value: v }));
+  const colorGroups = [
+    { mark: "Brand", entries: named(tokens.color.brand, (k) => `brand${k}`) },
+    { mark: "Semantic", entries: named(tokens.color.semantic, (k) => k) },
+    { mark: "Surface (light)", entries: named(tokens.color.surface.light, (k) => `surface${cap(k)}Light`) },
+    { mark: "Surface (dark)", entries: named(tokens.color.surface.dark, (k) => `surface${cap(k)}Dark`) },
+    { mark: "Text (light)", entries: named(tokens.color.text.light, (k) => `text${cap(k)}Light`) },
+    { mark: "Text (dark)", entries: named(tokens.color.text.dark, (k) => `text${cap(k)}Dark`) },
+    { mark: "Partner", entries: named(tokens.color.partner, (k) => `partner${cap(k)}`) },
+  ];
+  colorGroups.forEach((g, i) => {
+    if (i > 0) lines.push("");
+    lines.push(`    // MARK: ${g.mark}`);
+    for (const e of g.entries) {
+      lines.push(`    static let ${e.name} = ${swiftColor(e.value as string)}`);
+    }
+  });
+  lines.push(
+    "",
+    `    ${ORDERED_DOC}`,
+    "    static let groups: [(name: String, tokens: [(name: String, hex: String, color: Color)])] = ["
+  );
+  for (const g of colorGroups) {
+    lines.push(`        (name: "${g.mark}", tokens: [`);
+    for (const e of g.entries) {
+      lines.push(
+        `            (name: "${e.name}", hex: "${String(e.value).toUpperCase()}", color: ${e.name}),`
+      );
+    }
+    lines.push("        ]),");
   }
-  lines.push("", "    // MARK: Semantic");
-  for (const [k, v] of Object.entries(tokens.color.semantic)) {
-    lines.push(`    static let ${k} = ${swiftColor(v as string)}`);
-  }
-  lines.push("", "    // MARK: Surface (light)");
-  for (const [k, v] of Object.entries(tokens.color.surface.light)) {
-    lines.push(`    static let surface${cap(k)}Light = ${swiftColor(v as string)}`);
-  }
-  lines.push("", "    // MARK: Surface (dark)");
-  for (const [k, v] of Object.entries(tokens.color.surface.dark)) {
-    lines.push(`    static let surface${cap(k)}Dark = ${swiftColor(v as string)}`);
-  }
-  lines.push("", "    // MARK: Text (light)");
-  for (const [k, v] of Object.entries(tokens.color.text.light)) {
-    lines.push(`    static let text${cap(k)}Light = ${swiftColor(v as string)}`);
-  }
-  lines.push("", "    // MARK: Text (dark)");
-  for (const [k, v] of Object.entries(tokens.color.text.dark)) {
-    lines.push(`    static let text${cap(k)}Dark = ${swiftColor(v as string)}`);
-  }
-  lines.push("", "    // MARK: Partner");
-  for (const [k, v] of Object.entries(tokens.color.partner)) {
-    lines.push(`    static let partner${cap(k)} = ${swiftColor(v as string)}`);
-  }
-  lines.push("}", "");
+  lines.push("    ]", "}", "");
+
+  /** Emit `static let all: [(name: String, value: T)]` referencing the named lets above. */
+  const orderedList = (indent: string, names: string[], valueType: string) => {
+    lines.push(
+      "",
+      `${indent}${ORDERED_DOC}`,
+      `${indent}static let all: [(name: String, value: ${valueType})] = [`
+    );
+    for (const n of names) lines.push(`${indent}    (name: "${n}", value: ${n}),`);
+    lines.push(`${indent}]`);
+  };
 
   lines.push(
     "/// Generated typography sizes. CGFloat literals match prior hand-coded sizes.",
@@ -137,6 +160,7 @@ function generateSwift(): string {
   for (const [k, v] of Object.entries(tokens.font.size)) {
     lines.push(`        static let ${safeIdent(k)}: CGFloat = ${v}`);
   }
+  orderedList("        ", Object.keys(tokens.font.size).map(safeIdent), "CGFloat");
   lines.push("    }", "");
   lines.push("    enum Weight {");
   const weightMap: Record<string, string> = {
@@ -148,18 +172,29 @@ function generateSwift(): string {
   for (const k of Object.keys(tokens.font.weight)) {
     lines.push(`        static let ${k}: Font.Weight = ${weightMap[k]}`);
   }
+  orderedList("        ", Object.keys(tokens.font.weight), "Font.Weight");
   lines.push("    }", "}", "");
 
   lines.push("/// Generated spacing scale.", "nonisolated enum DSSpace {");
   for (const [k, v] of Object.entries(tokens.space)) {
     lines.push(`    static let s${k}: CGFloat = ${v}`);
   }
+  // Sorted by value, not key: `Object.entries` puts integer-like keys first, so
+  // `s1h` (6) would otherwise trail `s11` (44) in a ramp that should read 2 → 44.
+  orderedList(
+    "    ",
+    Object.entries(tokens.space)
+      .sort(([, a], [, b]) => (a as number) - (b as number))
+      .map(([k]) => `s${k}`),
+    "CGFloat"
+  );
   lines.push("}", "");
 
   lines.push("/// Generated radius scale.", "nonisolated enum DSRadius {");
   for (const [k, v] of Object.entries(tokens.radius)) {
     lines.push(`    static let ${safeIdent(k)}: CGFloat = ${v}`);
   }
+  orderedList("    ", Object.keys(tokens.radius).map(safeIdent), "CGFloat");
   lines.push("}", "");
 
   lines.push(
@@ -170,52 +205,65 @@ function generateSwift(): string {
   for (const [k, v] of Object.entries(tokens.motion.duration)) {
     lines.push(`        static let ${k}: Double = ${(v as number) / 1000}`);
   }
+  orderedList("        ", Object.keys(tokens.motion.duration), "Double");
   lines.push("    }", "");
   lines.push("    /// Named spring presets. Use via `.spring(DSMotion.Spring.snappy)`.");
   lines.push("    enum Spring {");
-  for (const [k, v] of Object.entries(
+  const springs = Object.entries(
     (tokens.motion.spring ?? {}) as Record<string, { response: number; damping: number }>
-  )) {
+  );
+  for (const [k, v] of springs) {
     lines.push(
       `        static let ${k} = SwiftUI.Animation.spring(response: ${v.response}, dampingFraction: ${v.damping}, blendDuration: 0)`
     );
   }
-  lines.push("    }", "}", "");
+  lines.push(
+    "",
+    `        ${ORDERED_DOC}`,
+    "        static let all: [(name: String, response: Double, damping: Double, animation: SwiftUI.Animation)] = ["
+  );
+  for (const [k, v] of springs) {
+    lines.push(
+      `            (name: "${k}", response: ${v.response}, damping: ${v.damping}, animation: ${k}),`
+    );
+  }
+  lines.push("        ]", "    }", "}", "");
 
+  // Sub-enum names are hand-written, not derived from the JSON key, so existing
+  // `DSDimension.WhatsNew.*` call sites keep their casing.
+  const dimensionGroups: Array<[string, Record<string, number>]> = [
+    ["Settings", tokens.dimension.settings],
+    ["Onboarding", tokens.dimension.onboarding],
+    ["About", tokens.dimension.about],
+    ["WhatsNew", tokens.dimension.whatsNew],
+    ["IconButton", tokens.dimension.iconButton],
+    ["HistoryStats", tokens.dimension.historyStats],
+  ];
   lines.push(
     "/// Window and onboarding dimension tokens (preserves legacy AppConstants values).",
-    "nonisolated enum DSDimension {",
-    "    enum Settings {"
+    "nonisolated enum DSDimension {"
   );
-  for (const [k, v] of Object.entries(tokens.dimension.settings)) {
-    lines.push(`        static let ${k}: CGFloat = ${v}`);
+  dimensionGroups.forEach(([name, values], i) => {
+    if (i > 0) lines.push("");
+    lines.push(`    enum ${name} {`);
+    for (const [k, v] of Object.entries(values)) {
+      lines.push(`        static let ${k}: CGFloat = ${v}`);
+    }
+    lines.push("    }");
+  });
+  lines.push(
+    "",
+    `    ${ORDERED_DOC}`,
+    "    static let groups: [(name: String, tokens: [(name: String, value: CGFloat)])] = ["
+  );
+  for (const [name, values] of dimensionGroups) {
+    lines.push(`        (name: "${name}", tokens: [`);
+    for (const k of Object.keys(values)) {
+      lines.push(`            (name: "${k}", value: ${name}.${k}),`);
+    }
+    lines.push("        ]),");
   }
-  lines.push("    }", "");
-  lines.push("    enum Onboarding {");
-  for (const [k, v] of Object.entries(tokens.dimension.onboarding)) {
-    lines.push(`        static let ${k}: CGFloat = ${v}`);
-  }
-  lines.push("    }", "");
-  lines.push("    enum About {");
-  for (const [k, v] of Object.entries(tokens.dimension.about)) {
-    lines.push(`        static let ${k}: CGFloat = ${v}`);
-  }
-  lines.push("    }", "");
-  lines.push("    enum WhatsNew {");
-  for (const [k, v] of Object.entries(tokens.dimension.whatsNew)) {
-    lines.push(`        static let ${k}: CGFloat = ${v}`);
-  }
-  lines.push("    }", "");
-  lines.push("    enum IconButton {");
-  for (const [k, v] of Object.entries(tokens.dimension.iconButton)) {
-    lines.push(`        static let ${k}: CGFloat = ${v}`);
-  }
-  lines.push("    }", "");
-  lines.push("    enum HistoryStats {");
-  for (const [k, v] of Object.entries(tokens.dimension.historyStats)) {
-    lines.push(`        static let ${k}: CGFloat = ${v}`);
-  }
-  lines.push("    }", "}", "");
+  lines.push("    ]", "}", "");
 
   // ── Widget theme palettes (mirrors `widget.html` so the native Settings
   //    preview matches what overlays render). Color strings are parsed to
