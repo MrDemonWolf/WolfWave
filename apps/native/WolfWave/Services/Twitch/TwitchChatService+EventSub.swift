@@ -187,19 +187,33 @@ extension TwitchChatService {
         // its async result while the EventSub receive task remains free to read
         // keepalives and later notifications.
         Log.debug("TwitchChatService: dispatch enter text=\(text.prefix(40))", category: .twitchEvents)
-        let response = await commandDispatcher.processMessageAsync(
+        let reply = await commandDispatcher.processMessageReplyAsync(
             text,
             userID: userID,
             isModerator: isModerator,
             context: context)
-        Log.debug("TwitchChatService: dispatch exit response=\(response?.prefix(40) ?? "nil")", category: .twitchEvents)
+        Log.debug("TwitchChatService: dispatch exit response=\(reply?.text.prefix(40) ?? "nil")", category: .twitchEvents)
 
-        guard let response, !Task.isCancelled else { return }
-        await sendCommandReply(
-            response,
-            replyTo: messageID,
-            generation: generation,
-            broadcasterID: broadcasterID)
+        guard let reply, !Task.isCancelled else { return }
+        switch reply.delivery {
+        case .message:
+            await sendSessionBoundMessage(
+                reply.text,
+                replyTo: nil,
+                generation: generation,
+                broadcasterID: broadcasterID)
+        case .announce:
+            if await sendAnnouncement(reply.text, generation: generation, broadcasterID: broadcasterID) {
+                return
+            }
+            fallthrough
+        case .reply:
+            await sendCommandReply(
+                reply.text,
+                replyTo: messageID,
+                generation: generation,
+                broadcasterID: broadcasterID)
+        }
     }
 
     private func clearCommandTask(_ id: UUID) {

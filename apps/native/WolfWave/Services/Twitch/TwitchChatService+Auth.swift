@@ -181,6 +181,19 @@ extension TwitchChatService {
                !effectiveScopes.contains(AppConstants.Twitch.bitsScope) {
                 effectiveScopes.append(AppConstants.Twitch.bitsScope)
             }
+            // Announcements: only required once a custom command actually uses
+            // that delivery mode, so existing tokens keep working untouched.
+            if CustomCommandStore.storedCommandsUseAnnounce(defaults: defaults) {
+                if scopes.contains(AppConstants.Twitch.announcementsScope) {
+                    // A fresh grant clears a stale "reconnect to grant" banner.
+                    if defaults.string(forKey: AppConstants.UserDefaults.customCommandAnnounceStatus)
+                        == AnnounceStatus.scopeMissing.rawValue {
+                        Self.setAnnounceStatus(.ok)
+                    }
+                } else if !effectiveScopes.contains(AppConstants.Twitch.announcementsScope) {
+                    effectiveScopes.append(AppConstants.Twitch.announcementsScope)
+                }
+            }
             let missing = effectiveScopes.filter { !scopes.contains($0) }
             if !missing.isEmpty {
                 Log.warn(

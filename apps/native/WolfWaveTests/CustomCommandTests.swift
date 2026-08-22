@@ -306,4 +306,57 @@ struct CustomCommandStoreTests {
         )
         #expect(try JSONCoders.default.decode([CustomCommand].self, from: persisted) == migrated.commands)
     }
+
+    @Test("load decodes commands stored before delivery existed as reply")
+    func legacyStorageDefaultsDeliveryToReply() throws {
+        let (_, defaults) = makeStore()
+        let legacy = """
+        [{"id":"6B5C5D7A-0F3B-4E0B-9D62-0B8E0A6F1C01","trigger":"!hug","response":"hug","aliases":"",
+        "permission":"everyone","enabled":true,"globalCooldown":15,"userCooldown":15}]
+        """
+        defaults.set(Data(legacy.utf8), forKey: AppConstants.UserDefaults.customCommands)
+
+        let store = CustomCommandStore(defaults: defaults)
+        #expect(store.commands.count == 1)
+        #expect(store.commands[0].delivery == .reply)
+    }
+
+    @Test("storedCommandsUseAnnounce reads the persisted blob")
+    func storedCommandsUseAnnounce() {
+        let (store, defaults) = makeStore()
+        #expect(!CustomCommandStore.storedCommandsUseAnnounce(defaults: defaults))
+        store.add(CustomCommand(trigger: "hug", response: "hug"))
+        #expect(!CustomCommandStore.storedCommandsUseAnnounce(defaults: defaults))
+        store.add(CustomCommand(trigger: "hype", response: "HYPE", delivery: .announce))
+        #expect(CustomCommandStore.storedCommandsUseAnnounce(defaults: defaults))
+    }
+
+    @Test("delivery round-trips through storage")
+    func deliveryRoundTrips() throws {
+        let (store, defaults) = makeStore()
+        store.add(CustomCommand(trigger: "hype", response: "HYPE", delivery: .announce))
+        #expect(CustomCommandStore(defaults: defaults).commands[0].delivery == .announce)
+    }
+}
+
+@Suite("ReplyDelivery")
+struct ReplyDeliveryTests {
+    @Test("raw values are stable storage keys")
+    func rawValues() {
+        #expect(ReplyDelivery.reply.rawValue == "reply")
+        #expect(ReplyDelivery.message.rawValue == "message")
+        #expect(ReplyDelivery.announce.rawValue == "announce")
+        #expect(ReplyDelivery.allCases.count == 3)
+    }
+
+    @Test("every case has distinct label and help")
+    func labels() {
+        #expect(Set(ReplyDelivery.allCases.map(\.label)).count == 3)
+        #expect(Set(ReplyDelivery.allCases.map(\.help)).count == 3)
+    }
+
+    @Test("new commands default to reply")
+    func defaultDelivery() {
+        #expect(CustomCommand(trigger: "x").delivery == .reply)
+    }
 }

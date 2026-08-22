@@ -8,6 +8,14 @@
 
 import Foundation
 
+// MARK: - CommandReply
+
+/// A command's rendered response plus how it should reach chat.
+nonisolated struct CommandReply: Sendable, Equatable {
+    let text: String
+    let delivery: ReplyDelivery
+}
+
 /// Routes chat messages to appropriate bot command handlers.
 ///
 /// The full built-in command suite is registered automatically at init (see
@@ -381,6 +389,17 @@ final class BotCommandDispatcher {
         isModerator: Bool = false,
         context: BotCommandContext?
     ) async -> String? {
+        await processMessageReplyAsync(message, userID: userID, isModerator: isModerator, context: context)?.text
+    }
+
+    /// Same as `processMessageAsync`, but also reports how the matched command
+    /// wants its response delivered (reply / plain message / announcement).
+    func processMessageReplyAsync(
+        _ message: String,
+        userID: String = "",
+        isModerator: Bool = false,
+        context: BotCommandContext?
+    ) async -> CommandReply? {
         guard !Task.isCancelled else { return nil }
         Log.debug("BotCommandDispatcher: processMessageAsync enter msg=\(message.prefix(40))", category: .twitchChat)
         let trimmedMessage = message.trimmingCharacters(in: .whitespaces)
@@ -464,7 +483,7 @@ final class BotCommandDispatcher {
                         Log.debug(
                             "BotCommandDispatcher: Async command \(trigger) completed (group: \(canonical))",
                             category: .twitchChat)
-                        return response
+                        return response.map { CommandReply(text: $0, delivery: command.delivery) }
                     }
 
                     let response: String?
@@ -490,7 +509,7 @@ final class BotCommandDispatcher {
                         Log.debug(
                             "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) executed, cooldown set: global=\(String(format: "%.1f", globalCD))s, per-user=\(String(format: "%.1f", userCD))s",
                             category: .twitchChat)
-                        return response
+                        return CommandReply(text: response, delivery: command.delivery)
                     }
                     break
                 }

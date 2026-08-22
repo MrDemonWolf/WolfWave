@@ -1752,6 +1752,56 @@ actor TwitchChatService {
             broadcasterID: broadcasterID)
     }
 
+    /// Posts a custom-command response as a Twitch announcement.
+    ///
+    /// Returns `false` when Twitch refuses (missing scope, account not a mod,
+    /// any other error) so the caller can fall back to a plain reply. Deliberately
+    /// not routed through `sendMessageOnce`: a 401 here means one missing scope,
+    /// not a dead session, so it must not trip the re-auth flag.
+    func sendAnnouncement(
+        _ message: String,
+        generation: UInt64,
+        broadcasterID: String
+    ) async -> Bool {
+        guard !Task.isCancelled,
+              commandReplyIsCurrent(generation: generation, broadcasterID: broadcasterID),
+              let botID, let token = oauthToken, let clientID else {
+            return false
+        }
+        let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return true }
+
+        let status: AnnounceStatus
+        do {
+            _ = try await sendAPIRequest(
+                method: "POST",
+                endpoint: "/chat/announcements?broadcaster_id=\(broadcasterID)&moderator_id=\(botID)",
+                body: ["message": trimmed.truncatedForChat()],
+                token: token,
+                clientID: clientID)
+            status = .ok
+        } catch ConnectionError.authenticationFailed {
+            status = .scopeMissing
+        } catch HelixRequestError.permanentHTTP(let code), HelixRequestError.retryableHTTP(let code) {
+            status = AnnounceStatus.from(statusCode: code)
+        } catch {
+            status = .failed
+        }
+        Self.setAnnounceStatus(status)
+        if status != .ok {
+            Log.warn(
+                "TwitchChatService: Announcement refused (\(status.rawValue)); falling back to a reply",
+                category: .twitchChat)
+        }
+        return status == .ok
+    }
+
+    /// Persists the outcome of the last announcement for the settings banner.
+    nonisolated static func setAnnounceStatus(_ status: AnnounceStatus) {
+        DefaultsStore.store.set(
+            status.rawValue, forKey: AppConstants.UserDefaults.customCommandAnnounceStatus)
+    }
+
     /// Sends and optionally queues a message only while one exact channel
     /// generation owns it. Used for both command replies and the delayed
     /// connection greeting so neither can leak into a replacement channel.

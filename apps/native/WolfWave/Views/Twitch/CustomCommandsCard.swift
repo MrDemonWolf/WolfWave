@@ -37,6 +37,15 @@ struct CustomCommandsCard: View {
     /// `true` when `editing` is a brand-new command (Save appends) vs an edit.
     @State private var isNewCommand = false
 
+    /// Outcome of the last announcement send; non-`ok` shows a banner.
+    @AppStorage(AppConstants.UserDefaults.customCommandAnnounceStatus)
+    private var announceStatusRaw = AnnounceStatus.ok.rawValue
+
+    private var announceBanner: String? {
+        guard store.commands.contains(where: { $0.delivery == .announce }) else { return nil }
+        return AnnounceStatus(rawValue: announceStatusRaw)?.bannerMessage
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             SectionHeaderWithStatus(
@@ -51,6 +60,11 @@ struct CustomCommandsCard: View {
                 expiredMessage: expiredMessage,
                 disconnectedMessage: disconnectedMessage
             )
+
+            if let announceBanner {
+                CalloutBanner(announceBanner, title: "Announcements need setup", style: .warning)
+                    .accessibilityIdentifier("customCommandAnnounceBanner")
+            }
 
             Group {
                 if store.commands.isEmpty {
@@ -128,6 +142,9 @@ struct CustomCommandsCard: View {
 
             Spacer(minLength: DSSpace.s2)
 
+            if command.delivery != .reply {
+                StatusChip(text: command.delivery.label, color: DSColor.info)
+            }
             StatusChip(text: command.permission.label, color: .accentColor)
 
             Toggle("", isOn: enabledBinding(for: command))
@@ -243,6 +260,27 @@ private struct CustomCommandEditor: View {
                 .accessibilityIdentifier("customCommandPermission")
             }
 
+            VStack(alignment: .leading, spacing: DSSpace.s1) {
+                HStack(spacing: DSSpace.s2) {
+                    Text("How it's sent").sectionEyebrow()
+                    Spacer()
+                    Picker("Delivery", selection: $draft.delivery) {
+                        ForEach(ReplyDelivery.allCases) { delivery in
+                            Text(delivery.label).tag(delivery)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .controlSize(.small)
+                    .frame(maxWidth: AppConstants.SettingsUI.inlineFieldMaxWidth)
+                    .accessibilityIdentifier("customCommandDelivery")
+                }
+                Text(draft.delivery.help)
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             CommandAliasField(
                 aliases: $draft.aliases,
                 accessibilityIdentifier: "customCommandAliases"
@@ -285,7 +323,7 @@ private struct CustomCommandEditor: View {
             }
         }
         .padding(DSSpace.s7)
-        .frame(width: 460, height: 520)
+        .frame(width: 460, height: 580)
     }
 
     /// A short reference of the supported variables.

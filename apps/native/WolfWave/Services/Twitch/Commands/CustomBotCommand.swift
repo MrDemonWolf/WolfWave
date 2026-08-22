@@ -35,6 +35,7 @@ final class CustomBotCommand: AsyncBotCommand {
     // MARK: - BotCommand
 
     var triggers: [String] { [definition.normalizedTrigger] }
+    var delivery: ReplyDelivery { definition.delivery }
 
     var description: String { "Custom command \(definition.normalizedTrigger)" }
 
