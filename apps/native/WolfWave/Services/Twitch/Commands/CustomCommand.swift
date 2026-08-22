@@ -52,6 +52,85 @@ nonisolated enum CommandPermission: String, Codable, CaseIterable, Sendable, Ide
     }
 }
 
+// MARK: - ReplyDelivery
+
+/// How WolfWave sends a custom command's response to Twitch chat.
+nonisolated enum ReplyDelivery: String, Codable, CaseIterable, Sendable, Identifiable {
+    /// Threaded reply to the chatter's message. The default, and what every
+    /// command created before this setting existed keeps doing.
+    case reply
+    /// Plain chat message, not attached to the chatter's message.
+    case message
+    /// Twitch announcement (the highlighted `/announce` box). Needs the bot to
+    /// be a moderator and the `moderator:manage:announcements` scope. When
+    /// Twitch refuses, WolfWave falls back to a reply.
+    case announce
+
+    var id: String { rawValue }
+
+    /// Short label for the settings picker.
+    var label: String {
+        switch self {
+        case .reply: return "Reply to chatter"
+        case .message: return "Plain chat message"
+        case .announce: return "Announcement"
+        }
+    }
+
+    /// One-line description shown under the picker.
+    var help: String {
+        switch self {
+        case .reply: return "Threaded under the message that ran the command."
+        case .message: return "A normal bot message, not tied to anyone."
+        case .announce:
+            return "Highlighted announcement box. Bot must be a mod. Falls back to a reply if Twitch says no."
+        }
+    }
+}
+
+// MARK: - AnnounceStatus
+
+/// Result of the last announcement send, persisted under
+/// `AppConstants.UserDefaults.customCommandAnnounceStatus` so the Custom
+/// Commands card can explain why an announcement came through as a reply.
+nonisolated enum AnnounceStatus: String, Sendable {
+    /// Announcements work (or none has been tried yet).
+    case ok
+    /// Token lacks `moderator:manage:announcements`. Reconnect to grant it.
+    case scopeMissing
+    /// The signed-in account is not a moderator of the channel.
+    case notModerator
+    /// Twitch rejected the announcement for another reason.
+    case failed
+
+    /// Maps a Helix `/chat/announcements` HTTP status to a status.
+    static func from(statusCode: Int) -> AnnounceStatus {
+        switch statusCode {
+        case 200..<300: return .ok
+        case 401: return .scopeMissing
+        case 403: return .notModerator
+        default: return .failed
+        }
+    }
+
+    /// Banner text for the streamer, or `nil` when everything is fine.
+    var bannerMessage: String? {
+        switch self {
+        case .ok:
+            return nil
+        case .scopeMissing:
+            return "Announcements need a new Twitch permission. Reconnect Twitch to grant it. "
+                + "Until then those commands send a normal reply."
+        case .notModerator:
+            return "Announcements need the signed-in account to be a moderator. Type /mod <account> in your chat. "
+                + "Until then those commands send a normal reply."
+        case .failed:
+            return "Twitch refused the last announcement, so WolfWave sent a normal reply instead. "
+                + "Check the log if it keeps happening."
+        }
+    }
+}
+
 // MARK: - CustomCommand
 
 /// A user-defined chat command: a trigger that replies with a fixed template,
@@ -91,6 +170,9 @@ nonisolated struct CustomCommand: Codable, Identifiable, Sendable, Equatable {
     /// Per-user cooldown in seconds (mods/broadcaster bypass).
     var userCooldown: Double
 
+    /// How the response is sent. Absent in pre-2.1.1 storage, decoded as `.reply`.
+    var delivery: ReplyDelivery
+
     init(
         id: UUID = UUID(),
         trigger: String = "",
@@ -99,7 +181,8 @@ nonisolated struct CustomCommand: Codable, Identifiable, Sendable, Equatable {
         permission: CommandPermission = .everyone,
         enabled: Bool = true,
         globalCooldown: Double = 15,
-        userCooldown: Double = 15
+        userCooldown: Double = 15,
+        delivery: ReplyDelivery = .reply
     ) {
         self.id = id
         self.trigger = trigger
@@ -109,6 +192,23 @@ nonisolated struct CustomCommand: Codable, Identifiable, Sendable, Equatable {
         self.enabled = enabled
         self.globalCooldown = globalCooldown
         self.userCooldown = userCooldown
+        self.delivery = delivery
+    }
+
+    // Hand-written so commands stored before `delivery` existed still decode.
+    // A synthesized decoder would throw on the missing key and the store would
+    // then wipe every command to `[]`.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        trigger = try container.decode(String.self, forKey: .trigger)
+        response = try container.decode(String.self, forKey: .response)
+        aliases = try container.decodeIfPresent(String.self, forKey: .aliases) ?? ""
+        permission = try container.decode(CommandPermission.self, forKey: .permission)
+        enabled = try container.decode(Bool.self, forKey: .enabled)
+        globalCooldown = try container.decode(Double.self, forKey: .globalCooldown)
+        userCooldown = try container.decode(Double.self, forKey: .userCooldown)
+        delivery = try container.decodeIfPresent(ReplyDelivery.self, forKey: .delivery) ?? .reply
     }
 
     /// Trigger normalized for matching: trimmed, lowercased, single leading `!`.

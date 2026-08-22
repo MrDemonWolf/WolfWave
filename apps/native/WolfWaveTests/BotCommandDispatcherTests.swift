@@ -230,6 +230,40 @@ final class BotCommandDispatcherTests: WolfWaveTestCase {
         defaults.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandGlobalCooldown)
         defaults.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandUserCooldown)
     }
+
+    // MARK: - Reply delivery
+
+    func testReplyDeliveryFollowsMatchedCommand() async {
+        let store = CustomCommandStore.shared
+        let before = store.commands
+        defer {
+            store.clearAll()
+            before.forEach { store.add($0) }
+        }
+        store.clearAll()
+        store.add(CustomCommand(trigger: "hype", response: "HYPE", delivery: .announce))
+        dispatcher.setCurrentSongInfo { "Artist - Song" }
+        let context = BotCommandContext(
+            userID: "1", username: "v", isModerator: false, isBroadcaster: false,
+            isSubscriber: false, isVIP: false, messageID: "m")
+
+        let custom = await dispatcher.processMessageReplyAsync("!hype", userID: "1", context: context)
+        XCTAssertEqual(custom, CommandReply(text: "HYPE", delivery: .announce))
+
+        let builtin = await dispatcher.processMessageReplyAsync("!song", userID: "1", context: context)
+        XCTAssertEqual(builtin?.delivery, .reply)
+        XCTAssertEqual(builtin?.text, "Artist - Song")
+    }
+
+    func testAnnounceStatusFromHTTPStatus() {
+        XCTAssertEqual(AnnounceStatus.from(statusCode: 204), .ok)
+        XCTAssertEqual(AnnounceStatus.from(statusCode: 401), .scopeMissing)
+        XCTAssertEqual(AnnounceStatus.from(statusCode: 403), .notModerator)
+        XCTAssertEqual(AnnounceStatus.from(statusCode: 500), .failed)
+        XCTAssertNil(AnnounceStatus.ok.bannerMessage)
+        XCTAssertNotNil(AnnounceStatus.notModerator.bannerMessage)
+    }
+
 }
 
 @MainActor

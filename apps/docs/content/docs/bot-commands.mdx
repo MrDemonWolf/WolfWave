@@ -155,6 +155,16 @@ Build your own chat commands in **Settings → Twitch → Custom Commands**. Giv
 
 **Who can use it.** Set each command to Everyone, Subscribers, VIPs, Moderators, or Broadcaster only. More privileged viewers always clear a lower bar (a mod passes a Subscribers-only command).
 
+**How it's sent.** Each command picks one of three delivery modes:
+
+| Mode | What chat sees |
+| --- | --- |
+| Reply to chatter | A threaded reply under the message that ran the command. The default, and what every command you made before this setting existed keeps doing. |
+| Plain chat message | A normal bot message, not tied to anyone. |
+| Announcement | Twitch's highlighted announcement box. |
+
+Announcements have two requirements: the account you signed in with must be a moderator of the channel (type `/mod <account>` in chat if it's a separate bot account), and your Twitch sign-in must include the announcements permission. Sign-ins from before this feature exist without it; when an enabled command uses Announcement, WolfWave asks you to reconnect once to grant it. If Twitch refuses an announcement for any reason, the command falls back to a reply so nobody is left unanswered, and the Custom Commands card tells you why.
+
 **No two commands can answer the same word.** The editor rejects a trigger or alias another custom command already uses, so one of the pair can never be left dead. Cooldowns are limited to what the sliders set: up to 30s for Everyone and 60s per person, in 5s steps.
 
 Custom commands travel with your [settings backup](/docs/backup). A backup holding a command that breaks either rule is refused rather than partly imported.
