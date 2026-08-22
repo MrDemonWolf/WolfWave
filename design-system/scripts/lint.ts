@@ -15,7 +15,6 @@
  *  - font(.system(size: N))     → use DSFont.Size.*
  *  - spacing: N) / .padding(N)  → use DSSpace.* (with carve-outs for 0/1/etc.
  *                                  values that have no DSSpace equivalent; 6 = DSSpace.s1h)
- *  - Hand-rolled bordered icon buttons → use DSIconButton
  *  - Animation literal durations (.easeInOut(duration: N), .spring(response: N),
  *    .easeOut(duration: N), .easeIn(duration: N), .linear(duration: N))
  *                               → use DSMotion.Duration.* tokens

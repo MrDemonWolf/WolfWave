@@ -50,6 +50,10 @@ struct DebugSettingsView: View {
             warningBanner
             sectionBlock(.previews) { DebugUIPreviewsCard() }
             sectionBlock(.controls) { DebugServiceControlsCard() }
+
+            groupLabel("Design System")
+            sectionBlock(.components) { DebugComponentGalleryCard() }
+            sectionBlock(.tokens) { DebugTokenGalleryCard() }
         }
     }
 
@@ -178,7 +182,10 @@ enum DebugSection: String, SettingsRailSection, CaseIterable {
             sections: [.inspectors, .metrics, .logViewer, .logs]),
         SettingsRailGroup(
             title: "Active Controls",
-            sections: [.previews, .controls])
+            sections: [.previews, .controls]),
+        SettingsRailGroup(
+            title: "Design System",
+            sections: [.components, .tokens])
     ]
 
     case inspectors
@@ -187,6 +194,8 @@ enum DebugSection: String, SettingsRailSection, CaseIterable {
     case logs
     case previews
     case controls
+    case components
+    case tokens
 
     var title: String {
         switch self {
@@ -196,6 +205,8 @@ enum DebugSection: String, SettingsRailSection, CaseIterable {
         case .logs: return "Logs & Events"
         case .previews: return "UI Previews"
         case .controls: return "Service Controls"
+        case .components: return "Components"
+        case .tokens: return "Tokens"
         }
     }
 
@@ -207,6 +218,8 @@ enum DebugSection: String, SettingsRailSection, CaseIterable {
         case .logs: return "doc.text"
         case .previews: return "rectangle.on.rectangle"
         case .controls: return "slider.horizontal.3"
+        case .components: return "square.grid.2x2"
+        case .tokens: return "paintpalette"
         }
     }
 }

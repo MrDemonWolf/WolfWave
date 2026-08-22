@@ -1,6 +1,10 @@
 # SectionEyebrow (modifier)
 
-Sentence-case micro-header used inside cards to label sub-sections.
+**File:** [`apps/native/WolfWave/Views/Shared/ViewModifiers.swift`](../../apps/native/WolfWave/Views/Shared/ViewModifiers.swift) (`SectionEyebrowModifier`, exposed as `.sectionEyebrow()`)
+
+Sentence-case micro-header used inside cards to label sub-sections. There is no
+`SectionEyebrow.swift`: the modifier lives in `ViewModifiers.swift`, and
+[`CardEyebrowHeader`](card-eyebrow-header.md) is the icon-plus-eyebrow view built on it.
 
 ## Purpose
 
@@ -42,7 +46,7 @@ flowchart LR
 ## Example
 
 ```swift
-HStack(spacing: 6) {
+HStack(spacing: DSSpace.s1h) {
     Image(systemName: "clock.arrow.circlepath")
         .font(.system(size: DSFont.Size.sm, weight: .semibold))
         .foregroundStyle(.secondary)

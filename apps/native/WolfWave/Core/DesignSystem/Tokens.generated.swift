@@ -65,6 +65,67 @@ nonisolated enum DSColor {
     static let partnerObsEnd = Color(red: 0.102, green: 0.102, blue: 0.110)
     static let partnerWolfwaveGradientStart = Color(red: 0.039, green: 0.145, blue: 0.251)
     static let partnerWolfwaveGradientEnd = Color(red: 0.145, green: 0.388, blue: 0.922)
+
+    /// Every token above, in source order. Drives the Debug design-system gallery.
+    static let groups: [(name: String, tokens: [(name: String, hex: String, color: Color)])] = [
+        (name: "Brand", tokens: [
+            (name: "brand50", hex: "#F0F7FF", color: brand50),
+            (name: "brand100", hex: "#D9ECFF", color: brand100),
+            (name: "brand200", hex: "#B0D6FF", color: brand200),
+            (name: "brand300", hex: "#7FB8FF", color: brand300),
+            (name: "brand400", hex: "#4A9CFF", color: brand400),
+            (name: "brand500", hex: "#0A84FF", color: brand500),
+            (name: "brand600", hex: "#0066CC", color: brand600),
+            (name: "brand700", hex: "#004E9F", color: brand700),
+            (name: "brand800", hex: "#003A78", color: brand800),
+            (name: "brand900", hex: "#002551", color: brand900),
+        ]),
+        (name: "Semantic", tokens: [
+            (name: "success", hex: "#34C759", color: success),
+            (name: "warning", hex: "#FF9F0A", color: warning),
+            (name: "error", hex: "#FF453A", color: error),
+            (name: "info", hex: "#0A84FF", color: info),
+            (name: "neutral", hex: "#8E8E93", color: neutral),
+        ]),
+        (name: "Surface (light)", tokens: [
+            (name: "surfaceBaseLight", hex: "#FFFFFF", color: surfaceBaseLight),
+            (name: "surfaceSurfaceLight", hex: "#F5F5F7", color: surfaceSurfaceLight),
+            (name: "surfaceElevLight", hex: "#FBFBFD", color: surfaceElevLight),
+            (name: "surfaceHairlineLight", hex: "#D2D2D7", color: surfaceHairlineLight),
+        ]),
+        (name: "Surface (dark)", tokens: [
+            (name: "surfaceBaseDark", hex: "#000000", color: surfaceBaseDark),
+            (name: "surfaceSurfaceDark", hex: "#1C1C1E", color: surfaceSurfaceDark),
+            (name: "surfaceElevDark", hex: "#0A0A0C", color: surfaceElevDark),
+            (name: "surfaceHairlineDark", hex: "#2C2C2E", color: surfaceHairlineDark),
+        ]),
+        (name: "Text (light)", tokens: [
+            (name: "textPrimaryLight", hex: "#1D1D1F", color: textPrimaryLight),
+            (name: "textSecondaryLight", hex: "#6E6E73", color: textSecondaryLight),
+            (name: "textMutedLight", hex: "#A1A1A6", color: textMutedLight),
+        ]),
+        (name: "Text (dark)", tokens: [
+            (name: "textPrimaryDark", hex: "#F5F5F7", color: textPrimaryDark),
+            (name: "textSecondaryDark", hex: "#A1A1A6", color: textSecondaryDark),
+            (name: "textMutedDark", hex: "#6E6E73", color: textMutedDark),
+        ]),
+        (name: "Partner", tokens: [
+            (name: "partnerTwitch", hex: "#9146FF", color: partnerTwitch),
+            (name: "partnerDiscord", hex: "#5865F2", color: partnerDiscord),
+            (name: "partnerDiscordSurface", hex: "#2B2D31", color: partnerDiscordSurface),
+            (name: "partnerDiscordControl", hex: "#4E5058", color: partnerDiscordControl),
+            (name: "partnerAppleMusicStart", hex: "#FF5D8B", color: partnerAppleMusicStart),
+            (name: "partnerAppleMusicEnd", hex: "#FA233B", color: partnerAppleMusicEnd),
+            (name: "partnerAppleMusicSurfaceStart", hex: "#FA5C75", color: partnerAppleMusicSurfaceStart),
+            (name: "partnerAppleMusicSurfaceEnd", hex: "#FA243B", color: partnerAppleMusicSurfaceEnd),
+            (name: "partnerAppleMusicPulseStart", hex: "#FC4773", color: partnerAppleMusicPulseStart),
+            (name: "partnerAppleMusicPulseEnd", hex: "#FA1A52", color: partnerAppleMusicPulseEnd),
+            (name: "partnerObsStart", hex: "#2C2C2E", color: partnerObsStart),
+            (name: "partnerObsEnd", hex: "#1A1A1C", color: partnerObsEnd),
+            (name: "partnerWolfwaveGradientStart", hex: "#0A2540", color: partnerWolfwaveGradientStart),
+            (name: "partnerWolfwaveGradientEnd", hex: "#2563EB", color: partnerWolfwaveGradientEnd),
+        ]),
+    ]
 }
 
 /// Generated typography sizes. CGFloat literals match prior hand-coded sizes.
@@ -80,6 +141,20 @@ nonisolated enum DSFont {
         static let x2xl: CGFloat = 22
         static let x3xl: CGFloat = 26
         static let display: CGFloat = 52
+
+        /// Every token above, in source order. Drives the Debug design-system gallery.
+        static let all: [(name: String, value: CGFloat)] = [
+            (name: "xs", value: xs),
+            (name: "sm", value: sm),
+            (name: "body", value: body),
+            (name: "base", value: base),
+            (name: "md", value: md),
+            (name: "lg", value: lg),
+            (name: "xl", value: xl),
+            (name: "x2xl", value: x2xl),
+            (name: "x3xl", value: x3xl),
+            (name: "display", value: display),
+        ]
     }
 
     enum Weight {
@@ -87,6 +162,14 @@ nonisolated enum DSFont {
         static let medium: Font.Weight = .medium
         static let semibold: Font.Weight = .semibold
         static let bold: Font.Weight = .bold
+
+        /// Every token above, in source order. Drives the Debug design-system gallery.
+        static let all: [(name: String, value: Font.Weight)] = [
+            (name: "regular", value: regular),
+            (name: "medium", value: medium),
+            (name: "semibold", value: semibold),
+            (name: "bold", value: bold),
+        ]
     }
 }
 
@@ -105,6 +188,23 @@ nonisolated enum DSSpace {
     static let s10: CGFloat = 32
     static let s11: CGFloat = 44
     static let s1h: CGFloat = 6
+
+    /// Every token above, in source order. Drives the Debug design-system gallery.
+    static let all: [(name: String, value: CGFloat)] = [
+        (name: "s0", value: s0),
+        (name: "s1", value: s1),
+        (name: "s1h", value: s1h),
+        (name: "s2", value: s2),
+        (name: "s3", value: s3),
+        (name: "s4", value: s4),
+        (name: "s5", value: s5),
+        (name: "s6", value: s6),
+        (name: "s7", value: s7),
+        (name: "s8", value: s8),
+        (name: "s9", value: s9),
+        (name: "s10", value: s10),
+        (name: "s11", value: s11),
+    ]
 }
 
 /// Generated radius scale.
@@ -117,6 +217,18 @@ nonisolated enum DSRadius {
     static let xl: CGFloat = 14
     static let x2xl: CGFloat = 16
     static let pill: CGFloat = 9999
+
+    /// Every token above, in source order. Drives the Debug design-system gallery.
+    static let all: [(name: String, value: CGFloat)] = [
+        (name: "xs", value: xs),
+        (name: "sm", value: sm),
+        (name: "md", value: md),
+        (name: "lg", value: lg),
+        (name: "lg2", value: lg2),
+        (name: "xl", value: xl),
+        (name: "x2xl", value: x2xl),
+        (name: "pill", value: pill),
+    ]
 }
 
 /// Generated motion tokens (durations in seconds for SwiftUI animations).
@@ -129,6 +241,17 @@ nonisolated enum DSMotion {
         static let long: Double = 0.4
         static let pulse: Double = 0.9
         static let pulseSlow: Double = 1.4
+
+        /// Every token above, in source order. Drives the Debug design-system gallery.
+        static let all: [(name: String, value: Double)] = [
+            (name: "instant", value: instant),
+            (name: "fast", value: fast),
+            (name: "base", value: base),
+            (name: "slow", value: slow),
+            (name: "long", value: long),
+            (name: "pulse", value: pulse),
+            (name: "pulseSlow", value: pulseSlow),
+        ]
     }
 
     /// Named spring presets. Use via `.spring(DSMotion.Spring.snappy)`.
@@ -137,6 +260,14 @@ nonisolated enum DSMotion {
         static let bouncy = SwiftUI.Animation.spring(response: 0.45, dampingFraction: 0.78, blendDuration: 0)
         static let gentle = SwiftUI.Animation.spring(response: 0.3, dampingFraction: 0.6, blendDuration: 0)
         static let expressive = SwiftUI.Animation.spring(response: 0.5, dampingFraction: 0.6, blendDuration: 0)
+
+        /// Every token above, in source order. Drives the Debug design-system gallery.
+        static let all: [(name: String, response: Double, damping: Double, animation: SwiftUI.Animation)] = [
+            (name: "snappy", response: 0.35, damping: 0.82, animation: snappy),
+            (name: "bouncy", response: 0.45, damping: 0.78, animation: bouncy),
+            (name: "gentle", response: 0.3, damping: 0.6, animation: gentle),
+            (name: "expressive", response: 0.5, damping: 0.6, animation: expressive),
+        ]
     }
 }
 
@@ -196,6 +327,59 @@ nonisolated enum DSDimension {
         static let topTrackMinHeight: CGFloat = 44
         static let chartYAxisGutter: CGFloat = 28
     }
+
+    /// Every token above, in source order. Drives the Debug design-system gallery.
+    static let groups: [(name: String, tokens: [(name: String, value: CGFloat)])] = [
+        (name: "Settings", tokens: [
+            (name: "minWidth", value: Settings.minWidth),
+            (name: "minHeight", value: Settings.minHeight),
+            (name: "idealWidth", value: Settings.idealWidth),
+            (name: "idealHeight", value: Settings.idealHeight),
+            (name: "sidebarWidth", value: Settings.sidebarWidth),
+            (name: "maxContentWidth", value: Settings.maxContentWidth),
+            (name: "contentPaddingH", value: Settings.contentPaddingH),
+            (name: "contentPaddingV", value: Settings.contentPaddingV),
+            (name: "sectionSpacing", value: Settings.sectionSpacing),
+            (name: "cardPadding", value: Settings.cardPadding),
+            (name: "cardCornerRadius", value: Settings.cardCornerRadius),
+            (name: "stepNumberGutter", value: Settings.stepNumberGutter),
+        ]),
+        (name: "Onboarding", tokens: [
+            (name: "windowWidth", value: Onboarding.windowWidth),
+            (name: "windowHeight", value: Onboarding.windowHeight),
+            (name: "primaryButtonHeight", value: Onboarding.primaryButtonHeight),
+            (name: "primaryButtonMinWidth", value: Onboarding.primaryButtonMinWidth),
+            (name: "navButtonMinWidth", value: Onboarding.navButtonMinWidth),
+            (name: "stepContentMinHeight", value: Onboarding.stepContentMinHeight),
+            (name: "brandTileSize", value: Onboarding.brandTileSize),
+            (name: "brandTileRadius", value: Onboarding.brandTileRadius),
+            (name: "primaryButtonRadius", value: Onboarding.primaryButtonRadius),
+            (name: "iconTileSize", value: Onboarding.iconTileSize),
+            (name: "iconTileRadius", value: Onboarding.iconTileRadius),
+        ]),
+        (name: "About", tokens: [
+            (name: "windowWidth", value: About.windowWidth),
+            (name: "windowHeight", value: About.windowHeight),
+            (name: "minWidth", value: About.minWidth),
+            (name: "minHeight", value: About.minHeight),
+        ]),
+        (name: "WhatsNew", tokens: [
+            (name: "windowWidth", value: WhatsNew.windowWidth),
+            (name: "windowHeight", value: WhatsNew.windowHeight),
+        ]),
+        (name: "IconButton", tokens: [
+            (name: "minWidth", value: IconButton.minWidth),
+            (name: "minHeight", value: IconButton.minHeight),
+        ]),
+        (name: "HistoryStats", tokens: [
+            (name: "recentCardMinHeight", value: HistoryStats.recentCardMinHeight),
+            (name: "chartHeight", value: HistoryStats.chartHeight),
+            (name: "twoColumnFloor", value: HistoryStats.twoColumnFloor),
+            (name: "topListMinHeight", value: HistoryStats.topListMinHeight),
+            (name: "topTrackMinHeight", value: HistoryStats.topTrackMinHeight),
+            (name: "chartYAxisGutter", value: HistoryStats.chartYAxisGutter),
+        ]),
+    ]
 }
 
 /// Generated widget theme palette. Mirrors `widget.html` so the in-app
