@@ -17,7 +17,9 @@ name: Nightly
 
 on:
   schedule:
-    - cron: '0 8 * * *'   # daily 08:00 UTC
+    # Midnight Chicago. GitHub cron is UTC-only with no DST, so this is 12:00am
+    # CDT and 11:00pm CST. Docs-only days are skipped by the guard job below.
+    - cron: '0 5 * * *'
   workflow_dispatch:
 
 permissions:
@@ -31,9 +33,13 @@ env:
   DMG_NAME: WolfWave-nightly.dmg
 
 jobs:
-  # Skip the build on a scheduled run when main hasn't moved since the last
-  # nightly. A manual dispatch always builds. Forks never build: the cron would
-  # otherwise fail daily on missing signing secrets.
+  # Skip the build on a scheduled run when nothing that ships in the app has
+  # changed since the last nightly. `schedule` ignores `paths-ignore`, so the
+  # guard diffs the last published sha against HEAD itself, with an EXCLUDE
+  # list: a new build-relevant directory builds by default, and only the docs
+  # site, marketing, the Stream Deck plugin (shipped via Elgato, not in the
+  # app), and prose are ignored. A manual dispatch always builds. Forks never
+  # build: the cron would otherwise fail daily on missing signing secrets.
   guard:
     name: Decide whether to build
     if: github.repository == 'MrDemonWolf/wolfwave'
@@ -41,6 +47,13 @@ jobs:
     outputs:
       should_build: ${{ steps.decide.outputs.should_build }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history: the diff below needs to reach the last nightly's sha.
+          fetch-depth: 0
+          persist-credentials: false
+
       - name: Compare HEAD against last nightly
         id: decide
         env:
@@ -49,7 +62,7 @@ jobs:
           HEAD_SHA: ${{ github.sha }}
         run: |
           if [ "$EVENT" = "workflow_dispatch" ]; then
-            echo "Manual dispatch — building."
+            echo "Manual dispatch, building."
             echo "should_build=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -59,12 +72,26 @@ jobs:
             | jq -r '.body' | grep -oE 'built-from: [0-9a-f]{40}' | awk '{print $2}' || true)"
           echo "Last nightly sha: ${last:-none}"
           echo "Current HEAD sha: $HEAD_SHA"
-          if [ "$last" = "$HEAD_SHA" ]; then
-            echo "No new commits on main since last nightly — skipping."
-            echo "should_build=false" >> "$GITHUB_OUTPUT"
+          if [ -z "$last" ] || ! git cat-file -e "$last^{commit}" 2>/dev/null; then
+            echo "No usable last-nightly sha (first run, deleted release, or rewritten history), building."
+            should_build=true
+          elif [ "$last" = "$HEAD_SHA" ]; then
+            echo "No new commits on main since last nightly, skipping."
+            should_build=false
           else
-            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            changed="$(git diff --name-only "$last" "$HEAD_SHA" -- . \
+              ':!apps/docs' ':!apps/marketing' ':!apps/streamdeck' \
+              ':!*.md' ':!*.mdx' ':!LICENSE' ':!.github/workflows/docs.yml')"
+            if [ -z "$changed" ]; then
+              echo "Only docs/site changes since $last, skipping."
+              should_build=false
+            else
+              echo "Build-relevant changes since $last:"
+              printf '%s\n' "$changed" | head -50
+              should_build=true
+            fi
           fi
+          echo "should_build=$should_build" >> "$GITHUB_OUTPUT"
 
   test:
     name: Run Tests
