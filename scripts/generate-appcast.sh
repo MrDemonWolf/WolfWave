@@ -20,8 +20,12 @@ builds_dir="${3:-builds}"
 : "${SPARKLE_PRIVATE_KEY:?SPARKLE_PRIVATE_KEY is required}"
 
 find_tool() {
+  # Only one of the two Caskroom roots exists on any given Mac, so find exits 1
+  # after listing the other. Under pipefail that 1 survives `head`, and the
+  # `tool="$(find_tool)"` assignment turns it into a silent script death
+  # before the first echo (every nightly from 2026-08-15 to 2026-08-21).
   find /opt/homebrew/Caskroom/sparkle /usr/local/Caskroom/sparkle \
-    -name generate_appcast -type f 2>/dev/null | head -1
+    -name generate_appcast -type f 2>/dev/null | head -1 || true
 }
 
 tool="${SPARKLE_BIN:-}"

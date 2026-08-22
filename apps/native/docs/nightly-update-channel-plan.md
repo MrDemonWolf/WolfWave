@@ -18,11 +18,14 @@ Decisions (chosen 2026-06-09):
   fixed URL; `SPUUpdaterDelegate.feedURLString(for:)` swaps feeds on opt-in. Keeps
   the stable release pipeline untouched and fits the current static GitHub-release
   hosting (no persistent-archive directory, no `latest`-excludes-prereleases trap).
-- **Cadence: nightly cron + manual.** Scheduled daily 08:00 UTC off `main` (skipped when
-  no new commits) plus `workflow_dispatch`. Briefly cut to weekly on 2026-08-06 and reverted
-  the same day: the repo is public, so Actions minutes are free (no 10× macOS multiplier) and
-  notary submissions are free, and the skip-if-unchanged guard already makes quiet days cost
-  nothing. There was no cost to optimize.
+- **Cadence: nightly cron + manual.** Scheduled 05:00 UTC (midnight Chicago) off `main`,
+  skipped when nothing that ships in the app changed, plus `workflow_dispatch`. Briefly cut to
+  weekly on 2026-08-06 and reverted the same day: the repo is public, so Actions minutes are
+  free (no 10× macOS multiplier) and notary submissions are free, and the skip-if-unchanged
+  guard already makes quiet days cost nothing. There was no cost to optimize. Moved from
+  08:00 UTC to 05:00 UTC on 2026-08-21, and the guard went from "HEAD moved" to a path diff
+  (`schedule` ignores `paths-ignore`), so docs, marketing, and Stream Deck plugin commits no
+  longer ship a nightly whose app binary is unchanged.
 
 ## Background: how Sparkle does this
 
@@ -204,7 +207,7 @@ release (rollout step 3).
 ```yaml
 on:
   schedule:
-    - cron: '0 8 * * *'   # daily 08:00 UTC
+    - cron: '0 5 * * *'   # midnight Chicago (CDT); GitHub cron is UTC-only
   workflow_dispatch:
 ```
 
