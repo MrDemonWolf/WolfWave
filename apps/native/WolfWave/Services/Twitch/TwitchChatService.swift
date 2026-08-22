@@ -1781,11 +1781,25 @@ actor TwitchChatService {
                 clientID: clientID)
             status = .ok
         } catch ConnectionError.authenticationFailed {
-            status = .scopeMissing
+            // 401 is also Twitch's answer for a dead token. Only call it a scope
+            // gap when validation says the token itself is fine; a dead token
+            // surfaces through the fallback reply's own refresh/re-auth path.
+            switch await validateToken(token, requiredScopes: [AppConstants.Twitch.announcementsScope]) {
+            case .missingScopes: status = .scopeMissing
+            case .valid: status = .notModerator
+            case .invalid, .temporarilyUnavailable: status = .failed
+            }
         } catch HelixRequestError.permanentHTTP(let code), HelixRequestError.retryableHTTP(let code) {
             status = AnnounceStatus.from(statusCode: code)
+        } catch is CancellationError {
+            return false
         } catch {
             status = .failed
+        }
+        // A stale task from a torn-down session must not overwrite live state.
+        guard !Task.isCancelled,
+              commandReplyIsCurrent(generation: generation, broadcasterID: broadcasterID) else {
+            return false
         }
         Self.setAnnounceStatus(status)
         if status != .ok {

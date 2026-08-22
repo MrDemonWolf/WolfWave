@@ -42,7 +42,7 @@ struct CustomCommandsCard: View {
     private var announceStatusRaw = AnnounceStatus.ok.rawValue
 
     private var announceBanner: String? {
-        guard store.commands.contains(where: { $0.delivery == .announce }) else { return nil }
+        guard store.commands.contains(where: { $0.enabled && $0.delivery == .announce }) else { return nil }
         return AnnounceStatus(rawValue: announceStatusRaw)?.bannerMessage
     }
 

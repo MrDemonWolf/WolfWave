@@ -141,7 +141,7 @@ nonisolated extension CustomCommand {
 // MARK: - Off-main reads
 
 extension CustomCommandStore {
-    /// Whether any stored command is set to announcement delivery. Reads the
+    /// Whether any enabled stored command is set to announcement delivery. Reads the
     /// persisted JSON directly so actor-isolated callers (token validation)
     /// don't need a MainActor hop.
     nonisolated static func storedCommandsUseAnnounce(defaults: UserDefaults) -> Bool {
@@ -149,6 +149,6 @@ extension CustomCommandStore {
               let commands = try? JSONCoders.default.decode([CustomCommand].self, from: data) else {
             return false
         }
-        return commands.contains { $0.delivery == .announce }
+        return commands.contains { $0.enabled && $0.delivery == .announce }
     }
 }

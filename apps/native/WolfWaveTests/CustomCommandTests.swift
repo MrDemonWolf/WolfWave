@@ -329,6 +329,9 @@ struct CustomCommandStoreTests {
         #expect(!CustomCommandStore.storedCommandsUseAnnounce(defaults: defaults))
         store.add(CustomCommand(trigger: "hype", response: "HYPE", delivery: .announce))
         #expect(CustomCommandStore.storedCommandsUseAnnounce(defaults: defaults))
+        store.clearAll()
+        store.add(CustomCommand(trigger: "off", response: "x", enabled: false, delivery: .announce))
+        #expect(!CustomCommandStore.storedCommandsUseAnnounce(defaults: defaults))
     }
 
     @Test("delivery round-trips through storage")

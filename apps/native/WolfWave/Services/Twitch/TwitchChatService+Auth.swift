@@ -190,8 +190,12 @@ extension TwitchChatService {
                         == AnnounceStatus.scopeMissing.rawValue {
                         Self.setAnnounceStatus(.ok)
                     }
-                } else if !effectiveScopes.contains(AppConstants.Twitch.announcementsScope) {
-                    effectiveScopes.append(AppConstants.Twitch.announcementsScope)
+                } else {
+                    // Surface the banner now, not after the first refused send.
+                    Self.setAnnounceStatus(.scopeMissing)
+                    if !effectiveScopes.contains(AppConstants.Twitch.announcementsScope) {
+                        effectiveScopes.append(AppConstants.Twitch.announcementsScope)
+                    }
                 }
             }
             let missing = effectiveScopes.filter { !scopes.contains($0) }
