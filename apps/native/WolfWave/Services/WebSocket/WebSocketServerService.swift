@@ -489,11 +489,27 @@ actor WebSocketServerService {
     }
 
     /// Broadcasts aggregate connection health for a Stream Deck status key.
-    func broadcastHealth(music: Bool, twitch: Bool, discord: Bool, overlay: Bool) {
-        broadcastJSON([
+    func broadcastHealth(
+        music: Bool, twitch: Bool, discord: Bool, discordState: String, overlay: Bool
+    ) {
+        broadcastJSON(Self.healthPayload(
+            music: music, twitch: twitch, discord: discord,
+            discordState: discordState, overlay: overlay))
+    }
+
+    /// Pure payload builder for the `health` frame. `discord` is the legacy
+    /// boolean (enabled AND connected); `discordState` is additive and keeps
+    /// "off" distinguishable from "disconnected" / "connecting".
+    nonisolated static func healthPayload(
+        music: Bool, twitch: Bool, discord: Bool, discordState: String, overlay: Bool
+    ) -> [String: Any] {
+        [
             "type": "health",
-            "data": ["music": music, "twitch": twitch, "discord": discord, "overlay": overlay],
-        ])
+            "data": [
+                "music": music, "twitch": twitch, "discord": discord,
+                "discordState": discordState, "overlay": overlay,
+            ] as [String: Any],
+        ]
     }
 
     /// Updates the progress broadcast interval and restarts the timer if currently broadcasting.

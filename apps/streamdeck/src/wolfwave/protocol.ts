@@ -171,10 +171,31 @@ export const AUDIENCE_LABELS: Record<RequestAudience, string> = {
   modsOnly: "MOD",
 };
 
+/**
+ * Discord IPC state. `off` = the streamer turned the integration off;
+ * `disconnected` / `connecting` = it is on but Rich Presence is not showing.
+ * Mirrors `DiscordRPCService.ConnectionState` raw values plus `"off"`.
+ */
+export type DiscordState = "off" | "connecting" | "connected" | "disconnected";
+
+const DISCORD_STATES: readonly DiscordState[] = ["off", "connecting", "connected", "disconnected"];
+
+/**
+ * An app that predates the field omits it; fall back to what the legacy
+ * boolean says so a connected Discord never decodes as "off".
+ */
+function discordState(value: unknown, legacy: boolean): DiscordState {
+  if (DISCORD_STATES.includes(value as DiscordState)) return value as DiscordState;
+  return legacy ? "connected" : "off";
+}
+
 export interface HealthData {
   music: boolean;
   twitch: boolean;
+  /** Legacy boolean: enabled AND connected. */
   discord: boolean;
+  /** Additive in 2.1.1; an older app omits it and it is derived from `discord`. */
+  discordState: DiscordState;
   overlay: boolean;
 }
 
@@ -270,6 +291,7 @@ export function parseFrame(text: string): InboundFrame | null {
           music: bool(data.music),
           twitch: bool(data.twitch),
           discord: bool(data.discord),
+          discordState: discordState(data.discordState, bool(data.discord)),
           overlay: bool(data.overlay),
         },
       };

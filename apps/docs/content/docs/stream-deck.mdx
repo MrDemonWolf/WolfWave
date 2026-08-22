@@ -93,11 +93,14 @@ health keys render without polling:
 
 ```json
 { "type": "queue_state", "data": { "count": 3, "pending": 1, "held": false, "audience": "everyone" } }
-{ "type": "health", "data": { "music": true, "twitch": true, "discord": false, "overlay": true } }
+{ "type": "health", "data": { "music": true, "twitch": true, "discord": false, "discordState": "disconnected", "overlay": true } }
 ```
 
-They fire when the request queue changes, when Twitch connects or disconnects,
-when a new client connects, and after any successful command.
+They fire when the request queue changes, when Twitch or Discord connects or
+disconnects, when a new client connects, and after any successful command.
+`discord` is true only while Rich Presence is really connected; `discordState`
+(`off`, `connecting`, `connected`, `disconnected`) tells "switched off" from
+"broken".
 
 ## Try it from a terminal
 

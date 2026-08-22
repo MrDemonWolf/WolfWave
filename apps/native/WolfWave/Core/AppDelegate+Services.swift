@@ -316,7 +316,6 @@ extension AppDelegate {
 
         discordStateConsumer = Task { @MainActor [weak self] in
             for await newState in service.stateChanges {
-                _ = self
                 let stateString: String
                 switch newState {
                 case .connected: stateString = "connected"
@@ -329,6 +328,8 @@ extension AppDelegate {
                     stateString,
                     failure: service.failureSnapshot.rawValue
                 )
+                // Discord connect/disconnect flips the Stream Deck health key.
+                self?.broadcastStreamDeckState()
             }
         }
 
@@ -806,8 +807,11 @@ extension AppDelegate {
         let elapsed = currentElapsed
         let isPaused = currentIsPaused
 
-        Task {
+        Task { [weak self] in
             await discordService.setEnabled(enabled)
+            // The flip alone changes `discordState` ("off" vs "disconnected")
+            // even when the IPC state doesn't move, so push it now.
+            self?.broadcastStreamDeckState()
             if enabled, let song, let artist {
                 await discordService.updatePresence(
                     track: song,

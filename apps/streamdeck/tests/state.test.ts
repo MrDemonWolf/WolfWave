@@ -95,11 +95,12 @@ describe("reduce", () => {
   test("health folds every flag", () => {
     const next = reduce(connected, {
       kind: "health",
-      data: { music: true, twitch: false, discord: true, overlay: false },
+      data: { music: true, twitch: false, discord: true, discordState: "connected", overlay: false },
     });
     expect(next.health).toEqual({
       music: true,
       twitch: false,
+      discordState: "connected",
       discord: true,
       overlay: false,
     });
@@ -149,11 +150,11 @@ describe("reference stability", () => {
   test("an unchanged health payload does not allocate", () => {
     const state = reduce(connected, {
       kind: "health",
-      data: { music: true, twitch: true, discord: false, overlay: true },
+      data: { music: true, twitch: true, discord: false, discordState: "off", overlay: true },
     });
     const again = reduce(state, {
       kind: "health",
-      data: { music: true, twitch: true, discord: false, overlay: true },
+      data: { music: true, twitch: true, discord: false, discordState: "off", overlay: true },
     });
     expect(again).toBe(state);
   });
