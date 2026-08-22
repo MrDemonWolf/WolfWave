@@ -94,6 +94,13 @@ Hit **⌘R** in Xcode. That's it.
 | `make build`           | Debug build                                |
 | `make clean`           | Clean build artifacts                      |
 | `make test`            | Run unit tests (XCTest + Swift Testing)    |
+| `make test-verbose`    | Unit tests with full `xcodebuild` output   |
+| `make test-ui`         | XCUITest suite (launches the real app)     |
+| `make test-ci`         | Unit tests in CI mode, writes `.xcresult`  |
+| `make lint`            | SwiftLint against the tracked baseline     |
+| `make lint-crash-safety` | No new force unwrap, `try!`, or `as!`    |
+| `make lint-headers`    | Swift file-header convention               |
+| `make check-drift`     | Regenerate widget/tokens/icons, fail on drift |
 | `make update-deps`     | Resolve SwiftPM dependencies               |
 | `make open-xcode`      | Open the Xcode project                     |
 | `make ci`              | CI-friendly build                          |
@@ -117,6 +124,18 @@ history pipeline, and the Sparkle updater. For the live pass count, run
 Test files are auto-discovered: drop a `.swift` file into
 `apps/native/WolfWaveTests/` and use `@testable import WolfWave`. No Xcode
 project edit needed.
+
+### UI tests
+
+`make test-ui` runs the XCUITest target (`WolfWaveUITests`), which launches
+the real app and drives it: the onboarding wizard end to end, and every
+settings pane rendered for real, with a screenshot of each attached to the
+result bundle. The app is launched with `WOLFWAVE_UI_TEST=1`, which routes
+settings and the Keychain to throwaway storage and keeps Apple Music, Twitch,
+Discord, and Sparkle down, so a run never touches your real account or
+preferences. It runs as its own CI job and is not part of a release build.
+The what-and-why is in
+[`apps/native/docs/end-to-end-testing.md`](https://github.com/MrDemonWolf/wolfwave/blob/main/apps/native/docs/end-to-end-testing.md).
 
 ## Building the OBS widget
 

@@ -1,11 +1,11 @@
 ---
 title: Stream Deck
-description: Control WolfWave from your Elgato Stream Deck. Play, pause, skip, run the song-request queue, and toggle your overlay, Discord, and music sync from physical keys.
+description: Control WolfWave from your Elgato Stream Deck. Play, pause, skip, run the song-request queue, announce the song, block a requester, and toggle your overlay from physical keys.
 ogTitle: WolfWave on Stream Deck
 ogDescription: Physical keys for playback, the request queue, and your overlay. Live state on every key.
 ogEyebrow: Guide
 ogChips:
-  - Eleven keys
+  - Twelve keys
   - Live state
   - Local only
   - Token gated
@@ -64,9 +64,10 @@ which now takes people as well as songs and artists.
 Announce Song needs Twitch connected. Reject Request and Block Requester need a
 request actually playing — pressing them otherwise flashes an alert.
 
-Three keys were removed in WolfWave 2.1.1: Discord Presence, Music Sync, and
-Cycle Theme. All three flipped a setting you set once, and a deck slot is worth
-more than that. Change them in Settings instead. **Update the plugin and WolfWave
+Three toggle keys were removed in WolfWave 2.1.1: Discord Presence, Music Sync,
+and Cycle Theme. All three flipped a setting you set once, and a deck slot is
+worth more than that. Change them in Settings instead. The old Status key is
+gone too; Now Playing took its slot. That is how eleven keys became twelve. **Update the plugin and WolfWave
 together** — a mismatch shows `Update` on every key.
 
 Approve Next only matters if you've turned on **Require My Approval** in
@@ -123,7 +124,7 @@ shared access token is now the read-only overlay token and cannot run commands.
 |---|---|
 | **Offline** | WolfWave isn't running, or the overlay server is off. The plugin keeps retrying. |
 | **Token?** | The control token is missing, or isn't exactly 64 hexadecimal characters (`0`–`9`, `a`–`f`, `A`–`F`; case-insensitive). Re-copy **Stream Deck Control Token** from Settings → Stream Deck. |
-| **Update** | WolfWave and the plugin disagree on the control-protocol version — either one can be the older side. Update both to matching versions. |
+| **Update** | WolfWave and the plugin disagree on the control-protocol version (v3 as of WolfWave 2.1.1). Either one can be the older side. Update both to matching versions. |
 
 A key flashes a checkmark when a press worked and an alert when it didn't —
 pressing Approve Next with nothing pending, for example.

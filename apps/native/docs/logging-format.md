@@ -99,7 +99,7 @@ Call sites may attach ordered key/value pairs:
 ```swift
 Log.error(
     "EventSub reconnect failed",
-    category: "Twitch",
+    category: .twitchEvents,
     fields: ["attempt": 3, "code": 4003, "reason": "transport closed"]
 )
 ```
