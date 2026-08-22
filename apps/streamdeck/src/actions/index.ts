@@ -6,17 +6,28 @@
  * registered action whose UUID isn't in the manifest.
  */
 
-import { action, type KeyAction } from "@elgato/streamdeck";
+import {
+  action,
+  type KeyAction,
+  type WillDisappearEvent,
+} from "@elgato/streamdeck";
 import { artworkDataURI } from "../artwork.js";
 import {
+  REPEAT_SEPARATOR,
+  STEP_MS,
+  offsetAt,
+  overflows,
+  visibleSlice,
+} from "../marquee.js";
+import {
+  KEY_SIZE,
   Palette,
   audienceGate,
   check,
   countKeyImage,
   hold,
-  keyImage,
   labelKeyImage,
-  note,
+  nowPlayingImage,
   resume,
   trash,
 } from "../keyart.js";
@@ -38,7 +49,10 @@ export class PlayPauseAction extends WolfWaveKeyAction {
     key: KeyAction,
     state: WolfWaveState,
   ): Promise<void> {
-    await key.setTitle(truncate(state.track));
+    // No track text. This is a transport control, and the Now Playing key is
+    // where the track belongs; writing it here also stole the title from any
+    // label the streamer set.
+    await key.setTitle("");
     await key.setState(state.isPlaying ? KeyState.secondary : KeyState.primary);
   }
 }
@@ -262,37 +276,97 @@ export class CycleAudienceAction extends WolfWaveKeyAction {
  */
 @action({ UUID: `${PLUGIN_UUID}.nowplaying` })
 export class NowPlayingAction extends WolfWaveKeyAction {
+  /** Marquee timers, one per visible key. */
+  private readonly scrollers = new Map<string, ReturnType<typeof setInterval>>();
+
   protected commandFor(): null {
     return null;
+  }
+
+  override onWillDisappear(ev: WillDisappearEvent): void {
+    // The timer outlives the key otherwise, repainting something nobody is
+    // looking at for the rest of the session.
+    this.stopScrolling(ev.action.id);
+    super.onWillDisappear(ev);
   }
 
   protected async render(
     key: KeyAction,
     state: WolfWaveState,
   ): Promise<void> {
-    // Art is fetched and inlined; a miss just draws the plain key. Deliberately
-    // not awaited before the title: the text should land immediately on a track
-    // change rather than waiting on a CDN.
-    await key.setTitle(truncate(state.track));
+    // The title is the streamer's to label the key with; the track goes in the
+    // art, which is the only way it can scroll.
+    await key.setTitle("");
     await key.setState(state.isPlaying ? KeyState.secondary : KeyState.primary);
 
+    const label = nowPlayingLabel(state);
     const art = state.artworkURL
       ? await artworkDataURI(state.artworkURL)
       : undefined;
-    if (art) {
-      await key.setImage(art);
-    } else {
-      await key.setImage(keyImage({ glyph: note, titled: true }));
+
+    this.stopScrolling(key.id);
+    if (!overflows(label, MARQUEE_FONT_SIZE, KEY_SIZE)) {
+      // Short enough to sit still. Scrolling "Home" back and forth forever
+      // would be worse than not scrolling, and it would repaint for nothing.
+      await key.setImage(nowPlayingImage({ art, label }));
+      return;
     }
+    // Two copies end to end, so scrolling past the tail runs into the head
+    // rather than snapping back. The separator is shared with `offsetAt`'s wrap
+    // calculation; two notions of the gap drift and the wrap visibly jumps.
+    // Which characters are visible is worked out here, not by the renderer --
+    // QtSvg has no clipPath.
+    const doubled = `${label}${REPEAT_SEPARATOR}${label}`;
+    let step = 0;
+    // One send at a time. `setInterval` does not wait, so a slow write would
+    // otherwise overlap the next tick and queue frames faster than they drain.
+    let inFlight = false;
+    const paint = (): void => {
+      if (inFlight) return;
+      const slice = visibleSlice(
+        doubled,
+        offsetAt(step, label, MARQUEE_FONT_SIZE),
+        MARQUEE_FONT_SIZE,
+        KEY_SIZE,
+      );
+      step += 1;
+      inFlight = true;
+      key
+        .setImage(nowPlayingImage({ art, label: slice.text, offset: slice.x }))
+        .catch(() => {
+          // A dropped frame is nothing; an unhandled rejection takes the whole
+          // plugin process down, and the key freezes on its last art.
+        })
+        .finally(() => {
+          inFlight = false;
+        });
+    };
+    paint();
+    this.scrollers.set(key.id, setInterval(paint, STEP_MS));
+  }
+
+  private stopScrolling(id: string): void {
+    const timer = this.scrollers.get(id);
+    if (!timer) return;
+    clearInterval(timer);
+    this.scrollers.delete(id);
   }
 }
 
 // MARK: - Helpers
 
-/** Keeps a track title readable on a 72x72 key. */
-function truncate(value: string, max = 18): string {
-  if (value.length <= max) return value;
-  return `${value.slice(0, max - 1).trimEnd()}…`;
+/** Font size of the scrolling track label, shared with the width estimate. */
+const MARQUEE_FONT_SIZE = 14;
+
+/**
+ * What the Now Playing key spells out: track, then artist when there is one.
+ *
+ * One string rather than two lines because it scrolls — two scrolling lines on
+ * a 72px key is noise, and the artist is the part you can afford to wait for.
+ */
+function nowPlayingLabel(state: WolfWaveState): string {
+  if (!state.track) return "Nothing playing";
+  return state.artist ? `${state.track} — ${state.artist}` : state.track;
 }
 
 /** Every action class, in manifest order. */

@@ -182,6 +182,63 @@ export function labelKeyImage(
   );
 }
 
+/**
+ * A key showing album art with the track scrolling across the bottom.
+ *
+ * The art is an `<image>` carrying its own data URI, because `setImage` takes
+ * one image and this key needs art *and* text. The text band is a solid strip
+ * rather than a gradient: it has to stay readable over whatever the cover art
+ * happens to be, including a white one.
+ *
+ * `offset` and `cycle` come from `marquee.ts`; the string is drawn twice, one
+ * cycle apart, so the tail is followed straight by the head.
+ */
+export function nowPlayingImage(options: {
+  art?: string;
+  label: string;
+  offset?: number;
+}): string {
+  const { art, label, offset = 0 } = options;
+  const size = KEY_SIZE;
+  const bandHeight = 22;
+  const bandY = size - bandHeight;
+  const fontSize = 14;
+  const baseline = size - 7;
+
+  // SVG 1.2 Tiny only. The Stream Deck app is Qt, and QtSvg implements Tiny --
+  // no nested `<svg>`, no `<clipPath>`, no filters. Anything richer makes the
+  // renderer drop the whole image, leaving the key on its previous art, which
+  // is indistinguishable from the plugin not running. Clipping the marquee is
+  // therefore done in JS (`visibleSlice`) rather than asked of the renderer.
+  const background = art
+    ? `<image xlink:href="${escapeText(art)}" x="0" y="0" width="${size}" height="${size}"/>`
+    : field("#101014") + place(note(Palette.white, 1.1), 30, 22);
+
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"`,
+    ` width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`,
+    background,
+    `<rect x="0" y="${round(bandY)}" width="${size}" height="${bandHeight}" fill="#000000"/>`,
+    `<text x="${round(offset)}" y="${round(baseline)}" fill="#FFFFFF"`,
+    ` font-family="Helvetica" font-size="${fontSize}" font-weight="bold">${escapeText(label)}</text>`,
+    `</svg>`,
+  ].join("");
+}
+
+/**
+ * Track titles are arbitrary text off the internet and land inside an SVG
+ * document, so the five XML metacharacters have to go. An unescaped `&` alone
+ * makes the whole image unparseable and the key renders blank.
+ */
+export function escapeText(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
 /** The action-list icon: monochrome white, no background, per Elgato's spec. */
 export function actionIcon(glyph: Glyph): string {
   const scale = (ACTION_ICON_SIZE - 2) / 24;
