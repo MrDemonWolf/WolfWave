@@ -82,7 +82,8 @@ nonisolated enum ReplyDelivery: String, Codable, CaseIterable, Sendable, Identif
         switch self {
         case .reply: return "Threaded under the message that ran the command."
         case .message: return "A normal bot message, not tied to anyone."
-        case .announce: return "Highlighted announcement box. Bot must be a mod. Falls back to a reply if Twitch says no."
+        case .announce:
+            return "Highlighted announcement box. Bot must be a mod. Falls back to a reply if Twitch says no."
         }
     }
 }
@@ -118,11 +119,14 @@ nonisolated enum AnnounceStatus: String, Sendable {
         case .ok:
             return nil
         case .scopeMissing:
-            return "Announcements need a new Twitch permission. Reconnect Twitch to grant it. Until then those commands send a normal reply."
+            return "Announcements need a new Twitch permission. Reconnect Twitch to grant it. "
+                + "Until then those commands send a normal reply."
         case .notModerator:
-            return "Announcements need the signed-in account to be a moderator. Type /mod <account> in your chat. Until then those commands send a normal reply."
+            return "Announcements need the signed-in account to be a moderator. Type /mod <account> in your chat. "
+                + "Until then those commands send a normal reply."
         case .failed:
-            return "Twitch refused the last announcement, so WolfWave sent a normal reply instead. Check the log if it keeps happening."
+            return "Twitch refused the last announcement, so WolfWave sent a normal reply instead. "
+                + "Check the log if it keeps happening."
         }
     }
 }
@@ -195,16 +199,16 @@ nonisolated struct CustomCommand: Codable, Identifiable, Sendable, Equatable {
     // A synthesized decoder would throw on the missing key and the store would
     // then wipe every command to `[]`.
     init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.decode(UUID.self, forKey: .id)
-        trigger = try c.decode(String.self, forKey: .trigger)
-        response = try c.decode(String.self, forKey: .response)
-        aliases = try c.decodeIfPresent(String.self, forKey: .aliases) ?? ""
-        permission = try c.decode(CommandPermission.self, forKey: .permission)
-        enabled = try c.decode(Bool.self, forKey: .enabled)
-        globalCooldown = try c.decode(Double.self, forKey: .globalCooldown)
-        userCooldown = try c.decode(Double.self, forKey: .userCooldown)
-        delivery = try c.decodeIfPresent(ReplyDelivery.self, forKey: .delivery) ?? .reply
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        trigger = try container.decode(String.self, forKey: .trigger)
+        response = try container.decode(String.self, forKey: .response)
+        aliases = try container.decodeIfPresent(String.self, forKey: .aliases) ?? ""
+        permission = try container.decode(CommandPermission.self, forKey: .permission)
+        enabled = try container.decode(Bool.self, forKey: .enabled)
+        globalCooldown = try container.decode(Double.self, forKey: .globalCooldown)
+        userCooldown = try container.decode(Double.self, forKey: .userCooldown)
+        delivery = try container.decodeIfPresent(ReplyDelivery.self, forKey: .delivery) ?? .reply
     }
 
     /// Trigger normalized for matching: trimmed, lowercased, single leading `!`.

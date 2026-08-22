@@ -192,7 +192,9 @@ extension TwitchChatService {
             userID: userID,
             isModerator: isModerator,
             context: context)
-        Log.debug("TwitchChatService: dispatch exit response=\(reply?.text.prefix(40) ?? "nil")", category: .twitchEvents)
+        Log.debug(
+            "TwitchChatService: dispatch exit response=\(reply?.text.prefix(40) ?? "nil")",
+            category: .twitchEvents)
 
         guard let reply, !Task.isCancelled else { return }
         switch reply.delivery {
