@@ -17,6 +17,14 @@ const MAX_ENTRIES = 64;
 /** How long to wait before giving up on the CDN and drawing the plain key. */
 const TIMEOUT_MS = 4_000;
 
+/** The formats iTunes actually serves, and that Stream Deck can render. */
+const ALLOWED_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
+
 /** Refuse anything larger than a plausible 512px cover. */
 const MAX_BYTES = 2 * 1024 * 1024;
 
@@ -29,6 +37,7 @@ const MAX_BYTES = 2 * 1024 * 1024;
 export async function artworkDataURI(url: string): Promise<string | undefined> {
   if (!isHTTPS(url)) return undefined;
 
+  url = thumbnail(url);
   const hit = cache.get(url);
   if (hit !== undefined) return hit;
 
@@ -38,8 +47,14 @@ export async function artworkDataURI(url: string): Promise<string | undefined> {
     });
     if (!response.ok) return undefined;
 
-    const type = response.headers.get("content-type") ?? "";
-    if (!type.startsWith("image/")) return undefined;
+    // An allowlist, not a `image/` prefix test. The header is whatever the CDN
+    // sends, and it is interpolated into a data URI that ends up inside an SVG
+    // attribute; `image/png" onload="…` would otherwise escape the attribute.
+    const type = (response.headers.get("content-type") ?? "")
+      .split(";")[0]
+      .trim()
+      .toLowerCase();
+    if (!ALLOWED_TYPES.has(type)) return undefined;
 
     const bytes = new Uint8Array(await response.arrayBuffer());
     if (bytes.byteLength === 0 || bytes.byteLength > MAX_BYTES) return undefined;
@@ -73,6 +88,25 @@ function isHTTPS(url: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Rewrites an iTunes artwork URL to a key-sized thumbnail.
+ *
+ * WolfWave sends a 512x512 URL, which is ~100KB of base64 once inlined. Every
+ * marquee frame re-sends the whole image, so at full size that is roughly a
+ * megabyte a second over the plugin socket -- enough to get the plugin process
+ * terminated, which is exactly what happened. A 72px key never needed more
+ * than 144.
+ */
+function thumbnail(url: string): string {
+  // The size segment is not always last: a `?cache=1` or `#x` suffix would slip
+  // past an end-anchored match and quietly restore the full-size fetch this
+  // exists to avoid. Match up to the query or fragment and keep it.
+  return url.replace(
+    /\/(\d+)x(\d+)((?:bb)?\.\w+)(?=$|[?#])/,
+    "/144x144$3",
+  );
 }
 
 function remember(url: string, dataURI: string): void {

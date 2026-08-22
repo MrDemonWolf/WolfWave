@@ -26,6 +26,9 @@ function imageResponse(bytes = new Uint8Array([1, 2, 3]), type = "image/jpeg") {
 
 const URL_A = "https://is1-ssl.mzstatic.com/image/thumb/a/512x512bb.jpg";
 const URL_B = "https://is1-ssl.mzstatic.com/image/thumb/b/512x512bb.jpg";
+/** What the fetch actually asks for: a key never needs more than 144px. */
+const THUMB_A = "https://is1-ssl.mzstatic.com/image/thumb/a/144x144bb.jpg";
+const THUMB_B = "https://is1-ssl.mzstatic.com/image/thumb/b/144x144bb.jpg";
 
 afterEach(() => {
   globalThis.fetch = realFetch;
@@ -33,6 +36,37 @@ afterEach(() => {
 });
 
 describe("artworkDataURI", () => {
+  test("downscales the request, because every marquee frame re-sends the art", async () => {
+    // A 512px cover is ~100KB base64; at several frames a second that got the
+    // plugin process terminated.
+    const calls = stubFetch(() => imageResponse());
+    // Awaited so the cache write lands before teardown clears the stub.
+    await artworkDataURI(URL_A);
+    expect(calls[0]).toBe(THUMB_A);
+  });
+
+  test("downscales even when the URL carries a query or fragment", async () => {
+    // An end-anchored match misses these and silently restores the full-size
+    // fetch, which is the thing that killed the plugin.
+    const calls = stubFetch(() => imageResponse());
+    await artworkDataURI(`${URL_A}?cache=1`);
+    await artworkDataURI(`${URL_B}#x`);
+    expect(calls).toEqual([`${THUMB_A}?cache=1`, `${THUMB_B}#x`]);
+  });
+
+  test("accepts only real image types, not anything prefixed image/", async () => {
+    // The header is whatever the CDN sends, and it is interpolated into a data
+    // URI that ends up inside an SVG attribute.
+    stubFetch(() => imageResponse(new Uint8Array([1]), 'image/png" onload="x'));
+    expect(await artworkDataURI(URL_A)).toBeUndefined();
+  });
+
+  test("tolerates charset parameters on an allowed type", async () => {
+    stubFetch(() => imageResponse(new Uint8Array([1]), "image/PNG; charset=binary"));
+    const result = await artworkDataURI(URL_A);
+    expect(result?.startsWith("data:image/png;base64,")).toBe(true);
+  });
+
   test("returns a data URI carrying the served mime type", async () => {
     stubFetch(() => imageResponse());
     const result = await artworkDataURI(URL_A);
@@ -46,7 +80,7 @@ describe("artworkDataURI", () => {
     await artworkDataURI(URL_A);
     await artworkDataURI(URL_B);
 
-    expect(calls).toEqual([URL_A, URL_B]);
+    expect(calls).toEqual([THUMB_A, THUMB_B]);
   });
 
   test("refuses anything that is not https", async () => {
