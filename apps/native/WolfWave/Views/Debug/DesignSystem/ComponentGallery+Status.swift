@@ -9,6 +9,8 @@
 #if DEBUG
 import SwiftUI
 
+// MARK: - Status & headers
+
 extension DebugComponentGalleryCard {
 
     /// Status & headers: `StatusChip`, `SectionHeaderWithStatus`, `CardEyebrowHeader`,

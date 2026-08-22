@@ -9,6 +9,8 @@
 #if DEBUG
 import SwiftUI
 
+// MARK: - Cards & media
+
 extension DebugComponentGalleryCard {
 
     /// Cards & media: `NowPlayingHeroCard`, `AlbumArtView`, `IntegrationDashboardView`,

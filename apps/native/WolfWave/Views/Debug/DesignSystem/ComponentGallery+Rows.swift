@@ -9,6 +9,8 @@
 #if DEBUG
 import SwiftUI
 
+// MARK: - Rows & fields
+
 extension DebugComponentGalleryCard {
 
     /// Rows & fields: `InfoRow`, `ToggleSettingRow`, `CommandAliasField`,

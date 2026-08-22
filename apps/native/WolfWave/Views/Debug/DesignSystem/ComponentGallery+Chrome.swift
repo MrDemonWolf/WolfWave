@@ -9,6 +9,8 @@
 #if DEBUG
 import SwiftUI
 
+// MARK: - Chrome
+
 extension DebugComponentGalleryCard {
 
     /// Chrome: `WhatsNewView`, `SettingsNavRail`.

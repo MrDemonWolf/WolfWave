@@ -156,7 +156,7 @@ struct DebugTokenGalleryCard: View {
                             .frame(width: Metrics.radiusSample, height: Metrics.radiusSample)
                         Text(token.name)
                             .font(.system(size: DSFont.Size.xs, design: .monospaced))
-                        Text(token.name == "pill" ? "capsule" : points(token.value))
+                        Text(token.value >= Metrics.radiusSample / 2 ? "capsule" : points(token.value))
                             .font(.system(size: DSFont.Size.xs))
                             .foregroundStyle(.secondary)
                     }

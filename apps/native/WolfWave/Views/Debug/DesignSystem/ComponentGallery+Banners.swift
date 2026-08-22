@@ -9,6 +9,8 @@
 #if DEBUG
 import SwiftUI
 
+// MARK: - Banners & callouts
+
 extension DebugComponentGalleryCard {
 
     /// Banners & callouts: `CalloutBanner`, `ErrorCallout`, `MusicPermissionBanner`,

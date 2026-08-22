@@ -9,12 +9,16 @@
 #if DEBUG
 import SwiftUI
 
+// MARK: - Buttons
+
 extension DebugComponentGalleryCard {
 
     /// Buttons: `DSIconButton`, `CopyButton`, `OpenInBrowserButton`,
     /// `DestructiveButton`, `AsyncActionButton`, `SharePickerButton`, `ActionGrid`.
     @ViewBuilder var buttonsSection: some View {
         GalleryEntry(typeName: "DSIconButton") {
+            // The CopyButton neighbour is part of the component's own preview:
+            // matching its frame is the reason DSIconButton exists.
             HStack(spacing: DSSpace.s2) {
                 DSIconButton(systemImage: "eye", action: {}, accessibilityLabel: "Reveal")
                 DSIconButton(systemImage: "arrow.clockwise", action: {}, accessibilityLabel: "Refresh")

@@ -21,9 +21,17 @@ import Testing
 @Suite("Design Token Catalog")
 struct DesignTokenCatalogTests {
 
-    private func assertUniqueNonEmpty(_ names: [String], _ family: String) {
-        #expect(!names.isEmpty, "\(family) list is empty")
-        #expect(Set(names).count == names.count, "\(family) has duplicate names: \(names)")
+    private func assertUniqueNonEmpty(
+        _ names: [String],
+        _ family: String,
+        sourceLocation: SourceLocation = #_sourceLocation
+    ) {
+        #expect(!names.isEmpty, "\(family) list is empty", sourceLocation: sourceLocation)
+        #expect(
+            Set(names).count == names.count,
+            "\(family) has duplicate names: \(names)",
+            sourceLocation: sourceLocation
+        )
     }
 
     @Test("Every scalar family is non-empty with unique names")
@@ -55,7 +63,7 @@ struct DesignTokenCatalogTests {
         #expect(DSFont.Size.all.map(\.value) == DSFont.Size.all.map(\.value).sorted())
     }
 
-    @Test("Color groups carry every MARK group with six-digit uppercase hex")
+    @Test("Color groups carry every MARK group with canonical uppercase hex")
     func colorGroups() {
         let groupNames = DSColor.groups.map(\.name)
         #expect(groupNames == [
@@ -66,7 +74,8 @@ struct DesignTokenCatalogTests {
         assertUniqueNonEmpty(tokens.map(\.name), "DSColor")
         for token in tokens {
             let digits = token.hex.dropFirst()
-            let isHex = token.hex.hasPrefix("#") && digits.count == 6
+            // The generator expands 3-digit input, so 6 (RGB) or 8 (RGBA) digits are canonical.
+            let isHex = token.hex.hasPrefix("#") && (digits.count == 6 || digits.count == 8)
                 && digits.allSatisfy { $0.isHexDigit && !$0.isLowercase }
             #expect(isHex, "\(token.name) hex is \(token.hex)")
         }

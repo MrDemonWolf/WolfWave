@@ -200,20 +200,22 @@ struct MotionGallerySection: View {
                 }
 
                 VStack(spacing: DSSpace.s1) {
-                    AlbumArtView(url: bustedURL, size: 92)
-                    Text("AsyncImage(url:)")
+                    // Opt-in: the Debug tab mounts this section on open, and a
+                    // third-party request should not fire until someone asks.
+                    AlbumArtView(url: cacheBuster > 0 ? bustedURL : nil, size: 92)
+                    Text(cacheBuster > 0 ? "AsyncImage(url:)" : "AsyncImage(url:) · not loaded")
                         .font(.system(size: DSFont.Size.xs))
                         .foregroundStyle(.tertiary)
                 }
 
                 VStack(spacing: DSSpace.s2) {
-                    Button("Bust cache & reload") {
+                    Button(cacheBuster > 0 ? "Bust cache & reload" : "Load remote image") {
                         cacheBuster += 1
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
 
-                    Text("Force a fresh AsyncImage request by changing the URL query.")
+                    Text("Fetches a placeholder from picsum.photos; each press changes the URL query.")
                         .font(.system(size: DSFont.Size.xs))
                         .foregroundStyle(.tertiary)
                         .fixedSize(horizontal: false, vertical: true)

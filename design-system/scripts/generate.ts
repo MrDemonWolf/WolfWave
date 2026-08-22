@@ -37,6 +37,13 @@ function hexToRGB(hex: string): { r: number; g: number; b: number; a: number } {
   return { r, g, b, a };
 }
 
+/** Canonical `#RRGGBB` / `#RRGGBBAA` form of a token hex, so metadata never shows `#FFF`. */
+function canonicalHex(hex: string): string {
+  let h = hex.replace("#", "").trim().toUpperCase();
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  return `#${h}`;
+}
+
 function swiftColor(hex: string): string {
   const { r, g, b, a } = hexToRGB(hex);
   const f = (n: number) => n.toFixed(3);
@@ -134,7 +141,7 @@ function generateSwift(): string {
     lines.push(`        (name: "${g.mark}", tokens: [`);
     for (const e of g.entries) {
       lines.push(
-        `            (name: "${e.name}", hex: "${String(e.value).toUpperCase()}", color: ${e.name}),`
+        `            (name: "${e.name}", hex: "${canonicalHex(String(e.value))}", color: ${e.name}),`
       );
     }
     lines.push("        ]),");
