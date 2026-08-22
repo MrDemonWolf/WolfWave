@@ -56,7 +56,7 @@ Your music plays. Everything else keeps up.
 - **Fair-Share Ordering.** Round-robin queue plays everyone's first request before anyone's second, so a fast re-typist can't hog it. On by default; toggle off for classic FIFO.
 - **Sub / VIP Priority.** Optional perk for subs, VIPs, and mods: skip the request cooldown, or jump ahead within the fair-share round. Off by default.
 - **Blocklist.** Ban a song, a whole artist, or a person from requests. Blocked entries are rejected before they ever reach the queue.
-- **Custom Commands.** Build your own chat commands with a fixed reply after connecting Twitch. Variables (`$user`, `$touser`, `$args`, `$1`–`$9`, `$song`, `$lastsong`), per-command aliases and cooldowns, and a permission level (Everyone, Subscribers, VIPs, Moderators, or Broadcaster).
+- **Custom Commands.** Build your own chat commands with a fixed reply after connecting Twitch. Variables (`$user`, `$touser`, `$args`, `$1`–`$9`, `$song`, `$lastsong`), per-command aliases and cooldowns, a permission level (Everyone, Subscribers, VIPs, Moderators, or Broadcaster), and a delivery mode per command: reply to the chatter, plain chat message, or a Twitch announcement.
 
 ### Discord
 

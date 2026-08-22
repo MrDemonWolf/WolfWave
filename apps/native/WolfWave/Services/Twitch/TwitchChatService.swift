@@ -1752,6 +1752,70 @@ actor TwitchChatService {
             broadcasterID: broadcasterID)
     }
 
+    /// Posts a custom-command response as a Twitch announcement.
+    ///
+    /// Returns `false` when Twitch refuses (missing scope, account not a mod,
+    /// any other error) so the caller can fall back to a plain reply. Deliberately
+    /// not routed through `sendMessageOnce`: a 401 here means one missing scope,
+    /// not a dead session, so it must not trip the re-auth flag.
+    func sendAnnouncement(
+        _ message: String,
+        generation: UInt64,
+        broadcasterID: String
+    ) async -> Bool {
+        guard !Task.isCancelled,
+              commandReplyIsCurrent(generation: generation, broadcasterID: broadcasterID),
+              let botID, let token = oauthToken, let clientID else {
+            return false
+        }
+        let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return true }
+
+        let status: AnnounceStatus
+        do {
+            _ = try await sendAPIRequest(
+                method: "POST",
+                endpoint: "/chat/announcements?broadcaster_id=\(broadcasterID)&moderator_id=\(botID)",
+                body: ["message": trimmed.truncatedForChat()],
+                token: token,
+                clientID: clientID)
+            status = .ok
+        } catch ConnectionError.authenticationFailed {
+            // 401 is also Twitch's answer for a dead token. Only call it a scope
+            // gap when validation says the token itself is fine; a dead token
+            // surfaces through the fallback reply's own refresh/re-auth path.
+            switch await validateToken(token, requiredScopes: [AppConstants.Twitch.announcementsScope]) {
+            case .missingScopes: status = .scopeMissing
+            case .valid: status = .notModerator
+            case .invalid, .temporarilyUnavailable: status = .failed
+            }
+        } catch HelixRequestError.permanentHTTP(let code), HelixRequestError.retryableHTTP(let code) {
+            status = AnnounceStatus.from(statusCode: code)
+        } catch is CancellationError {
+            return false
+        } catch {
+            status = .failed
+        }
+        // A stale task from a torn-down session must not overwrite live state.
+        guard !Task.isCancelled,
+              commandReplyIsCurrent(generation: generation, broadcasterID: broadcasterID) else {
+            return false
+        }
+        Self.setAnnounceStatus(status)
+        if status != .ok {
+            Log.warn(
+                "TwitchChatService: Announcement refused (\(status.rawValue)); falling back to a reply",
+                category: .twitchChat)
+        }
+        return status == .ok
+    }
+
+    /// Persists the outcome of the last announcement for the settings banner.
+    nonisolated static func setAnnounceStatus(_ status: AnnounceStatus) {
+        DefaultsStore.store.set(
+            status.rawValue, forKey: AppConstants.UserDefaults.customCommandAnnounceStatus)
+    }
+
     /// Sends and optionally queues a message only while one exact channel
     /// generation owns it. Used for both command replies and the delayed
     /// connection greeting so neither can leak into a replacement channel.

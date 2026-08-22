@@ -20,6 +20,9 @@ protocol BotCommand {
     /// Description of what the command does.
     var description: String { get }
 
+    /// How the response is sent to chat. Built-ins reply to the chatter.
+    var delivery: ReplyDelivery { get }
+
     /// Global cooldown in seconds between any uses of this command (0 = disabled).
     var globalCooldown: TimeInterval { get }
 
@@ -62,6 +65,7 @@ protocol BotCommand {
 // MARK: - Default Cooldown Values
 
 extension BotCommand {
+    var delivery: ReplyDelivery { .reply }
     /// Default global cooldown: 15 seconds between any uses.
     var globalCooldown: TimeInterval { 15.0 }
 

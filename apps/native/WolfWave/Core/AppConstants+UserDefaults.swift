@@ -318,6 +318,11 @@ extension AppConstants {
         /// (String, default: "ok").
         static let songRequestRedemptionStatus = "songRequestRedemptionStatus"
 
+        /// Health of custom-command announcements: an `AnnounceStatus` raw value.
+        /// Set by the last announcement send attempt; non-"ok" values drive the
+        /// Custom Commands card banner (String, default: "ok").
+        static let customCommandAnnounceStatus = "customCommandAnnounceStatus"
+
         /// Whether the streamer has finished the guided Song Requests setup. The
         /// master toggle stays locked behind a "Set up" call to action until this
         /// is true; the setup sheet sets it on finish, and a one-time migration
@@ -555,6 +560,7 @@ extension AppConstants {
             songRequestBitsMinimum,
             songRequestBitsBoostEnabled,
             songRequestRedemptionStatus,
+            customCommandAnnounceStatus,
             songRequestSetupComplete,
             songRequestPlaylistStatus,
             songRequestPlaylistID,
@@ -874,6 +880,7 @@ extension AppConstants {
             songRequestChannelPointsRewardID,
             songRequestChannelPointsRewardIdentity,
             songRequestRedemptionStatus,
+            customCommandAnnounceStatus,
             songRequestSetupComplete,
             songRequestPlaylistStatus,
             songRequestPlaylistID,
