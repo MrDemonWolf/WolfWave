@@ -1,6 +1,6 @@
 ---
 title: Settings
-description: Every WolfWave settings pane in one place. General, Song Requests, Stream Widgets, History and Stats, Twitch, Discord, Software Update, Advanced, and About.
+description: Every WolfWave settings pane in one place. General, Song Requests, Stream Widgets, Stream Deck, History and Stats, Twitch, Discord, Software Update, Advanced, and About.
 ogTitle: WolfWave Settings, Pane by Pane
 ogDescription: What lives where. Appearance, notifications, song requests, stream widgets, update channel, backups, and more.
 ogEyebrow: Guide
@@ -102,8 +102,11 @@ what's new. Channel details: [Nightly Builds](/docs/nightly).
 ## Advanced
 
 Settings [backup and restore](/docs/backup), log export, the bug-report flow,
-and opt-in on-device diagnostics. If WolfWave ever crashes, a one-time recovery
-callout appears here.
+and opt-in on-device diagnostics. **Export Logs** writes one diagnostics file:
+an environment summary (version, macOS, install method), the last crash if
+there was one, and every rotated log, oldest first, so a bug report carries
+everything in a single attachment. If WolfWave ever crashes, a one-time
+recovery callout appears here and says what crashed.
 
 ## About
 
@@ -117,6 +120,7 @@ can turn it back on. WolfWave is free and fully functional either way.
 
 ## Debug
 
-Only exists in development builds — inspectors, service controls, and UI
-previews for people [working on WolfWave](/docs/development). You won't see it
-in a release build.
+Only exists in development builds: inspectors, service controls, a live log
+viewer that tails the log file as it is written (level and category filters,
+search, follow), and UI previews for people
+[working on WolfWave](/docs/development). You won't see it in a release build.

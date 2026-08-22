@@ -33,8 +33,8 @@ const LAYOUTS = Object.keys(WIDGET_LAYOUTS) as LayoutName[];
  * The aesthetic and theme tokens come from
  * `apps/native/WolfWave/Resources/widget.html` +
  * `widget-tokens.generated.js`. Visitor can switch layouts (Horizontal /
- * Vertical / Compact / Vinyl / Classic) and themes (WolfWave / Glass / Neon /
- * Dark / Light) right on the marketing page, selling the widget's flexibility
+ * Vertical / Compact / Vinyl / Classic) and themes (Default / Dark / Light /
+ * Glass / Neon) right on the marketing page, selling the widget's flexibility
  * better than any static screenshot could.
  */
 export function OBSOverlayWidget({ controls = true }: { controls?: boolean } = {}) {

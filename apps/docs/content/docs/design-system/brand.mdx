@@ -24,7 +24,7 @@ WolfWave's canonical mark combines the wolf head with a padded side equalizer in
 - Minimum size: 16×16 px for digital.
 - In app chrome, use template rendering so the mark inherits the current foreground color.
 - On standalone brand surfaces, use WolfWave blue (`#0A84FF`), white over a WolfWave blue background, or the approved theme-adaptive gradient: `AppConstants.Brand.wolfwaveGradientStart` → `AppConstants.Brand.wolfwaveGradientEnd` in Light and `AppConstants.Brand.wolfwaveGradientEnd` → `DSColor.brand300` in Dark. Never use a partner color.
-- App-icon treatments keep about 10% padding around the mark; the wolf is white in Light and `#00ACED` in Dark.
+- App-icon treatments keep about 10% padding around the mark on the brand-blue background. Debug and Release ship the same blue icon; the only thing Debug adds is a bottom-centre `DEV` badge, generated from `AppIcon.icon` by `scripts/generate-app-icons.ts` so the two can never drift.
 
 ## Partner colors
 

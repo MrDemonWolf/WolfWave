@@ -2,6 +2,7 @@ import { Instrument_Sans } from "next/font/google";
 import type { Metadata } from "next";
 import { Provider } from "@/components/provider";
 import { siteUrl, basePath, absoluteUrl, homepageSeo, repoUrl, orgUrl, getLatestVersion } from "@/lib/site";
+import { USER_THEMES, WIDGET_LAYOUTS } from "@/app/(home)/_widgets/widget-themes.generated";
 import "./global.css";
 
 // Display face for headlines (>= ~28px) only. Body/nav/UI text uses the
@@ -116,7 +117,8 @@ function buildJsonLd(softwareVersion: string | null) {
       "Apple Music now-playing to Twitch chat (!song, !last)",
       "Twitch song requests for Apple Music (!sr) with channel points and bits",
       "Discord Rich Presence, Listening to WolfWave with Apple Music album art",
-      "OBS browser-source overlay with 6 themes and 3 layouts",
+      `OBS browser-source overlay with ${USER_THEMES.length} themes and ${Object.keys(WIDGET_LAYOUTS).length} layouts`,
+      "Elgato Stream Deck plugin with live state on every key",
       "Vote-to-skip via chat or Twitch Polls",
       "macOS menu bar app",
     ],

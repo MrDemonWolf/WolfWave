@@ -3,7 +3,7 @@
   "Name": "WolfWave",
   "Version": "1.0.0.0",
   "Author": "MrDemonWolf, Inc.",
-  "Description": "Control WolfWave from your Stream Deck. Play/pause, skip, manage the song-request queue, and toggle your overlay, Discord, and music sync.",
+  "Description": "Control WolfWave from your Stream Deck. Play/pause, skip, manage the song-request queue, announce the song, block a requester, and toggle your overlay.",
   "Category": "WolfWave",
   "CategoryIcon": "imgs/plugin/category-icon",
   "Icon": "imgs/plugin/marketplace",
