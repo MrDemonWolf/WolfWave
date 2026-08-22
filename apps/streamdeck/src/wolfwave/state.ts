@@ -55,7 +55,7 @@ export const initialState: WolfWaveState = {
   queuePending: 0,
   queueHeld: false,
   requestAudience: "everyone",
-  health: { music: false, twitch: false, discord: false, overlay: false },
+  health: { music: false, twitch: false, discord: false, discordState: "off", overlay: false },
 };
 
 /**
@@ -152,6 +152,7 @@ function healthChanged(state: WolfWaveState, next: HealthData): boolean {
     current.music !== next.music ||
     current.twitch !== next.twitch ||
     current.discord !== next.discord ||
+    current.discordState !== next.discordState ||
     current.overlay !== next.overlay
   );
 }

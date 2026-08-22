@@ -156,9 +156,12 @@ extension AppDelegate {
         }
         let music = currentSong != nil
         let twitch = twitchService?.currentlyConnected ?? false
-        // ponytail: discord health = is-enabled proxy; wire the live IPC
-        // connection state in Phase B when a key actually consumes it.
-        let discord = FeatureFlags.discordEnabled
+        // Real IPC state, not the preference. "off" means the streamer turned
+        // it off; "disconnected"/"connecting" mean it is on but not working.
+        let discordEnabled = FeatureFlags.discordEnabled
+        let discordConnection = discordService?.stateSnapshot ?? .disconnected
+        let discordState = discordEnabled ? discordConnection.rawValue : "off"
+        let discord = discordEnabled && discordConnection == .connected
         let overlay = websocketServer?.state == .listening
             && websocketServer?.overlayVisible == true
         Task { [weak self] in
@@ -166,7 +169,8 @@ extension AppDelegate {
                 count: count, pending: pending, held: held, audience: audience)
             await self?.websocketServer?.broadcastQueueUpcoming(items: upcoming)
             await self?.websocketServer?.broadcastHealth(
-                music: music, twitch: twitch, discord: discord, overlay: overlay)
+                music: music, twitch: twitch, discord: discord,
+                discordState: discordState, overlay: overlay)
         }
     }
 }
