@@ -87,7 +87,7 @@ Your music plays. Everything else keeps up.
 - **Secure by Default.** Credentials live in the macOS Keychain, never plain text.
 - **Automatic Updates.** Sparkle for DMG installs, or Homebrew (`brew upgrade --cask`). Pick Stable or opt into [Nightly builds](https://mrdemonwolf.github.io/wolfwave/docs/nightly) in Settings > Software Update.
 - **On-Device Diagnostics.** Opt-in MetricKit diagnostics card with a share helper for attaching reports to a bug filing. Reports stay on-device.
-- **Bug Report Flow.** One-click log export (one file: environment summary, last crash, every rotated log) and a pre-filled GitHub issue from Advanced settings. Every error banner names the cause, offers the fix, and links to the matching [Troubleshooting](https://mrdemonwolf.github.io/wolfwave/docs/troubleshooting) section. If WolfWave ever crashes, the next launch says what crashed.
+- **Bug Report Flow.** One-click log export (one file: environment summary, last crash, every rotated log) and a pre-filled GitHub issue from Advanced settings. Error banners name the cause and offer the fix, and most link to the matching [Troubleshooting](https://mrdemonwolf.github.io/wolfwave/docs/troubleshooting) section. If WolfWave ever crashes, the next launch says what crashed.
 - **Advanced Tools.** Clear the artwork cache or the log file, rerun the setup wizard, and a Danger Zone "Erase All Data & Reset" for a clean slate.
 
 ## Getting Started
