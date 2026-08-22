@@ -38,10 +38,11 @@ A few representative entries:
 | `NowPlayingHeroCard` | Large now-playing card (art + track + artist). | [entry](https://github.com/MrDemonWolf/wolfwave/blob/main/design-system/components/now-playing-hero-card.md) |
 | `DSIconButton` | Single-glyph bordered button sized to match text-label neighbors. | [entry](https://github.com/MrDemonWolf/wolfwave/blob/main/design-system/components/ds-icon-button.md) |
 | `SettingsNavRail` | Two-column jump-nav rail with scroll sync for long settings panes. | [entry](https://github.com/MrDemonWolf/wolfwave/blob/main/design-system/components/settings-nav-rail.md) |
+| `AsyncActionButton` | One button, one `async` action: spinner replaces the label, disabled in flight, brief success check, width pinned so nothing resizes. | [entry](https://github.com/MrDemonWolf/wolfwave/blob/main/design-system/components/async-action-button.md) |
 
 ## How to add a component
 
 1. Build the SwiftUI view under `Views/Shared/` or `Views/Onboarding/Components/`.
-2. Reference `DSColor` / `DSFont` / `DSSpace` / `DSRadius` tokens. No hardcoded numbers.
+2. Reference `DSColor` / `DSFont` / `DSSpace` / `DSRadius` tokens. No hardcoded numbers, and no raw system colors as a status tint (`DSColor.success` / `.warning` / `.error` / `.info` / `.neutral` only). `bun run ds:lint` enforces both.
 3. Add a markdown entry in `design-system/components/<name>.md` following the [template](https://github.com/MrDemonWolf/wolfwave/blob/main/design-system/components/README.md).
 4. The catalog README's status table is the index — update it in the same change.

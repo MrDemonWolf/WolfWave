@@ -22,8 +22,9 @@ Every error in WolfWave names what broke and offers the button that fixes it.
 This page is the longer version, for when you want the why.
 
 If your problem isn't here, [open an issue](https://github.com/MrDemonWolf/wolfwave/issues/new)
-with your logs attached. Settings, Advanced, Export Logs writes a file you can
-drop straight into the issue. Logs contain no tokens.
+with your logs attached. Settings, Advanced, Export Logs writes one file you can
+drop straight into the issue: your app version and macOS, the last crash if
+there was one, and every log WolfWave still has. Logs contain no tokens.
 
 ## Twitch
 
@@ -170,6 +171,37 @@ Tokens are exactly 64 hex characters, `0` to `9` and `a` to `f`. The overlay
 and control tokens also have to differ from each other. If saving fails
 outright, your current token stays active, so OBS keeps working.
 
+## Stream Deck
+
+The plugin paints its own state on every key, so the key tells you which of
+three things is wrong.
+
+### Every key reads Offline [#streamdeck-offline]
+
+WolfWave isn't running, or the Stream Widgets server is off. The plugin keeps
+retrying on its own.
+
+**Fix:** open WolfWave and turn on the server in Settings, Stream Widgets.
+Stream Deck control rides on that server, so it has to be on even if you don't
+use the overlay.
+
+### Every key reads Token? [#streamdeck-token]
+
+The control token in the plugin's settings is missing or isn't exactly 64 hex
+characters. It's a different token from the overlay one.
+
+**Fix:** copy **Stream Deck Control Token** from Settings, Stream Deck, and
+paste it into any one key's settings in the Stream Deck app. Every key shares
+it.
+
+### Every key reads Update [#streamdeck-update]
+
+WolfWave and the plugin disagree on the control-protocol version. Either side
+can be the old one. WolfWave 2.1.1 moved to protocol v3.
+
+**Fix:** update WolfWave and reinstall the current plugin, then reload the
+plugin in the Stream Deck app. Setup steps: [Stream Deck](/docs/streamdeck).
+
 ## Settings and data
 
 ### Reset stopped partway [#reset-stopped-partway]
@@ -206,7 +238,8 @@ doesn't manage its own updates at all: run `brew upgrade wolfwave`.
 
 ## Still stuck
 
-Export your logs from Settings, Advanced, then
+Export your logs from Settings, Advanced (one file: environment, last crash,
+every rotated log), then
 [open an issue](https://github.com/MrDemonWolf/wolfwave/issues/new). Include
 what you were doing and the exact message WolfWave showed. Logs never contain
 tokens or credentials.

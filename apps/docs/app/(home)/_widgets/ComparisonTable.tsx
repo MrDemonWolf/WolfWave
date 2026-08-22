@@ -28,6 +28,7 @@ const ROWS: Row[] = [
   { feature: "Chat song requests", ww: "yes", browser: "no", spotify: "yes" },
   { feature: "Stream overlay included", ww: "yes", browser: "yes", spotify: "no" },
   { feature: "Discord Rich Presence", ww: "yes", browser: "no", spotify: "no" },
+  { feature: "Stream Deck plugin", ww: "yes", browser: "no", spotify: "no" },
   { feature: "Open source", ww: "yes", browser: "partial", spotify: "no" },
 ];
 
