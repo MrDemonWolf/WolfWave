@@ -7,6 +7,12 @@ Two entries document a type that is nested inside a larger file rather than livi
 own: `SectionEyebrow` (declared in `ViewModifiers.swift`) and `MonthlyWrapCard` (declared
 in `MonthlyWrapView.swift`). They are grouped by the directory they belong to.
 
+To see the Shared entries running, open Settings → Debug → Components in a Debug build.
+That gallery (`Views/Debug/DesignSystem/`) renders every view in the states its `#Preview`
+blocks declare; the Tokens section next to it renders every token family. When you add a
+`#Preview` state to a Shared view, mirror it in the gallery's matching
+`ComponentGallery+<Group>.swift`.
+
 ## Shared (`apps/native/WolfWave/Views/Shared/`)
 
 | Component | File |
