@@ -55,7 +55,7 @@ Your music plays. Everything else keeps up.
 - **Approve Before Play.** Opt-in "Require My Approval" holds every request (chat, channel points, bits) in the queue until you approve or decline it.
 - **Fair-Share Ordering.** Round-robin queue plays everyone's first request before anyone's second, so a fast re-typist can't hog it. On by default; toggle off for classic FIFO.
 - **Sub / VIP Priority.** Optional perk for subs, VIPs, and mods: skip the request cooldown, or jump ahead within the fair-share round. Off by default.
-- **Blocklist.** Ban a song or a whole artist from requests. Blocked entries are rejected before they ever reach the queue.
+- **Blocklist.** Ban a song, a whole artist, or a person from requests. Blocked entries are rejected before they ever reach the queue.
 - **Custom Commands.** Build your own chat commands with a fixed reply after connecting Twitch. Variables (`$user`, `$touser`, `$args`, `$1`–`$9`, `$song`, `$lastsong`), per-command aliases and cooldowns, and a permission level (Everyone, Subscribers, VIPs, Moderators, or Broadcaster).
 
 ### Discord
@@ -67,7 +67,7 @@ Your music plays. Everything else keeps up.
 - **Stream Widgets.** Drop-in browser-source overlay powered by a local WebSocket server with a per-install read-only overlay token, five themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`), and five layouts (`Horizontal`, `Vertical`, `Compact`, `Vinyl`, `Classic`). Two-PC streamers can receive now-playing data from a second machine on the LAN.
 - **Queue Ticker Overlay.** Opt-in `?queueTicker=1` panel showing the next 3 song requests, title and requester, so viewers see their spot in line without asking chat.
 - **OBS-friendly by design.** Visual progress is batched at 10 Hz, rendering sleeps while hidden or unloaded, and reduced-motion mode removes continuous animation work.
-- **Stream Deck Control.** A separate control token authorizes play/pause, skip, request-queue, and toggle commands only from this Mac; the read-only overlay token can never run them. The Elgato plugin lives at `apps/streamdeck/`, and its protocol is documented in [Stream Deck Control API](apps/native/docs/streamdeck-control-api.md).
+- **Stream Deck Control.** A separate control token authorizes play/pause, skip, request-queue, announce, block, and overlay-toggle commands (control protocol v3, twelve keys) only from this Mac; the read-only overlay token can never run them. The Elgato plugin lives at `apps/streamdeck/`, and its protocol is documented in [Stream Deck Control API](apps/native/docs/streamdeck-control-api.md).
 
 ### History & Stats
 
@@ -87,7 +87,7 @@ Your music plays. Everything else keeps up.
 - **Secure by Default.** Credentials live in the macOS Keychain, never plain text.
 - **Automatic Updates.** Sparkle for DMG installs, or Homebrew (`brew upgrade --cask`). Pick Stable or opt into [Nightly builds](https://mrdemonwolf.github.io/wolfwave/docs/nightly) in Settings > Software Update.
 - **On-Device Diagnostics.** Opt-in MetricKit diagnostics card with a share helper for attaching reports to a bug filing. Reports stay on-device.
-- **Bug Report Flow.** One-click log export and a pre-filled GitHub issue from Advanced settings.
+- **Bug Report Flow.** One-click log export (one file: environment summary, last crash, every rotated log) and a pre-filled GitHub issue from Advanced settings. Error banners name the cause and offer the fix, and most link to the matching [Troubleshooting](https://mrdemonwolf.github.io/wolfwave/docs/troubleshooting) section. If WolfWave ever crashes, the next launch says what crashed.
 - **Advanced Tools.** Clear the artwork cache or the log file, rerun the setup wizard, and a Danger Zone "Erase All Data & Reset" for a clean slate.
 
 ## Getting Started
@@ -182,6 +182,7 @@ socket. Regenerating either token disconnects active WebSocket clients.
 | Updates | Sparkle (EdDSA-signed appcast) |
 | Charts | SwiftUI Charts (History & Stats) |
 | Diagnostics | MetricKit (opt-in) |
+| Tests | XCTest, Swift Testing, XCUITest |
 | Security | macOS Keychain (Security framework) |
 | Docs | Fumadocs (Next.js), bun, Turborepo |
 | Marketing | Remotion |
@@ -235,8 +236,9 @@ Monorepo (bun + Turborepo):
 - `bun run build` builds every workspace in dependency order.
 - `bun run clean` cleans workspace build artifacts.
 - `bun run tokens` regenerates the design tokens from `design-system/tokens.json`.
-- `bun run ds:lint` lints Swift views for hardcoded spacing and font sizes.
+- `bun run ds:lint` lints Swift views for hardcoded spacing, font sizes, animation durations, and raw status colors.
 - `bun run ds:schema` validates `design-system/tokens.json` against its JSON schema.
+- `bun run ds:test` unit-tests the design-system lint rules themselves.
 - `bun run dev --filter docs` starts the docs dev server only.
 - `bun run build --filter docs` builds the docs site.
 - `bun run --filter widget build` rebuilds the OBS overlay widget.
@@ -251,6 +253,7 @@ Native app (Make):
 - `make test` runs the unit test suite (run `make test` for the current pass count).
 - `make test-verbose` runs the tests with full `xcodebuild` output.
 - `make test-ci` runs the tests in CI mode and writes `TestResults.xcresult`.
+- `make test-ui` runs the XCUITest suite against the real app, with a screenshot of every settings pane attached to the result.
 - `make update-deps` resolves SwiftPM dependencies.
 - `make open-xcode` opens the Xcode project.
 - `make ci` runs a CI-friendly build (alias for `make test-ci`).
@@ -285,6 +288,7 @@ wolfwave/
 │   ├── native/                 # Native macOS app (Swift, SwiftUI, AppKit)
 │   │   ├── WolfWave/           # App source
 │   │   ├── WolfWaveTests/      # Unit tests
+│   │   ├── WolfWaveUITests/    # XCUITest suite (drives the real app)
 │   │   ├── docs/               # Internal design and protocol docs
 │   │   └── WolfWave.xcodeproj  # Xcode project
 │   ├── docs/                   # Fumadocs documentation site

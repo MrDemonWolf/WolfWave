@@ -56,6 +56,20 @@ Subclasses of `WolfWaveUITestCase` declare what they want through
   window down. No unit test can see that, because the crash is in SwiftUI, not
   in our code. Rendering each pane for real is the assertion. A second pass over
   the panes catches teardown that only misbehaves on a revisit.
+- **Pane screenshots**: `testCapturesEveryPane` attaches an image of every pane
+  to the result bundle (`lifetime = .keepAlways`) and asserts nothing on
+  purpose. Rendering proves a pane doesn't trap; it says nothing about how it
+  looks, which is how mismatched card widths shipped. Pull them out with:
+
+  ```bash
+  make test-ui
+  xcrun xcresulttool export attachments \
+    --path DerivedData/Tests/Logs/Test/<newest>.xcresult \
+    --output-path /tmp/panes
+  ```
+
+  Files are named by UUID; the `manifest.json` beside them maps each back to
+  its pane. In CI the same attachments ride along in the uploaded `.xcresult`.
 
 ### Adding a UI test
 

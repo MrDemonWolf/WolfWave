@@ -14,6 +14,7 @@ which is the authoritative contract for everything in `src/wolfwave/`.
 | `src/wolfwave/client.ts` | The single shared WebSocket: reconnect backoff, ack correlation. |
 | `src/actions/base.ts` | Shared key behaviour — subscribe on appear, send on press, paint connection states. |
 | `src/actions/index.ts` | One class per manifest action. |
+| `src/marquee.ts` | Scrolls a title that doesn't fit the Now Playing key, one shared timer per key. |
 | `src/plugin.ts` | Entry point: registers actions, applies global settings. |
 | `com.mrdemonwolf.wolfwave.sdPlugin/` | The plugin bundle Stream Deck loads (manifest, Property Inspector, built output). |
 
@@ -86,7 +87,7 @@ whole key rather than by the glyph alone:
 
 | Treatment | Means | Keys |
 |---|---|---|
-| Brand tile `#0066CC`, glyph knocked out white | On / live | the three toggles, playing, queue held, links up |
+| Brand tile `#0066CC`, glyph knocked out white | On / live | Overlay on, playing, queue held, links up |
 | Amber tile `#FF9F0A` | Wants the streamer to act | Approve Next with requests pending |
 | Red glyph on black `#FF453A` | Destructive | Clear Queue, Block Song |
 | White glyph on black | Available, currently off | everything else |
@@ -105,10 +106,10 @@ cover:
 | Approve Next | check plus the pending count, amber tile when any are pending |
 | Clear Queue | red trash plus the queue depth |
 | Request Access | the gate glyph plus the current audience (`ALL` / `SUB` / `VIP` / `MOD`), tiled once it is narrower than everyone |
-| Now Playing | the track's album art, fetched and inlined as a data URI; falls back to the note glyph |
+| Now Playing | the track's album art, fetched and inlined as a data URI, with the title and artist scrolling across the bottom when they don't fit; falls back to the note glyph |
 
-Those leave the Elgato title alone, so a user-set label survives. Play /
-Pause still writes the track name into the title. Any key drops back to its
+Those leave the Elgato title alone, so a user-set label survives, and Play /
+Pause clears its title rather than writing the track into it. Any key drops back to its
 manifest image when the connection goes away, so a stale count can never sit
 under an `Offline` title.
 

@@ -104,5 +104,7 @@ export const homepageSeo = {
     "apple music now playing overlay",
     "macos menu bar music streamer",
     "twitch song requests without spotify premium",
+    "wolfwave stream deck plugin",
+    "elgato stream deck apple music",
   ],
 } as const;

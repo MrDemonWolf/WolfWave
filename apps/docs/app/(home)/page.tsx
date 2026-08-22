@@ -222,7 +222,7 @@ export default function HomePage() {
               {
                 icon: Twitch,
                 title: "For streamers",
-                body: "Go live on Apple Music without the hacks. !song replies, chat song requests, and a real-time overlay are ready the minute setup ends.",
+                body: "Go live on Apple Music without the hacks. !song replies, chat song requests, a real-time overlay, and Stream Deck keys are ready the minute setup ends.",
                 href: "/docs/features",
                 cta: "Streaming guide",
               },
@@ -453,7 +453,7 @@ export default function HomePage() {
                 <span className="ww-text-brand">Hackable like a webhook.</span>
               </>
             }
-            sub="A local WebSocket emits every play, pause, and skip. Point it at your overlay, your Home Assistant dashboard, or a Stream Deck plugin. GPL-3.0 licensed, so read the code, fork it, and ship your own build."
+            sub="A local WebSocket emits every play, pause, and skip. Point it at your overlay or your Home Assistant dashboard, or drive it from the official Stream Deck plugin. GPL-3.0 licensed, so read the code, fork it, and ship your own build."
           />
 
           {/* Section ToC / jumpbar */}
@@ -791,8 +791,9 @@ export default function HomePage() {
                 <>
                   Yes. The local WebSocket binds to all interfaces, so an OBS
                   machine on the same LAN can connect to your Mac as a browser
-                  source. Every connection presents a per-install token from
-                  Keychain. See the{" "}
+                  source. It presents a read-only per-install overlay token; a
+                  separate control token (the one Stream Deck uses) only works
+                  from the Mac itself. See the{" "}
                   <Link
                     href="/docs/security"
                     className="ww-text-brand font-semibold"
@@ -810,7 +811,17 @@ export default function HomePage() {
                   WolfWave uses Sparkle with EdDSA-signed appcasts. Same
                   framework Things, Tower, and many other Mac apps use. Homebrew
                   installs are managed by Homebrew instead, and you&apos;ll get
-                  notified when a new release lands.
+                  notified when a new release lands. Stable is the default; if
+                  you want what&apos;s coming next, Settings, Software Update
+                  has an opt-in{" "}
+                  <Link
+                    href="/docs/nightly"
+                    className="ww-text-brand font-semibold"
+                  >
+                    Nightly channel
+                  </Link>{" "}
+                  that builds off main every night something in the app
+                  changed.
                 </>
               }
             />
