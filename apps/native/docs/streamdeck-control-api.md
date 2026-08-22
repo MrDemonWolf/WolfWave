@@ -88,7 +88,7 @@ Pushed to every connected client so counter/health keys render without polling:
 
 ```json
 { "type": "queue_state", "data": { "count": 3, "pending": 1, "held": false, "audience": "everyone" } }
-{ "type": "health", "data": { "music": true, "twitch": true, "discord": false, "overlay": true } }
+{ "type": "health", "data": { "music": true, "twitch": true, "discord": false, "discordState": "disconnected", "overlay": true } }
 ```
 
 `audience` is the raw `RequestAudience` value (`everyone`, `subscribers`,
@@ -102,9 +102,15 @@ is changeable from the tray, chat (`!hold`), and Settings, and a plugin-local
 guess drifts the moment it's used from any of those.
 
 Fired on: request-queue changes (`SongRequestQueueChanged`), hold changes
-(`SongRequestHoldChanged`), Twitch connect/disconnect, a new client connecting,
-and after any successful command. `discord` health is currently an is-enabled
-proxy; the live IPC connection state is a later refinement.
+(`SongRequestHoldChanged`), Twitch connect/disconnect, Discord IPC
+connect/disconnect, a new client connecting, and after any successful command.
+
+`discord` is the live IPC state: `true` only when the integration is enabled
+**and** `DiscordRPCService` reports `connected`. `discordState` is the reason
+behind a `false`: `off` (the streamer turned it off), `connecting`, or
+`disconnected` (on, but Discord isn't running or the socket dropped). A key
+that wants "broken" to look different from "switched off" reads `discordState`;
+a client that doesn't know the field can keep reading the boolean.
 
 Outbound broadcasts are additive-compatible: a client that doesn't know a field
 ignores it, so adding one here does **not** require a `protocolVersion` bump.

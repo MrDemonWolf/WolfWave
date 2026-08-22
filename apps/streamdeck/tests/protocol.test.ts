@@ -219,8 +219,29 @@ describe("parseFrame", () => {
       ),
     ).toEqual({
       kind: "health",
-      data: { music: true, twitch: true, discord: false, overlay: true },
+      data: { music: true, twitch: true, discord: false, discordState: "off", overlay: true },
     });
+  });
+
+  test("health decodes discordState and derives a missing or unknown one from discord", () => {
+    expect(
+      parseFrame(
+        '{"type":"health","data":{"music":true,"twitch":true,"discord":true,"overlay":true}}',
+      ),
+    ).toMatchObject({ data: { discord: true, discordState: "connected" } });
+    expect(
+      parseFrame(
+        '{"type":"health","data":{"music":true,"twitch":true,"discord":false,"discordState":"disconnected","overlay":true}}',
+      ),
+    ).toEqual({
+      kind: "health",
+      data: { music: true, twitch: true, discord: false, discordState: "disconnected", overlay: true },
+    });
+    expect(
+      parseFrame(
+        '{"type":"health","data":{"music":true,"twitch":true,"discord":false,"discordState":"bogus","overlay":true}}',
+      ),
+    ).toMatchObject({ data: { discordState: "off" } });
   });
 
   test("decodes a successful ack without an error field", () => {
