@@ -117,7 +117,7 @@ struct MotionGallerySection: View {
 
     private var chipCycleDemo: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
-            Text("StatusChip: auto-cycles every 1.2s")
+            Text(reduceMotion ? "StatusChip: auto-cycle paused (Reduce Motion)" : "StatusChip: auto-cycles every 1.2s")
                 .font(.system(size: DSFont.Size.sm, weight: .semibold))
                 .foregroundStyle(.secondary)
             HStack(spacing: DSSpace.s4) {
@@ -132,7 +132,10 @@ struct MotionGallerySection: View {
             // auto-cancels when the card disappears (matches the other Debug
             // cards). A stored onAppear task would outlive the view and keep
             // mutating state for the process lifetime on every pane revisit.
-            .task {
+            // Keyed on reduceMotion so flipping the system setting restarts
+            // (or stops) the loop; the Advance button still works either way.
+            .task(id: reduceMotion) {
+                guard !reduceMotion else { return }
                 while !Task.isCancelled {
                     try? await Task.sleep(for: .milliseconds(1200))
                     guard !Task.isCancelled else { return }

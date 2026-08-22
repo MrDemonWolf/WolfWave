@@ -87,6 +87,8 @@ extension DebugComponentGalleryCard {
         }
     }
 
+    // MARK: Helpers
+
     private var responsiveRowSample: some View {
         ResponsiveRow {
             RoundedRectangle(cornerRadius: DSRadius.lg2)

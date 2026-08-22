@@ -21,6 +21,8 @@ import Testing
 @Suite("Design Token Catalog")
 struct DesignTokenCatalogTests {
 
+    // MARK: - Helpers
+
     private func assertUniqueNonEmpty(
         _ names: [String],
         _ family: String,
@@ -33,6 +35,8 @@ struct DesignTokenCatalogTests {
             sourceLocation: sourceLocation
         )
     }
+
+    // MARK: - Tests
 
     @Test("Every scalar family is non-empty with unique names")
     func scalarFamilies() {
