@@ -66,7 +66,6 @@ struct AppConstantsTests {
         #expect(!AppConstants.UserDefaults.trackingEnabled.isEmpty)
         #expect(!AppConstants.UserDefaults.dockVisibility.isEmpty)
         #expect(!AppConstants.UserDefaults.twitchReauthNeeded.isEmpty)
-        #expect(!AppConstants.UserDefaults.selectedSettingsSection.isEmpty)
         #expect(!AppConstants.UserDefaults.websocketEnabled.isEmpty)
         #expect(!AppConstants.UserDefaults.currentSongCommandEnabled.isEmpty)
         #expect(!AppConstants.UserDefaults.lastSongCommandEnabled.isEmpty)
@@ -109,7 +108,6 @@ struct AppConstantsTests {
     @Test("Twitch constants are defined")
     func testTwitchConstants() async throws {
         #expect(AppConstants.Twitch.apiBaseURL == "https://api.twitch.tv/helix")
-        #expect(AppConstants.Twitch.settingsSection == "twitchIntegration")
         #expect(AppConstants.Twitch.sessionWelcomeTimeout == 10.0)
         #expect(AppConstants.Twitch.maxMessageLength == 500)
         #expect(AppConstants.Twitch.messageTruncationSuffix == "...")
@@ -139,7 +137,6 @@ struct AppConstantsTests {
     
     @Test("Discord constants are defined")
     func testDiscordConstants() async throws {
-        #expect(AppConstants.Discord.settingsSection == "discordPresence")
         #expect(AppConstants.Discord.ipcSocketPrefix == "discord-ipc-")
         #expect(AppConstants.Discord.ipcSocketSlots == 10)
         #expect(AppConstants.Discord.rpcVersion == 1)

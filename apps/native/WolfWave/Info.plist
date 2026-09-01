@@ -12,6 +12,19 @@
 	<string>WolfWave</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2026 MrDemonWolf, Inc. All rights reserved.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>CFBundleURLName</key>
+			<string>com.mrdemonwolf.wolfwave</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>wolfwave</string>
+			</array>
+		</dict>
+	</array>
 	<key>SUFeedURL</key>
 	<string>https://github.com/MrDemonWolf/wolfwave/releases/latest/download/appcast.xml</string>
 	<key>SUPublicEDKey</key>

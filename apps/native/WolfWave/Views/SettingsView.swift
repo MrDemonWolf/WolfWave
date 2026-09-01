@@ -42,7 +42,10 @@ struct SettingsView: View {
     // MARK: - Settings Section Enum
     
     /// Navigation sections in the settings sidebar.
-    enum SettingsSection: String, CaseIterable, Identifiable {
+    ///
+    /// `nonisolated` so the pure deep-link parser (`SettingsDeepLink`) and its
+    /// tests can use it off the main actor.
+    nonisolated enum SettingsSection: String, CaseIterable, Identifiable {
         case general = "General"
         case songRequests = "Song Requests"
         case websocket = "Stream Widgets"
@@ -58,6 +61,34 @@ struct SettingsView: View {
         #endif
 
         var id: Self { self }
+
+        /// Stable identifier used in `wolfwave://settings/<slug>` deep links.
+        /// Never derive this from `rawValue`: the raw value is the visible
+        /// title, and a copy edit must not break every link in the docs.
+        var slug: String {
+            switch self {
+            case .general: return "general"
+            case .songRequests: return "song-requests"
+            case .websocket: return "stream-widgets"
+            case .streamDeck: return "stream-deck"
+            case .historyStats: return "history-stats"
+            case .twitchIntegration: return "twitch"
+            case .discord: return "discord"
+            case .softwareUpdate: return "software-update"
+            case .advanced: return "advanced"
+            case .about: return "about"
+            #if DEBUG
+            case .debug: return "debug"
+            #endif
+            }
+        }
+
+        /// Reverse of `slug`. Case-insensitive; `nil` for an unknown slug.
+        init?(slug: String) {
+            let wanted = slug.lowercased()
+            guard let match = Self.allCases.first(where: { $0.slug == wanted }) else { return nil }
+            self = match
+        }
 
         /// Cases: `.debug` only present in DEBUG builds.
         static var allCases: [SettingsSection] {
@@ -130,6 +161,10 @@ struct SettingsView: View {
     /// Currently selected settings section
     @State private var selectedSection: SettingsSection = .general
 
+    /// In-flight deep-link scroll + flash. Replaced (and cancelled) by each
+    /// new link so a slow first link can never land on top of a second one.
+    @State private var deepLinkTask: Task<Void, Never>?
+
     /// Sidebar column visibility. Bound into `NavigationSplitView` so the
     /// automatic title-bar toggle (and any future programmatic show/hide) drives
     /// a single source of truth.
@@ -154,7 +189,16 @@ struct SettingsView: View {
                 // the only one we want.
                 .toolbar(removing: .sidebarToggle)
         } detail: {
-            detailPane
+            // One reader for every pane: `ScrollViewProxy.scrollTo` reaches into
+            // whichever nested ScrollView contains the `DeepLinkAnchor` id, so
+            // panes that own their own scroll layout need no extra plumbing.
+            ScrollViewReader { proxy in
+                detailPane
+                    .onAppear { applyPendingNavigation(proxy) }
+                    .onChange(of: SettingsNavigation.shared.pending) { _, _ in
+                        applyPendingNavigation(proxy)
+                    }
+            }
             // Names the pane that is actually on screen, which is the only
             // signal a UI test has that a sidebar click finished. The row click
             // is asynchronous, so without this a test can only assert the row it
@@ -175,14 +219,6 @@ struct SettingsView: View {
             .padding(.top, DSSpace.s2)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(nsColor: .windowBackgroundColor))
-            .onAppear {
-                if let requestedSection = Preferences.selectedSettingsSection {
-                    if requestedSection == AppConstants.Twitch.settingsSection {
-                        selectedSection = .twitchIntegration
-                    }
-                    DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.selectedSettingsSection)
-                }
-            }
             // The sidebar toggle lives on the DETAIL toolbar, not the sidebar's.
             // SwiftUI's automatic toggle sits in the leading (sidebar) toolbar
             // segment; while the column animates to zero width that segment can't
@@ -361,6 +397,35 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Deep Links
+
+    /// Consumes `SettingsNavigation.shared.pending`: selects the pane, then on
+    /// the next run-loop turn (after the pane has mounted its anchors) scrolls
+    /// to the section and triggers its highlight flash.
+    private func applyPendingNavigation(_ proxy: ScrollViewProxy) {
+        guard let link = SettingsNavigation.shared.pending else { return }
+        SettingsNavigation.shared.pending = nil
+        deepLinkTask?.cancel()
+        SettingsNavigation.shared.highlighted = nil
+        selectedSection = link.pane
+        guard let section = link.section else { return }
+        deepLinkTask = Task { @MainActor in
+            // ponytail: one tick is enough for a pane switch to lay out; bump
+            // to a layout-driven signal if a heavy pane ever misses the scroll.
+            guard (try? await Task.sleep(for: .milliseconds(AppConstants.SettingsUI.deepLinkScrollDelayMs))) != nil else { return }
+            withAnimation(.easeInOut(duration: DSMotion.Duration.slow)) {
+                proxy.scrollTo(DeepLinkAnchor(slug: section), anchor: .top)
+            }
+            SettingsNavigation.shared.highlighted = section
+            // Expiry lives here, not in the anchor: a slug with no mounted
+            // anchor (feature off, stale docs link) must still clear.
+            guard (try? await Task.sleep(for: .seconds(DSMotion.Duration.pulseSlow * 2))) != nil else { return }
+            if SettingsNavigation.shared.highlighted == section {
+                SettingsNavigation.shared.highlighted = nil
+            }
+        }
+    }
+
     // MARK: - Sidebar Helpers
 
     /// Grouped sidebar layout. Headers keep related sections together so the
@@ -395,11 +460,13 @@ struct SettingsView: View {
                 .padding(.vertical, DSSpace.s1)
 
             TwitchCommandsCard(viewModel: twitchViewModel)
+                .deepLinkSection("commands")
 
             Divider()
                 .padding(.vertical, DSSpace.s1)
 
             CustomCommandsCard(viewModel: twitchViewModel)
+                .deepLinkSection("custom-commands")
         }
     }
 

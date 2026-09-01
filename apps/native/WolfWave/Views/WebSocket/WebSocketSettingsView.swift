@@ -48,14 +48,18 @@ struct WebSocketSettingsView: View {
             // leading with it made a two-click setup look like a programming
             // task.
             WebSocketServerCard(serverState: serverState, localNetworkIP: localNetworkIP)
+                .deepLinkSection("server")
 
             WebSocketBrowserSourceCard(localNetworkIP: localNetworkIP)
+                .deepLinkSection("browser-source")
                 .transition(.opacity)
 
             WebSocketWidgetAppearanceCard()
+                .deepLinkSection("appearance")
                 .transition(.opacity)
 
             WebSocketCustomOverlayCard(localNetworkIP: localNetworkIP)
+                .deepLinkSection("custom-overlay")
                 .transition(.opacity)
         }
         .task(id: websocketEnabled) {

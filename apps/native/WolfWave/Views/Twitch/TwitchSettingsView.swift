@@ -41,6 +41,7 @@ struct TwitchSettingsView: View {
                     value: viewModel.connectionError)
 
             authCard
+                .deepLinkSection("account")
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
                 .animation(
                     reduceMotion ? nil : DSMotion.Spring.snappy,
@@ -48,6 +49,7 @@ struct TwitchSettingsView: View {
                         || viewModel.authState.isInProgress))
 
             chatCommandsCard
+                .deepLinkSection("live-only")
         }
         .onAppear {
             // Keychain reads + AppDelegate wiring run once per view model instance.

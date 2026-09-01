@@ -33,6 +33,7 @@ blocks declare; the Tokens section next to it renders every token family. When y
 | MusicPermissionBanner | [music-permission-banner.md](music-permission-banner.md) |
 | AsyncActionButton | [async-action-button.md](async-action-button.md) |
 | CopyButton | [copy-button.md](copy-button.md) |
+| DeepLinkAnchor | [deep-link-anchor.md](deep-link-anchor.md) |
 | CopyableURLRow | [copyable-url-row.md](copyable-url-row.md) |
 | OpenInBrowserButton | [open-in-browser-button.md](open-in-browser-button.md) |
 | SharePickerButton | [share-picker-button.md](share-picker-button.md) |

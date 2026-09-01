@@ -67,6 +67,7 @@ Your music plays. Everything else keeps up.
 - **Stream Widgets.** Drop-in browser-source overlay powered by a local WebSocket server with a per-install read-only overlay token, five themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`), and five layouts (`Horizontal`, `Vertical`, `Compact`, `Vinyl`, `Classic`). Two-PC streamers can receive now-playing data from a second machine on the LAN.
 - **Queue Ticker Overlay.** Opt-in `?queueTicker=1` panel showing the next 3 song requests, title and requester, so viewers see their spot in line without asking chat.
 - **OBS-friendly by design.** Visual progress is batched at 10 Hz, rendering sleeps while hidden or unloaded, and reduced-motion mode removes continuous animation work.
+- **Settings deep links.** `wolfwave://settings/twitch/custom-commands` opens Settings on the Twitch pane, scrolls to Custom Commands, and flashes it. Every pane and card has a stable name, listed in the [Settings docs](https://mrdemonwolf.github.io/wolfwave/docs/settings#deep-links).
 - **Stream Deck Control.** A separate control token authorizes play/pause, skip, request-queue, announce, block, and overlay-toggle commands (control protocol v3, twelve keys) only from this Mac; the read-only overlay token can never run them. The Elgato plugin lives at `apps/streamdeck/`, and its protocol is documented in [Stream Deck Control API](apps/native/docs/streamdeck-control-api.md).
 
 ### History & Stats
