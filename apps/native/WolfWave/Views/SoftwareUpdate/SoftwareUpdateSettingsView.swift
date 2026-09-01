@@ -104,6 +104,7 @@ struct SoftwareUpdateSettingsView: View {
             )
 
             softwareUpdateCard
+                .deepLinkSection("updates")
         }
         .onAppear {
             isHomebrewInstall = Bundle.main.isHomebrewInstall

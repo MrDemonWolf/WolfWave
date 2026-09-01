@@ -45,9 +45,6 @@ extension AppConstants {
         /// authenticated account. Never used for connection decisions.
         static let twitchPendingImportedChannelName = "twitchPendingImportedChannelName"
 
-        /// Settings section to open next time (String, "twitchIntegration", etc.)
-        static let selectedSettingsSection = "selectedSettingsSection"
-
         /// Whether WebSocket integration is enabled (Bool, default: false)
         static let websocketEnabled = "websocketEnabled"
 
@@ -478,7 +475,6 @@ extension AppConstants {
             twitchReauthNeeded,
             twitchChannelName,
             twitchPendingImportedChannelName,
-            selectedSettingsSection,
             websocketEnabled,
             streamDeckControlEnabled,
             currentSongCommandEnabled,
@@ -872,7 +868,6 @@ extension AppConstants {
             lastResolvedMusicPermission,
             lastLaunchCrashed,
             lastCrashSummary,
-            selectedSettingsSection,
             hasCompletedOnboarding,
             diagnosticsLaunchCount,
             updateSkippedVersion,

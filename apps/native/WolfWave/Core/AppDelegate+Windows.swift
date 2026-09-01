@@ -47,6 +47,25 @@ extension AppDelegate {
         }
     }
 
+    /// Opens Settings at a specific pane (and optional section). Works whether
+    /// the window is closed or already open on another pane: `SettingsView`
+    /// observes `SettingsNavigation.shared.pending`.
+    func navigateSettings(to deepLink: SettingsDeepLink) {
+        SettingsNavigation.shared.pending = deepLink
+        openSettings()
+    }
+
+    /// `wolfwave://settings/<pane>[/<section>]` entry point. Registered via
+    /// `CFBundleURLTypes` in `Info.plist`. Only the first URL is honoured;
+    /// anything malformed lands on General (see `SettingsDeepLink.parse`).
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard let url = urls.first else { return }
+        let link = SettingsDeepLink.parse(url)
+        // Only the resolved slugs are logged; the raw URL is caller-controlled.
+        Log.info("Settings deep link", fields: ["pane": link.pane.slug, "section": link.section ?? "-"])
+        navigateSettings(to: link)
+    }
+
     /// Shows the system standard About panel from the menu bar.
     ///
     /// About lives in two surfaces with intentionally different presentations:

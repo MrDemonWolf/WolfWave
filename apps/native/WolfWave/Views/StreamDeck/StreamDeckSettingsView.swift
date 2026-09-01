@@ -51,8 +51,11 @@ struct StreamDeckSettingsView: View {
             )
 
             controlCard
+                .deepLinkSection("control")
             tokenCard
+                .deepLinkSection("token")
             setupCard
+                .deepLinkSection("setup")
         }
         .task {
             guard currentControlToken.isEmpty || currentOverlayToken.isEmpty else { return }

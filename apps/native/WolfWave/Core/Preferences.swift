@@ -207,16 +207,6 @@ nonisolated enum Preferences {
 
     // MARK: - Settings / UI
 
-    /// Currently-selected sidebar section in the Settings window. `nil` when
-    /// the user has not navigated yet.
-    static var selectedSettingsSection: String? {
-        defaults.string(forKey: AppConstants.UserDefaults.selectedSettingsSection)
-    }
-
-    static func setSelectedSettingsSection(_ value: String) {
-        defaults.set(value, forKey: AppConstants.UserDefaults.selectedSettingsSection)
-    }
-
     /// Dock visibility mode persisted by the App Visibility setting (raw value).
     static var dockVisibility: String? {
         defaults.string(forKey: AppConstants.UserDefaults.dockVisibility)

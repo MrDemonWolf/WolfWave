@@ -27,12 +27,16 @@ struct GeneralSettingsView: View {
                 header
 
                 MusicMonitorSettingsView(configure: configure)
+                    .deepLinkSection("music")
 
                 AppVisibilitySettingsView()
+                    .deepLinkSection("visibility")
 
                 AppearanceSettingsView()
+                    .deepLinkSection("appearance")
 
                 NotificationsSettingsView()
+                    .deepLinkSection("notifications")
             }
             .frame(maxWidth: AppConstants.SettingsUI.maxContentWidth, alignment: .topLeading)
             .frame(maxWidth: .infinity, alignment: .center)

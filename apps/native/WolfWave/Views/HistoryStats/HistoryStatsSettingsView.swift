@@ -173,6 +173,7 @@ struct HistoryStatsSettingsView: View {
                 intro
                 permissionBanner
                 togglesCard
+                    .deepLinkSection("tracking")
 
                 if !historyEnabled {
                     firstRunExplainer
@@ -207,11 +208,14 @@ struct HistoryStatsSettingsView: View {
 
                 if historyEnabled, statsEnabled {
                     statsCommandCard
+                        .deepLinkSection("stats-command")
                 }
 
                 if historyEnabled {
                     manageBlock
+                        .deepLinkSection("retention")
                     dangerCard
+                        .deepLinkSection("danger-zone")
                 }
             }
             .frame(maxWidth: AppConstants.SettingsUI.maxContentWidth, alignment: .topLeading)

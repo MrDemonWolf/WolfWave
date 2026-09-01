@@ -69,6 +69,7 @@ struct SongRequestSettingsView: View {
                 // Vote-skip skips the live Apple Music track even with no request
                 // queue, so it stays reachable whether or not song requests are on.
                 VoteSkipCard()
+                    .deepLinkSection("vote-skip")
 
                 // The configuration cards only appear once setup is finished and
                 // the feature is on. Apple Music access is handled inside the
@@ -78,13 +79,20 @@ struct SongRequestSettingsView: View {
                     // on mid-stream (skip/hold/clear), so it leads. The set-once
                     // configuration cards follow below.
                     SongRequestQueueView()
+                        .deepLinkSection("queue")
                     SongRequestAccessCard()
+                        .deepLinkSection("access")
                     SongRequestQueueConfigCard()
+                        .deepLinkSection("queue-settings")
                     SongRequestPlaybackCard()
+                        .deepLinkSection("playback")
                     SongRequestCommandsCard(onManageLink: { openSetup(at: .shareLink) })
+                        .deepLinkSection("commands")
                     SongRequestRedemptionsCard()
+                        .deepLinkSection("redemptions")
                     SongRequestBlocklistCard(
                         blocklistProvider: { appDelegate?.songRequestService?.blocklist })
+                        .deepLinkSection("blocklist")
                 }
             }
             .frame(maxWidth: AppConstants.SettingsUI.maxContentWidth, alignment: .topLeading)

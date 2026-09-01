@@ -71,14 +71,18 @@ struct DiscordSettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             connectionSection
+                .deepLinkSection("presence")
             if presenceEnabled && hasClientID {
                 // Controls on the left, live preview on the right. ResponsiveRow
                 // collapses to a single stacked column on narrow windows.
                 ResponsiveRow {
                     VStack(alignment: .leading, spacing: DSSpace.s6) {
                         buttonsSection
+                            .deepLinkSection("buttons")
                         playlistSection
+                            .deepLinkSection("playlist")
                         behaviorSection
+                            .deepLinkSection("behavior")
                     }
                 } right: {
                     previewSection

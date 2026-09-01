@@ -11,9 +11,6 @@ import Foundation
 extension AppConstants {
     /// Discord Rich Presence constants.
     nonisolated enum Discord {
-        /// Settings section identifier for Discord configuration
-        static let settingsSection = "discordPresence"
-
         /// IPC socket filename prefix (append 0-9 to find active socket)
         static let ipcSocketPrefix = "discord-ipc-"
 

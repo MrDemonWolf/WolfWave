@@ -14,9 +14,6 @@ extension AppConstants {
         /// Base URL for Twitch Helix API endpoints
         static let apiBaseURL = "https://api.twitch.tv/helix"
 
-        /// Settings section identifier for Twitch configuration
-        static let settingsSection = "twitchIntegration"
-
         /// Timeout in seconds for receiving the session_welcome WebSocket message
         static let sessionWelcomeTimeout: TimeInterval = 10.0
 

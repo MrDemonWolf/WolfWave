@@ -467,6 +467,10 @@ nonisolated enum AppConstants {
         /// Standard card padding
         static let cardPadding: CGFloat = DSDimension.Settings.cardPadding
 
+        /// Delay between a deep link selecting a pane and scrolling to its
+        /// section, so the pane has mounted its `DeepLinkAnchor` ids first.
+        static let deepLinkScrollDelayMs = 120
+
         /// Standard card corner radius (matches macOS 26 Liquid Glass card radius).
         static let cardCornerRadius: CGFloat = DSDimension.Settings.cardCornerRadius
 
