@@ -17,9 +17,13 @@ keywords:
 ---
 
 Open Settings from the menu bar wolf icon. A sidebar lists every pane; this page
-tells you what lives where, with links to the deep-dives.
+tells you what lives where, with links to the deep-dives. Each pane heading
+below also carries a `wolfwave://` link that opens WolfWave straight to it
+(see [Deep links](#deep-links)).
 
 ## General
+
+<small>Open in WolfWave: [`wolfwave://settings/general`](wolfwave://settings/general)</small>
 
 How WolfWave tracks your music and where it shows up. Four sections in one
 scrollable pane:
@@ -44,6 +48,8 @@ Appearance and notification choices are preferences, so they travel with
 
 ## Song Requests
 
+<small>Open in WolfWave: [`wolfwave://settings/song-requests`](wolfwave://settings/song-requests)</small>
+
 The guided setup, the request policy preset (Open, Sub Only, Channel Point Only,
 Custom), queue rules, approval screening, hold mode, vote-skip, and the live
 queue view. The behavior is documented in
@@ -52,6 +58,8 @@ queue view. The behavior is documented in
 
 ## Stream Widgets
 
+<small>Open in WolfWave: [`wolfwave://settings/stream-widgets`](wolfwave://settings/stream-widgets)</small>
+
 The OBS overlay: turn the connection on, drop in the ready-made browser source,
 and style it. Cards run in the order you need them, so the raw WebSocket feed
 (port, read-only overlay token, and the two addresses) sits last, under **Build
@@ -59,6 +67,8 @@ your own overlay**, because only a hand-written overlay needs it. Sizes, themes,
 and the message contract are in the [widget guide](/docs/widget).
 
 ## Stream Deck
+
+<small>Open in WolfWave: [`wolfwave://settings/stream-deck`](wolfwave://settings/stream-deck)</small>
 
 The control side, on its own page. Holds the **Allow Stream Deck commands**
 switch, the same-Mac control token, and the setup steps. It is separate from
@@ -69,11 +79,15 @@ this Mac. Turning commands off leaves your overlay running. Full walkthrough:
 
 ## History & Stats
 
+<small>Open in WolfWave: [`wolfwave://settings/history-stats`](wolfwave://settings/history-stats)</small>
+
 Opt-in, on-device listening history with charts and the Monthly Wrap. What
 counts as a play and how retention works:
 [Listening History](/docs/listening-history).
 
 ## Twitch
+
+<small>Open in WolfWave: [`wolfwave://settings/twitch`](wolfwave://settings/twitch)</small>
 
 Connect your Twitch account (device code — no password typed into WolfWave),
 manage the chat bot, built-in command toggles and aliases, custom commands (each
@@ -81,6 +95,8 @@ with its own delivery mode: reply, plain message, or announcement), and
 cooldowns. Command reference: [Bot Commands](/docs/bot-commands).
 
 ## Discord
+
+<small>Open in WolfWave: [`wolfwave://settings/discord`](wolfwave://settings/discord)</small>
 
 Rich Presence: show what you're listening to on your Discord profile, with
 optional buttons and an idle status when nothing is playing.
@@ -97,10 +113,14 @@ instead of always guessing that Discord is closed:
 
 ## Software Update
 
+<small>Open in WolfWave: [`wolfwave://settings/software-update`](wolfwave://settings/software-update)</small>
+
 Check for updates, switch between the Stable and Nightly channels, and see
 what's new. Channel details: [Nightly Builds](/docs/nightly).
 
 ## Advanced
+
+<small>Open in WolfWave: [`wolfwave://settings/advanced`](wolfwave://settings/advanced)</small>
 
 Settings [backup and restore](/docs/backup), log export, the bug-report flow,
 and opt-in on-device diagnostics. **Export Logs** writes one diagnostics file:
@@ -111,6 +131,8 @@ recovery callout appears here and says what crashed.
 
 ## About
 
+<small>Open in WolfWave: [`wolfwave://settings/about`](wolfwave://settings/about)</small>
+
 Version, credits, license, and links to the docs, community Discord, and
 acknowledgements.
 
@@ -118,6 +140,45 @@ acknowledgements.
 and you get a Sponsor item here, in the menu bar's Help submenu, and in the
 Help menu. Turn it off and all three disappear — the toggle itself stays, so you
 can turn it back on. WolfWave is free and fully functional either way.
+
+## Deep links
+
+WolfWave registers the `wolfwave://` URL scheme. A link opens Settings on a
+pane, scrolls to a card, and flashes it for a moment. It works whether Settings
+is closed or already open somewhere else. Anything WolfWave doesn't recognise
+opens General, so a stale link never errors.
+
+```
+wolfwave://settings                       General
+wolfwave://settings/<pane>                one pane
+wolfwave://settings/<pane>/<section>      one card inside that pane
+```
+
+Names are stable identifiers, not the titles you see on screen, so they survive
+copy changes.
+
+| Pane | `<pane>` | `<section>` |
+|---|---|---|
+| General | `general` | `music`, `visibility`, `appearance`, `notifications` |
+| Song Requests | `song-requests` | `vote-skip`, `queue`, `access`, `queue-settings`, `playback`, `commands`, `redemptions`, `blocklist` |
+| Stream Widgets | `stream-widgets` | `server`, `browser-source`, `appearance`, `custom-overlay` |
+| Stream Deck | `stream-deck` | `control`, `token`, `setup` |
+| History & Stats | `history-stats` | `tracking`, `stats-command`, `retention`, `danger-zone` |
+| Twitch | `twitch` | `account`, `live-only`, `commands`, `custom-commands` |
+| Discord | `discord` | `presence`, `buttons`, `playlist`, `behavior` |
+| Software Update | `software-update` | `updates` |
+| Advanced | `advanced` | `diagnostics`, `artwork-cache`, `backup`, `danger-zone` |
+| About | `about` | |
+
+Some cards only exist once a feature is on (Song Requests cards need setup
+finished and the feature enabled; History cards need history on). A link to a
+card that isn't showing opens the pane and stops there.
+
+Try one from Terminal:
+
+```bash
+open "wolfwave://settings/twitch/custom-commands"
+```
 
 ## Debug
 

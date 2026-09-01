@@ -1006,8 +1006,7 @@ extension AppDelegate {
     }
 
     private func openSettingsToTwitch() {
-        Preferences.setSelectedSettingsSection(AppConstants.Twitch.settingsSection)
-        openSettings()
+        navigateSettings(to: SettingsDeepLink(pane: .twitchIntegration))
     }
 
     /// Starts the app-lifetime Twitch validation owner. Kept async so the

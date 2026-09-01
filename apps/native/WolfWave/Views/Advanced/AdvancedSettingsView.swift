@@ -328,15 +328,18 @@ struct AdvancedSettingsView: View {
 
             // Diagnostics Card
             diagnosticsCard
+                .deepLinkSection("diagnostics")
 
             // Artwork Cache Card
             artworkCacheCard
+                .deepLinkSection("artwork-cache")
 
             // Diagnostics & Privacy (on-device MetricKit opt-in)
             DiagnosticsShareCardView()
 
             // Back Up / Restore Settings Card
             backupCard
+                .deepLinkSection("backup")
 
             Divider()
                 .padding(.vertical, DSSpace.s1)
@@ -389,6 +392,7 @@ struct AdvancedSettingsView: View {
                 }
             }
             .cardStyle()
+            .deepLinkSection("danger-zone")
         }
     }
 

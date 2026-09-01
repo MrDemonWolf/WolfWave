@@ -811,8 +811,7 @@ extension AppDelegate {
             }
         } else {
             // Connecting requires channel + credentials, open Twitch settings
-            Preferences.setSelectedSettingsSection(AppConstants.Twitch.settingsSection)
-            openSettings()
+            navigateSettings(to: SettingsDeepLink(pane: .twitchIntegration))
         }
     }
 
