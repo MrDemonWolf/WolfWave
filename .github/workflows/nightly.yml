@@ -195,6 +195,7 @@ jobs:
       - name: Code sign app bundle (inside-out)
         env:
           APP_PATH: ${{ steps.app.outputs.path }}
+          PROVISIONING_PROFILE_B64: ${{ secrets.PROVISIONING_PROFILE_B64 }}
         run: bash scripts/codesign-app.sh "$APP_PATH"
 
       - name: Create DMG

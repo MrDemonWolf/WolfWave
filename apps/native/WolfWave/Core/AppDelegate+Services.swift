@@ -549,6 +549,15 @@ extension AppDelegate {
         }
     }
 
+    /// Creates the iCloud settings mirror and starts it if the user opted in.
+    func setupSettingsSync() {
+        let service = SettingsSyncService()
+        settingsSyncService = service
+        let enabled = FeatureFlags.iCloudSettingsSyncEnabled
+        service.setEnabled(enabled)
+        Log.info("AppDelegate: Settings sync initialized (enabled: \(enabled))")
+    }
+
     /// Creates the listening history service and loads existing history if the
     /// feature is enabled.
     func setupHistoryService() {
@@ -716,6 +725,10 @@ extension AppDelegate {
         }
         observeOnMain(Notification.Name.listeningHistorySettingChanged) { [weak self] n in
             self?.listeningHistorySettingChanged(n)
+        }
+        observeOnMain(Notification.Name.iCloudSettingsSyncSettingChanged) { [weak self] n in
+            guard let enabled = n.enabledFlag else { return }
+            self?.settingsSyncService?.setEnabled(enabled)
         }
         observeOnMain(Notification.Name.twitchConnectionStateChanged) { [weak self] n in
             self?.twitchConnectionStateChanged(n)

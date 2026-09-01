@@ -44,6 +44,7 @@ extension NSNotification.Name {
     nonisolated static let openSettingsRequested = NSNotification.Name(AppConstants.Notifications.openSettingsRequested)
     nonisolated static let listeningHistorySettingChanged = NSNotification.Name(AppConstants.Notifications.listeningHistorySettingChanged)
     nonisolated static let streamerModeChanged = NSNotification.Name(AppConstants.Notifications.streamerModeChanged)
+    nonisolated static let iCloudSettingsSyncSettingChanged = NSNotification.Name(AppConstants.Notifications.iCloudSettingsSyncSettingChanged)
 }
 
 extension AppConstants {
@@ -118,6 +119,9 @@ extension AppConstants {
         /// Posted when the user toggles Streamer Mode from the tray menu. UserInfo contains "enabled" Bool.
         static let streamerModeChanged = "StreamerModeChanged"
 
+        /// Posted when the user toggles iCloud settings sync. UserInfo contains "enabled" Bool.
+        static let iCloudSettingsSyncSettingChanged = "ICloudSettingsSyncSettingChanged"
+
         /// Posted when the playback data path detects Apple Music Automation is denied
         /// (e.g., Music is running but ScriptingBridge reads return nil). Lets the
         /// Music Monitor settings view flip to the denied banner without waiting for
@@ -156,6 +160,7 @@ extension AppConstants {
             musicPermissionDenied,
             streamerModeChanged,
             openSettingsRequested,
+            iCloudSettingsSyncSettingChanged,
         ]
     }
 }

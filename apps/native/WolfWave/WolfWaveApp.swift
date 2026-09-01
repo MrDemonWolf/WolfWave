@@ -173,6 +173,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var songRequestService: SongRequestService?
     var skipVoteManager: SkipVoteManager?
     var historyService: ListeningHistoryService?
+    var settingsSyncService: SettingsSyncService?
     var notificationObservers: [Any] = []
 
     /// Long-lived task consuming `discordService.stateChanges`.
@@ -307,6 +308,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if offProcessOK { guardedStart("Sparkle") { self.setupSparkleUpdater() } }
         guardedStart("SongRequest") { self.setupSongRequestService() }
         guardedStart("History") { self.setupHistoryService() }
+        if offProcessOK { guardedStart("SettingsSync") { self.setupSettingsSync() } }
         guardedStart("Diagnostics") { self.setupDiagnostics() }
 
         // Record whether the previous run left a crash breadcrumb, mirror it to a

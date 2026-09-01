@@ -494,6 +494,20 @@ struct AdvancedSettingsView: View {
 
     // MARK: - Backup Card
 
+    @AppStorage(AppConstants.UserDefaults.iCloudSettingsSyncEnabled)
+    private var iCloudSettingsSyncEnabled = false
+
+    @AppStorage(AppConstants.UserDefaults.iCloudSettingsSyncLastAppliedAt)
+    private var iCloudSettingsSyncLastAppliedAt = 0.0
+
+    private var iCloudSyncSubtitle: String {
+        guard iCloudSettingsSyncEnabled, iCloudSettingsSyncLastAppliedAt > 0 else {
+            return "Settings follow you to other Macs. Accounts stay on this one."
+        }
+        let date = Date(timeIntervalSince1970: iCloudSettingsSyncLastAppliedAt)
+        return "Last synced \(date.formatted(date: .abbreviated, time: .shortened))."
+    }
+
     @ViewBuilder
     private var backupCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
@@ -506,6 +520,18 @@ struct AdvancedSettingsView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+
+            ToggleSettingRow(
+                title: "Sync with iCloud",
+                subtitle: iCloudSyncSubtitle,
+                isOn: $iCloudSettingsSyncEnabled,
+                accessibilityLabel: "Sync settings with iCloud",
+                accessibilityIdentifier: "iCloudSettingsSyncToggle",
+                onChange: { enabled in
+                    NotificationCenter.default.postEnabled(
+                        .iCloudSettingsSyncSettingChanged, enabled: enabled)
+                }
+            )
 
             ActionGrid(columns: 2) {
                 GridRow {

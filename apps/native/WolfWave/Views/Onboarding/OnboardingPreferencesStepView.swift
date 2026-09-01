@@ -21,12 +21,15 @@ struct OnboardingPreferencesStepView: View {
     @AppStorage(AppConstants.UserDefaults.listeningHistoryEnabled)
     private var listeningHistoryEnabled = false
 
+    @AppStorage(AppConstants.UserDefaults.iCloudSettingsSyncEnabled)
+    private var iCloudSettingsSyncEnabled = false
+
     // MARK: - Body
 
     var body: some View {
         OnboardingStepScaffold(
             title: "A couple Mac settings",
-            description: "Start WolfWave at login and choose whether to remember your listening history.",
+            description: "Start at login, remember your listening history, sync settings with iCloud.",
             icon: {
                 BrandTileGlyph.symbol("gearshape.fill", tint: Color.accentColor)
             },
@@ -65,6 +68,23 @@ struct OnboardingPreferencesStepView: View {
                         ),
                         accessibilityLabel: "Remember my listening history",
                         accessibilityIdentifier: "onboardingListeningHistoryToggle"
+                    )
+
+                    OnboardingToggleCard(
+                        icon: "icloud.fill",
+                        iconColor: .blue,
+                        title: "Sync settings with iCloud",
+                        subtitle: "Pick up where you left off on another Mac. Accounts stay local.",
+                        isOn: Binding(
+                            get: { iCloudSettingsSyncEnabled },
+                            set: { newValue in
+                                iCloudSettingsSyncEnabled = newValue
+                                NotificationCenter.default.postEnabled(
+                                    .iCloudSettingsSyncSettingChanged, enabled: newValue)
+                            }
+                        ),
+                        accessibilityLabel: "Sync settings with iCloud",
+                        accessibilityIdentifier: "onboardingICloudSyncToggle"
                     )
                 }
             }

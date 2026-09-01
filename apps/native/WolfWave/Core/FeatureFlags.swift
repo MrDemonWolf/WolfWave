@@ -26,6 +26,11 @@ nonisolated enum FeatureFlags {
         defaults.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
     }
 
+    /// Whether exportable preferences mirror to iCloud Key-Value Storage. Per Mac, never synced itself.
+    static var iCloudSettingsSyncEnabled: Bool {
+        defaults.bool(forKey: AppConstants.UserDefaults.iCloudSettingsSyncEnabled)
+    }
+
     /// Whether the Stream Deck plugin may run commands. Independent of
     /// ``websocketEnabled``: the server keeps serving overlays when this is off,
     /// it just refuses every command with `error:"disabled"`.

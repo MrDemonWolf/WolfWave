@@ -68,6 +68,15 @@ System-backed preferences take effect during import too. WolfWave updates its ap
 3. **New Mac:** install WolfWave, then **Import Settings**.
 4. **Reconnect Twitch:** turn it on in the review sheet and sign in once. Done.
 
+## Sync with iCloud
+
+**Turn on "Sync with iCloud" in Settings → Advanced (or during setup) and the same backup travels by itself.** WolfWave keeps a copy of the export above in your iCloud account and every Mac with the switch on picks it up. Nothing extra leaves the Mac: same file, same rules, so logins, tokens, and permissions never sync, and a synced Mac still asks you to sign in to Twitch once.
+
+- **Opt-in, per Mac.** The switch itself doesn't sync. A new Mac starts with it off; flip it on and the cloud copy is applied right away.
+- **Newest wins.** If two Macs change settings at the same time, the later change overwrites the earlier one as a whole. Sync a stream Mac and a desk Mac, not two people.
+- **Stored in your iCloud, not ours.** It lives in iCloud Key-Value Storage under your Apple Account. Turning the switch off stops syncing but leaves the copy there.
+- **Changes show up within about a minute**, depending on iCloud.
+
 ## Good to know
 
 - **Reconnecting Twitch always means signing in again**, because your login is never part of a backup.

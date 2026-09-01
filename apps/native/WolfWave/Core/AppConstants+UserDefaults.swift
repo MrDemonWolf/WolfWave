@@ -416,6 +416,14 @@ extension AppConstants {
         /// Whether the Stats & Charts UI is enabled. Requires `listeningHistoryEnabled` (Bool, default: false)
         static let statsEnabled = "statsEnabled"
 
+        // MARK: iCloud Settings Sync Keys
+
+        /// Whether exportable preferences mirror to iCloud Key-Value Storage (Bool, default: false, opt-in, per Mac)
+        static let iCloudSettingsSyncEnabled = "iCloudSettingsSyncEnabled"
+
+        /// `exportedAt` epoch of the last cloud payload applied on this Mac (Double)
+        static let iCloudSettingsSyncLastAppliedAt = "iCloudSettingsSyncLastAppliedAt"
+
         /// Whether the `!stats` Twitch command is enabled. Requires `statsEnabled` (Bool, default: false)
         static let statsCommandEnabled = "statsCommandEnabled"
 
@@ -584,6 +592,8 @@ extension AppConstants {
             skipVotePassedNotificationsEnabled,
             listeningHistoryEnabled,
             statsEnabled,
+            iCloudSettingsSyncEnabled,
+            iCloudSettingsSyncLastAppliedAt,
             statsCommandEnabled,
             statsCommandGlobalCooldown,
             statsCommandUserCooldown,
@@ -884,6 +894,8 @@ extension AppConstants {
             songRequestSetupComplete,
             songRequestPlaylistStatus,
             songRequestPlaylistID,
+            iCloudSettingsSyncEnabled,
+            iCloudSettingsSyncLastAppliedAt,
         ] + debugKeys
 
         /// Canonical default values for settings whose default was otherwise

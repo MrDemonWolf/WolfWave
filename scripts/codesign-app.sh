@@ -8,7 +8,12 @@
 # first, then the outer app, so each bundle's seal stays valid.
 #
 # Env:
-#   SIGN_IDENTITY  codesign identity (default "Developer ID Application")
+#   SIGN_IDENTITY             codesign identity (default "Developer ID Application")
+#   PROVISIONING_PROFILE_B64  optional base64 Developer ID provisioning profile
+#                             with the iCloud capability. When set, it is embedded
+#                             and the iCloud KVS entitlement is added so
+#                             "Sync with iCloud" works in the shipped build.
+#                             Unset: no profile, no iCloud key, sync stays inert.
 #
 # Usage: scripts/codesign-app.sh <app-bundle> [entitlements-plist]
 
@@ -25,6 +30,24 @@ fi
 if [ ! -f "$entitlements" ]; then
   echo "::error::Entitlements file not found at $entitlements" >&2
   exit 1
+fi
+
+# 0. Optional iCloud: embed the profile and extend the entitlements. The key is
+#    not in the committed plist because Xcode refuses to build a target that
+#    carries it without a matching profile, which would break every local and
+#    CI build that has none.
+if [ -n "${PROVISIONING_PROFILE_B64:-}" ]; then
+  profile="$(mktemp -t wolfwave-profile).provisionprofile"
+  echo "$PROVISIONING_PROFILE_B64" | base64 --decode > "$profile"
+  team_id="$(security cms -D -i "$profile" | plutil -extract TeamIdentifier.0 raw -)"
+  cp "$profile" "$app_path/Contents/embedded.provisionprofile"
+  icloud_entitlements="$(mktemp -t wolfwave-entitlements).plist"
+  cp "$entitlements" "$icloud_entitlements"
+  /usr/libexec/PlistBuddy -c \
+    "Add :com.apple.developer.ubiquity-kvstore-identifier string ${team_id}.com.mrdemonwolf.wolfwave" \
+    "$icloud_entitlements"
+  entitlements="$icloud_entitlements"
+  echo "Embedded provisioning profile (team $team_id) and enabled iCloud KVS entitlement"
 fi
 
 # 1. Nested code (frameworks, XPC services, helper apps, dylibs), deepest path
